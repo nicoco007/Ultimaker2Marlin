@@ -71,7 +71,7 @@
 // control flags
 #define FLAG_PID_NOZZLE      1
 #define FLAG_PID_BED         2
-#define FLAG_SWAP_EXTRUDERS  4
+// #define FLAG_SWAP_EXTRUDERS  4
 #define FLAG_RESERVED_3      8
 #define FLAG_RESERVED_4     16
 #define FLAG_RESERVED_5     32
@@ -105,10 +105,6 @@ extern float e2_steps_per_unit;
 #endif
 
 FORCE_INLINE bool pidTempBed() { return (expert_flags & FLAG_PID_BED); }
-
-#if EXTRUDERS > 1
-FORCE_INLINE bool swapExtruders() { return (expert_flags & FLAG_SWAP_EXTRUDERS); }
-#endif
 
 #define WORD_SETTING(n) (*(uint16_t*)&lcd_cache[(n) * sizeof(uint16_t)])
 #define FLOAT_SETTING(n) (*(float*)&lcd_cache[(n) * sizeof(float)])

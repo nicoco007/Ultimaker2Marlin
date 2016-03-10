@@ -674,14 +674,18 @@ static void init_maintenance_led()
 
 static void lcd_menu_maintenance_led()
 {
+#ifndef DUAL_FAN
     analogWrite(LED_PIN, 255 * int(led_brightness_level) / 100);
+#endif
     lcd_scroll_menu(PSTR("LED"), 6, lcd_led_item, lcd_led_details);
     if (lcd_lib_button_pressed)
     {
         if (IS_SELECTED_SCROLL(0))
         {
+#ifndef DUAL_FAN
             if (led_mode != LED_MODE_ALWAYS_ON)
                 analogWrite(LED_PIN, 0);
+#endif
             if ((led_mode != lcd_cache[0]) || (led_brightness_level != lcd_cache[1]))
                 Config_StoreSettings();
             menu.return_to_previous();

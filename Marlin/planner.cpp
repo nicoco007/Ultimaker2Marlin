@@ -501,6 +501,9 @@ void check_axes_activity()
   fanSpeedSoftPwm = tail_fan_speed;
   #else
   analogWrite(FAN_PIN,tail_fan_speed);
+#ifdef DUAL_FAN
+  if (active_extruder) analogWrite(LED_PIN, tail_fan_speed);
+#endif
   #endif//!FAN_SOFT_PWM
   }
   else
@@ -967,6 +970,11 @@ uint8_t movesplanned()
 void set_extrude_min_temp(float temp)
 {
   extrude_min_temp=temp;
+}
+
+float get_extrude_min_temp()
+{
+  return extrude_min_temp;
 }
 #endif
 

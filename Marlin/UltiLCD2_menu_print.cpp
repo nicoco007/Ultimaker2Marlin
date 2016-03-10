@@ -100,8 +100,10 @@ void abortPrint()
     card.pause = false;
 //    pauseRequested = false;
     printing_state  = PRINT_STATE_NORMAL;
+#ifndef DUAL_FAN
     if (led_mode == LED_MODE_WHILE_PRINTING)
         analogWrite(LED_PIN, 0);
+#endif
 }
 
 static void userAbortPrint()
@@ -492,8 +494,10 @@ void lcd_menu_print_select()
                 card.openFile(card.filename, true);
                 if (card.isFileOpen() && !is_command_queued())
                 {
+#ifndef DUAL_FAN
                     if (led_mode == LED_MODE_WHILE_PRINTING || led_mode == LED_MODE_BLINK_ON_DONE)
                         analogWrite(LED_PIN, 255 * int(led_brightness_level) / 100);
+#endif
                     if (!card.longFilename[0])
                         strncpy(card.longFilename, card.filename, LONG_FILENAME_LENGTH-1);
                     card.longFilename[20] = '\0';
@@ -855,16 +859,19 @@ void lcd_menu_print_abort()
 static void postPrintReady()
 {
     sleep_state &= ~SLEEP_LED_OFF;
+#ifndef DUAL_FAN
     if (led_mode == LED_MODE_BLINK_ON_DONE)
         analogWrite(LED_PIN, 0);
+#endif
     menu.return_to_previous();
 }
 
 void lcd_menu_print_ready()
 {
+#ifndef DUAL_FAN
     if ((led_mode == LED_MODE_BLINK_ON_DONE) && !(sleep_state & SLEEP_LED_OFF))
         analogWrite(LED_PIN, (led_glow << 1) * int(led_brightness_level) / 100);
-
+#endif
     lcd_info_screen(NULL, postPrintReady, PSTR("BACK TO MENU"));
 
     lcd_lib_draw_hline(3, 124, 13);
@@ -1014,8 +1021,6 @@ static void tune_item_details_callback(uint8_t nr)
     else if (nr == 4 + BED_MENU_OFFSET + 2*EXTRUDERS)
     {
         int_to_string(led_brightness_level, buffer, PSTR("%"));
-//        if (led_mode == LED_MODE_ALWAYS_ON || led_mode == LED_MODE_WHILE_PRINTING || led_mode == LED_MODE_BLINK_ON_DONE)
-//            analogWrite(LED_PIN, 255 * int(led_brightness_level) / 100);
     }
     else
         return;

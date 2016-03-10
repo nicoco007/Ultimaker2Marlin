@@ -82,6 +82,7 @@ const char echomagic[] PROGMEM ="echo:";
 void serial_echopair_P(const char *s_P, float v);
 void serial_echopair_P(const char *s_P, double v);
 void serial_echopair_P(const char *s_P, unsigned long v);
+void serial_echopair_P(const char *s_P, unsigned int v);
 
 void serial_action_P(const char *s_P);
 
@@ -103,6 +104,11 @@ void process_command_P(const char *strCmd);
 
 void manage_inactivity();
 void idle(bool bCheckSerial = true); // the standard idle routine calls manage_inactivity()
+
+extern uint8_t position_state;
+#define KNOWNPOS_X 1
+#define KNOWNPOS_Y 2
+#define KNOWNPOS_Z 4
 
 #if defined(X_ENABLE_PIN) && X_ENABLE_PIN > -1
   #define  enable_x() WRITE(X_ENABLE_PIN, X_ENABLE_ON)
@@ -188,6 +194,7 @@ void enquecommand(const char *cmd); //put an ascii command at the end of the cur
 void enquecommand_P(const char *cmd); //put an ascii command at the end of the current buffer, read from flash
 bool is_command_queued();
 uint8_t commands_queued();
+void cmd_synchronize();
 void clamp_to_software_endstops(float target[3]);
 
 #ifdef FAST_PWM_FAN
@@ -220,14 +227,29 @@ extern unsigned char fanSpeedSoftPwm;
 #endif
 
 #ifdef FWRETRACT
-extern bool autoretract_enabled;
-extern bool retracted;
+#define EXTRUDER_PREHEAT 8
+#define AUTO_RETRACT 128
+extern uint8_t retract_state;
 extern float retract_length, retract_feedrate, retract_zlift;
+#define AUTORETRACT_ENABLED (retract_state & AUTO_RETRACT)
+#define RETRACTED(e) (retract_state & (1 << e))
+#define SET_RETRACT_STATE(e) (retract_state |= (1 << e))
+#define CLEAR_RETRACT_STATE(e) (retract_state &= ~(1 << e))
 #if EXTRUDERS > 1
-extern float extruder_swap_retract_length;
+extern float extruder_offset[2][EXTRUDERS];
+bool changeExtruder(uint8_t nextExtruder, bool moveZ);
 #endif
-extern float retract_recover_length, retract_recover_feedrate;
-#endif
+extern float retract_recover_length[EXTRUDERS];
+extern float retract_recover_feedrate[EXTRUDERS];
+
+FORCE_INLINE void reset_retractstate()
+{
+    for (uint8_t e=0; e<EXTRUDERS; ++e)
+    {
+        CLEAR_RETRACT_STATE(e);
+    }
+}
+#endif //FWRETRACT
 
 extern unsigned long starttime;
 extern unsigned long stoptime;
@@ -242,6 +264,8 @@ extern uint8_t printing_state;
 #define PRINT_STATE_HOMING      5
 #define PRINT_STATE_RECOVER     6
 #define PRINT_STATE_START       7
+#define PRINT_STATE_TOOLCHANGE  240
+#define PRINT_STATE_TOOLREADY   241
 
 // Handling multiple extruders pins
 extern uint8_t active_extruder;

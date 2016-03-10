@@ -62,7 +62,6 @@ static void lcd_print_tune_fan();
 static void lcd_print_flow_nozzle0();
 #if EXTRUDERS > 1
 static void lcd_print_flow_nozzle1();
-static void lcd_tune_swap_length();
 #endif // EXTRUDERS
 static void lcd_tune_retract_length();
 static void lcd_tune_retract_speed();
@@ -278,7 +277,9 @@ static void lcd_toggle_led()
     // toggle led status
     sleep_state ^= SLEEP_LED_OFF;
 
+#ifndef DUAL_FAN
     analogWrite(LED_PIN, (sleep_state & SLEEP_LED_OFF) ? 0 : 255 * int(led_brightness_level) / 100);
+#endif
     LED_NORMAL
     menu.reset_submenu();
 }
@@ -296,15 +297,6 @@ static const menu_t & get_print_menuoption(uint8_t nr, menu_t &opt)
         else if (nr == menu_index++)
         {
             opt.setData(MENU_NORMAL, lcd_print_ask_pause);
-//            if (IS_SD_PRINTING)
-//            {
-//                opt.setData(MENU_NORMAL, lcd_print_ask_pause);
-//            }
-//            else
-//            {
-//                opt.setData(MENU_NORMAL, lcd_print_tune);
-//
-//            }
         }
         else if (nr == menu_index++)
         {
@@ -314,12 +306,6 @@ static const menu_t & get_print_menuoption(uint8_t nr, menu_t &opt)
         {
             opt.setData(MENU_INPLACE_EDIT, lcd_tune_retract_length, 2);
         }
-#if EXTRUDERS > 1
-        else if (nr == menu_index++)
-        {
-            opt.setData(MENU_INPLACE_EDIT, lcd_tune_swap_length, 2);
-        }
-#endif
         else if (nr == menu_index++)
         {
             opt.setData(MENU_INPLACE_EDIT, lcd_tune_retract_speed);
@@ -438,13 +424,6 @@ static void lcd_tune_retract_length()
 {
     lcd_tune_value(retract_length, 0, 50, 0.01);
 }
-
-#if EXTRUDERS > 1
-static void lcd_tune_swap_length()
-{
-    lcd_tune_value(extruder_swap_retract_length, 0, 50, 0.01);
-}
-#endif // EXTRUDERS
 
 static void lcd_tune_retract_speed()
 {
@@ -879,26 +858,6 @@ static void drawPrintSubmenu (uint8_t nr, uint8_t &flags)
                                   , ALIGN_RIGHT | ALIGN_VCENTER
                                   , flags);
         }
-#if EXTRUDERS > 1
-        else if (nr == index++)
-        {
-            // extruder swap length
-            if (flags & (MENU_SELECTED | MENU_ACTIVE))
-            {
-                lcd_lib_draw_string_leftP(5, PSTR("Extruder change"));
-                flags |= MENU_STATUSLINE;
-            }
-            lcd_lib_draw_string_leftP(24, PSTR("E"));
-            float_to_string2(extruder_swap_retract_length, buffer, PSTR("mm"));
-            LCDMenu::drawMenuString(2*LCD_CHAR_MARGIN_LEFT+LCD_CHAR_SPACING
-                                  , 24
-                                  , 7*LCD_CHAR_SPACING
-                                  , LCD_CHAR_HEIGHT
-                                  , buffer
-                                  , ALIGN_RIGHT | ALIGN_VCENTER
-                                  , flags);
-        }
-#endif
         else if (nr == index++)
         {
             // retract speed
@@ -1235,9 +1194,8 @@ void lcd_menu_print_heatup_tg()
 #endif
         for(uint8_t e=0; e<EXTRUDERS; ++e)
         {
-#if EXTRUDERS == 2
-            uint8_t index = (swapExtruders() ? e^0x01 : e);
-            if (LCD_DETAIL_CACHE_MATERIAL(index) < 1 || target_temperature[e] > 0)
+#if EXTRUDERS > 1
+            if (LCD_DETAIL_CACHE_MATERIAL(e) < 1 || target_temperature[e] > 0)
                 continue;
 #else
             if (LCD_DETAIL_CACHE_MATERIAL(e) < 1 || target_temperature[e] > 0)
@@ -1491,9 +1449,9 @@ void lcd_menu_printing_tg()
 
         uint8_t index = 0;
 #if ENABLED(BABYSTEPPING)
-        uint8_t len = (printing_page == 1) ? 6 + min(EXTRUDERS, 2) : EXTRUDERS*2 + BED_MENU_OFFSET + 6;
+        uint8_t len = (printing_page == 1) ? 7 : EXTRUDERS*2 + BED_MENU_OFFSET + 6;
 #else
-        uint8_t len = (printing_page == 1) ? 6 + min(EXTRUDERS, 2) : EXTRUDERS*2 + BED_MENU_OFFSET + 5;
+        uint8_t len = (printing_page == 1) ? 7 : EXTRUDERS*2 + BED_MENU_OFFSET + 5;
 #endif // BABYSTEPPING
 
         menu.process_submenu(get_print_menuoption, len);
@@ -1587,15 +1545,33 @@ void lcd_simple_buildplate_cancel()
 {
     // reload settings
     Config_RetrieveSettings();
+#if (EXTRUDERS > 1)
+    Dual_RetrieveSettings();
+#endif
     menu.return_to_previous();
 }
 
-void lcd_simple_buildplate_store()
+static void lcd_simple_buildplate_store()
 {
+#if (EXTRUDERS > 1)
+    if (active_extruder)
+    {
+        add_homeing_z2 -= current_position[Z_AXIS];
+        Dual_StoreAddHomeingZ2();
+        // restore homing offset of the first extruder
+        Config_RetrieveSettings();
+    }
+    else
+    {
+        add_homeing[Z_AXIS] -= current_position[Z_AXIS];
+        Config_StoreSettings();
+    }
+#else
     add_homeing[Z_AXIS] -= current_position[Z_AXIS];
+    Config_StoreSettings();
+#endif
     current_position[Z_AXIS] = 0;
     plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
-    Config_StoreSettings();
     menu.return_to_previous();
 }
 
@@ -1816,7 +1792,6 @@ static void lcd_menu_recover_file()
 {
     char buffer[32] = {0};
     LED_GLOW
-    // analogWrite(LED_PIN, (led_glow << 1) * int(led_brightness_level) / 100);
 
     lcd_basic_screen();
     lcd_lib_draw_hline(3, 124, 13);
@@ -1845,11 +1820,7 @@ static void lcd_menu_recover_file()
 
 static void lcd_recover_start()
 {
-    #if EXTRUDERS > 1
-    active_extruder = (swapExtruders() ? 1 : 0);
-    #else
     active_extruder = 0;
-    #endif // EXTRUDERS
     current_position[E_AXIS] = 0.0;
     plan_set_e_position(0);
     menu.replace_menu(menu_t(lcd_menu_recover_file));
@@ -2525,7 +2496,9 @@ void manage_led_timeout()
         }
         else if (sleep_state & SLEEP_LED_DIMMED)
         {
+#ifndef DUAL_FAN
             analogWrite(LED_PIN, 255 * int(led_brightness_level) / 100);
+#endif
             sleep_state ^= SLEEP_LED_DIMMED;
         }
     }

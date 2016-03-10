@@ -222,6 +222,7 @@ CXXSRC += UltiLCD2.cpp UltiLCD2_gfx.cpp UltiLCD2_hi_lib.cpp UltiLCD2_low_lib.cpp
 	UltiLCD2_menu_print.cpp lifetime_stats.cpp UltiLCD2_menu_main.cpp
 CXXSRC += UltiLCD2_menu_utils.cpp UltiLCD2_menu_prefs.cpp tinkergnome.cpp  \
 	machinesettings.cpp filament_sensor.cpp new.cpp
+CXXSRC += commandbuffer.cpp ConfigurationDual.cpp UltiLCD2_menu_dual.cpp
 
 #Check for Arduino 1.0.0 or higher and use the correct sourcefiles for that version
 ifeq ($(shell [ $(ARDUINO_VERSION) -ge 100 ] && echo true), true)

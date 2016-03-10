@@ -45,8 +45,10 @@ void LCDMenu::init_menu_switch(bool beep)
     {
         lcd_lib_keyclick();
     }
+#ifndef DUAL_FAN
     if (!(sleep_state & SLEEP_LED_OFF) && (led_mode == LED_MODE_ALWAYS_ON))
         analogWrite(LED_PIN, 255 * int(led_brightness_level) / 100);
+#endif
 }
 
 void LCDMenu::init_menu(menu_t mainMenu, bool beep)

@@ -55,15 +55,15 @@ void lcd_init()
     glow_millis = millis() + 750;
     led_glow = led_glow_dir = 0;
 
-#if EXTRUDERS > 1
-    active_extruder = (swapExtruders() ? 1 : 0);
-#endif // EXTRUDERS
+    active_extruder = 0;
 
     // initialize menu stack and show start animation
     *lcd_status_message = 0;
     menu.init_menu(menu_t(lcd_menu_main, MAIN_MENU_ITEM_POS(0)), false);
     menu.add_menu(menu_t(lcd_menu_startup), false);
+#ifndef DUAL_FAN
     analogWrite(LED_PIN, 0);
+#endif
     lastSerialCommandTime = millis() - SERIAL_CONTROL_TIMEOUT;
 }
 
@@ -204,12 +204,16 @@ void lcd_menu_startup()
     }
     lcd_lib_update_screen();
 
+#ifndef DUAL_FAN
     if (led_mode == LED_MODE_ALWAYS_ON)
         analogWrite(LED_PIN, int(led_glow << 1) * led_brightness_level / 100);
+#endif
     if (led_glow_dir || lcd_lib_button_pressed)
     {
+#ifndef DUAL_FAN
         if (led_mode == LED_MODE_ALWAYS_ON)
             analogWrite(LED_PIN, 255 * led_brightness_level / 100);
+#endif
         led_glow = led_glow_dir = 0;
         LED_NORMAL
 
