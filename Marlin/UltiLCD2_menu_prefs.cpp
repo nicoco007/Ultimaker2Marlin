@@ -726,13 +726,6 @@ static void lcd_preset_retract_length()
     lcd_tune_value(retract_length, 0, 50, 0.01);
 }
 
-#if EXTRUDERS > 1
-static void lcd_preset_swap_length()
-{
-    lcd_tune_value(extruder_swap_retract_length, 0, 50, 0.01);
-}
-#endif // EXTRUDERS
-
 static void lcd_preset_endofprint_length()
 {
     lcd_tune_value(end_of_print_retraction, 0, 50, 0.01);
@@ -769,13 +762,6 @@ static const menu_t & get_retract_menuoption(uint8_t nr, menu_t &opt)
         // retraction length
         opt.setData(MENU_INPLACE_EDIT, lcd_preset_retract_length, 2);
     }
-#if EXTRUDERS > 1
-    else if (nr == index++)
-    {
-        // extruder swap length
-        opt.setData(MENU_INPLACE_EDIT, lcd_preset_swap_length, 2);
-    }
-#endif
     else if (nr == index++)
     {
         // retraction speed
@@ -849,26 +835,6 @@ static void drawRetractSubmenu(uint8_t nr, uint8_t &flags)
                               , ALIGN_RIGHT | ALIGN_VCENTER
                               , flags);
     }
-#if EXTRUDERS > 1
-    else if (nr == index++)
-    {
-        // extruder swap length
-        if (flags & (MENU_SELECTED | MENU_ACTIVE))
-        {
-            lcd_lib_draw_string_leftP(5, PSTR("Extruder change"));
-            flags |= MENU_STATUSLINE;
-        }
-        lcd_lib_draw_string_leftP(26, PSTR("E"));
-        float_to_string2(extruder_swap_retract_length, buffer, PSTR("mm"));
-        LCDMenu::drawMenuString(2*LCD_CHAR_MARGIN_LEFT+LCD_CHAR_SPACING
-                              , 26
-                              , 7*LCD_CHAR_SPACING
-                              , LCD_CHAR_HEIGHT
-                              , buffer
-                              , ALIGN_RIGHT | ALIGN_VCENTER
-                              , flags);
-    }
-#endif
     else if (nr == index++)
     {
         // retract speed
@@ -1541,139 +1507,11 @@ void lcd_menu_acceleration()
 }
 
 #if EXTRUDERS > 1
-
-void init_swap_menu()
-{
-    menu.set_selection(2);
-}
-
-static void lcd_store_swap()
-{
-    SET_EXPERT_FLAGS(expert_flags);
-    menu.return_to_previous();
-}
-
-static void lcd_swap_extruders()
-{
-    expert_flags ^= FLAG_SWAP_EXTRUDERS;
-}
-
-// create menu options for "acceleration and jerk"
-static const menu_t & get_swap_menuoption(uint8_t nr, menu_t &opt)
-{
-    uint8_t index(0);
-    if (nr == index++)
-    {
-        // STORE
-        opt.setData(MENU_NORMAL, lcd_store_swap);
-    }
-    else if (nr == index++)
-    {
-        // RETURN
-        opt.setData(MENU_NORMAL, lcd_change_to_previous_menu);
-    }
-    else if (nr == index++)
-    {
-        // swap extruders
-        opt.setData(MENU_NORMAL, lcd_swap_extruders);
-    }
-    return opt;
-}
-
-static void drawSwapSubmenu(uint8_t nr, uint8_t &flags)
-{
-    uint8_t index(0);
-    if (nr == index++)
-    {
-        // Store
-        if (flags & MENU_SELECTED)
-        {
-            lcd_lib_draw_string_leftP(5, PSTR("Store settings"));
-            flags |= MENU_STATUSLINE;
-        }
-        LCDMenu::drawMenuString_P(LCD_CHAR_MARGIN_LEFT
-                                , BOTTOM_MENU_YPOS
-                                , 52
-                                , LCD_CHAR_HEIGHT
-                                , PSTR("STORE")
-                                , ALIGN_CENTER
-                                , flags);
-    }
-    else if (nr == index++)
-    {
-        // RETURN
-        LCDMenu::drawMenuBox(LCD_GFX_WIDTH/2 + 2*LCD_CHAR_MARGIN_LEFT
-                           , BOTTOM_MENU_YPOS
-                           , 52
-                           , LCD_CHAR_HEIGHT
-                           , flags);
-        if (flags & MENU_SELECTED)
-        {
-            lcd_lib_draw_string_leftP(5, PSTR("Click to return"));
-            flags |= MENU_STATUSLINE;
-            lcd_lib_clear_stringP(LCD_GFX_WIDTH/2 + LCD_CHAR_MARGIN_LEFT + 4*LCD_CHAR_SPACING, BOTTOM_MENU_YPOS, PSTR("BACK"));
-            lcd_lib_clear_gfx(LCD_GFX_WIDTH/2 + LCD_CHAR_MARGIN_LEFT + 2*LCD_CHAR_SPACING, BOTTOM_MENU_YPOS, backGfx);
-        }
-        else
-        {
-            lcd_lib_draw_stringP(LCD_GFX_WIDTH/2 + LCD_CHAR_MARGIN_LEFT + 4*LCD_CHAR_SPACING, BOTTOM_MENU_YPOS, PSTR("BACK"));
-            lcd_lib_draw_gfx(LCD_GFX_WIDTH/2 + LCD_CHAR_MARGIN_LEFT + 2*LCD_CHAR_SPACING, BOTTOM_MENU_YPOS, backGfx);
-        }
-    }
-    else if (nr == index++)
-    {
-        // Swap Extruders
-        if (flags & (MENU_SELECTED | MENU_ACTIVE))
-        {
-            lcd_lib_draw_string_leftP(5, PSTR("Swap Extruders"));
-            flags |= MENU_STATUSLINE;
-        }
-
-        lcd_lib_draw_string_centerP(16, PSTR("Extruder sequence"));
-        lcd_lib_draw_string_centerP(26, PSTR("during printing"));
-
-        uint8_t xpos = (swapExtruders() ? LCD_GFX_WIDTH-LCD_CHAR_MARGIN_RIGHT-7*LCD_CHAR_SPACING : LCD_CHAR_MARGIN_LEFT);
-        lcd_lib_draw_stringP(xpos, 38, PSTR("PRIMARY"));
-
-        xpos = (swapExtruders() ? LCD_CHAR_MARGIN_LEFT : LCD_GFX_WIDTH-LCD_CHAR_MARGIN_RIGHT-6*LCD_CHAR_SPACING);
-        lcd_lib_draw_stringP(xpos, 38, PSTR("SECOND"));
-
-        LCDMenu::drawMenuString_P(LCD_GFX_WIDTH/2-2*LCD_CHAR_MARGIN_LEFT-LCD_CHAR_SPACING
-                              , 38
-                              , 4*LCD_CHAR_SPACING
-                              , LCD_CHAR_HEIGHT
-                              , PSTR("<->")
-                              , ALIGN_CENTER
-                              , flags);
-    }
-}
-
-void lcd_menu_swap_extruder()
-{
-    lcd_basic_screen();
-    lcd_lib_draw_hline(3, 124, 13);
-
-    menu.process_submenu(get_swap_menuoption, 3);
-
-    uint8_t flags = 0;
-    for (uint8_t index=0; index<3; ++index) {
-        menu.drawSubMenu(drawSwapSubmenu, index, flags);
-    }
-
-    if (!(flags & MENU_STATUSLINE))
-    {
-        lcd_lib_draw_string_leftP(5, PSTR("Swap Extruders"));
-    }
-
-    lcd_lib_update_screen();
-}
-
 static void lcd_store_pid2()
 {
     eeprom_write_block(pid2, (uint8_t *)(EEPROM_PID_2), sizeof(pid2));
     menu.return_to_previous();
 }
-
 #endif
 
 static void lcd_store_heatercheck()

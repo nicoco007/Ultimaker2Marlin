@@ -112,31 +112,31 @@ extern uint8_t position_state;
 
 #if defined(X_ENABLE_PIN) && X_ENABLE_PIN > -1
   #define  enable_x() WRITE(X_ENABLE_PIN, X_ENABLE_ON)
-  #define disable_x() WRITE(X_ENABLE_PIN,!X_ENABLE_ON)
+  #define disable_x() { WRITE(X_ENABLE_PIN,!X_ENABLE_ON); position_state &= ~KNOWNPOS_X; }
 #else
   #define enable_x() ;
-  #define disable_x() ;
+  #define disable_x()  { position_state &= ~KNOWNPOS_X }
 #endif
 
 #if defined(Y_ENABLE_PIN) && Y_ENABLE_PIN > -1
   #define  enable_y() WRITE(Y_ENABLE_PIN, Y_ENABLE_ON)
-  #define disable_y() WRITE(Y_ENABLE_PIN,!Y_ENABLE_ON)
+  #define disable_y() { WRITE(Y_ENABLE_PIN,!Y_ENABLE_ON); position_state &= ~KNOWNPOS_Y; }
 #else
   #define enable_y() ;
-  #define disable_y() ;
+  #define disable_y() { position_state &= ~KNOWNPOS_Y }
 #endif
 
 #if defined(Z_ENABLE_PIN) && Z_ENABLE_PIN > -1
   #ifdef Z_DUAL_STEPPER_DRIVERS
     #define  enable_z() { WRITE(Z_ENABLE_PIN, Z_ENABLE_ON); WRITE(Z2_ENABLE_PIN, Z_ENABLE_ON); }
-    #define disable_z() { WRITE(Z_ENABLE_PIN,!Z_ENABLE_ON); WRITE(Z2_ENABLE_PIN,!Z_ENABLE_ON); }
+    #define disable_z() { WRITE(Z_ENABLE_PIN,!Z_ENABLE_ON); WRITE(Z2_ENABLE_PIN,!Z_ENABLE_ON); position_state &= ~KNOWNPOS_Z; }
   #else
     #define  enable_z() WRITE(Z_ENABLE_PIN, Z_ENABLE_ON)
-    #define disable_z() WRITE(Z_ENABLE_PIN,!Z_ENABLE_ON)
+    #define disable_z() { WRITE(Z_ENABLE_PIN,!Z_ENABLE_ON); position_state &= ~KNOWNPOS_Z; }
   #endif
 #else
   #define enable_z() ;
-  #define disable_z() ;
+  #define disable_z() { position_state &= ~KNOWNPOS_Z }
 #endif
 
 #if defined(E0_ENABLE_PIN) && (E0_ENABLE_PIN > -1)
@@ -227,14 +227,19 @@ extern unsigned char fanSpeedSoftPwm;
 #endif
 
 #ifdef FWRETRACT
-#define EXTRUDER_PREHEAT 8
-#define AUTO_RETRACT 128
+#define EXTRUDER_RETRACT     1
+#define TOOLCHANGE_RETRACT   4
+#define EXTRUDER_PREHEAT    16
+#define AUTO_RETRACT       128
 extern uint8_t retract_state;
 extern float retract_length, retract_feedrate, retract_zlift;
 #define AUTORETRACT_ENABLED (retract_state & AUTO_RETRACT)
-#define RETRACTED(e) (retract_state & (1 << e))
-#define SET_RETRACT_STATE(e) (retract_state |= (1 << e))
-#define CLEAR_RETRACT_STATE(e) (retract_state &= ~(1 << e))
+#define EXTRUDER_RETRACTED(e) (retract_state & (EXTRUDER_RETRACT << e))
+#define SET_EXTRUDER_RETRACT(e) (retract_state |= (EXTRUDER_RETRACT << e))
+#define CLEAR_EXTRUDER_RETRACT(e) (retract_state &= ~(EXTRUDER_RETRACT << e))
+#define TOOLCHANGE_RETRACTED(e) (retract_state & (TOOLCHANGE_RETRACT << e))
+#define SET_TOOLCHANGE_RETRACT(e) (retract_state |= (TOOLCHANGE_RETRACT << e))
+#define CLEAR_TOOLCHANGE_RETRACT(e) (retract_state &= ~(TOOLCHANGE_RETRACT << e))
 #if EXTRUDERS > 1
 extern float extruder_offset[2][EXTRUDERS];
 bool changeExtruder(uint8_t nextExtruder, bool moveZ);
@@ -246,7 +251,7 @@ FORCE_INLINE void reset_retractstate()
 {
     for (uint8_t e=0; e<EXTRUDERS; ++e)
     {
-        CLEAR_RETRACT_STATE(e);
+        CLEAR_EXTRUDER_RETRACT(e);
     }
 }
 #endif //FWRETRACT

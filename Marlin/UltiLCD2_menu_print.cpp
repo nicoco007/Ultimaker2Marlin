@@ -17,6 +17,10 @@
 #include "UltiLCD2_menu_prefs.h"
 #include "preferences.h"
 #include "tinkergnome.h"
+#if (EXTRUDERS > 1)
+#include "ConfigurationDual.h"
+#include "UltiLCD2_menu_dual.h"
+#endif
 
 uint8_t lcd_cache[LCD_CACHE_SIZE];
 #define LCD_CACHE_NR_OF_FILES() lcd_cache[(LCD_CACHE_COUNT*(LONG_FILENAME_LENGTH+2))]
@@ -33,8 +37,9 @@ static void lcd_menu_print_classic_warning();
 static void lcd_menu_print_material_warning();
 static void lcd_menu_print_tune_retraction();
 
-static bool primed = false;
-//static bool pauseRequested = false;
+static uint8_t primed = 0;
+#define EXTRUDER_PRIMED      1
+#define ENDOFPRINT_RETRACT 128
 
 void lcd_clear_cache()
 {
@@ -47,25 +52,27 @@ void lcd_clear_cache()
 void abortPrint()
 {
     postMenuCheck = NULL;
-    clear_command_queue();
-    // enquecommand_P(PSTR("M401"));
     quickStop();
+    clear_command_queue();
 
-    if (primed || card.sdprinting)
+    // set up the end of print retraction
+    if ((primed & ENDOFPRINT_RETRACT) && (primed & (EXTRUDER_PRIMED << active_extruder)))
     {
         // retract
-        enquecommand_P(PSTR("G10"));
-
+#if EXTRUDERS > 1
+        // perform tool change retraction
+        enquecommand_P(PSTR("G10 S1"));
+        enquecommand_P(PSTR("G92 E0"));
+#else
         char buffer[32] = {0};
-        // set up the end of print retraction
-        sprintf_P(buffer, PSTR("G92 E%i"), int((end_of_print_retraction / volume_to_filament_length[active_extruder])+0.5f));
+        sprintf_P(buffer, PSTR("G92 E%i"), int(((float)END_OF_PRINT_RETRACTION) / volume_to_filament_length[active_extruder]));
         enquecommand(buffer);
         // perform the retraction at the standard retract speed
         sprintf_P(buffer, PSTR("G1 F%i E0"), int(retract_feedrate));
         enquecommand(buffer);
-
+#endif
         // no longer primed
-        primed = false;
+        primed = 0;
     }
 
     if (card.sdprinting)
@@ -87,12 +94,11 @@ void abortPrint()
     {
         homeAll();
     }
-    enquecommand_P(PSTR("M84"));
 
     // finish all moves
     st_synchronize();
-
     doCooldown();
+    enquecommand_P(PSTR("M84"));
 
     //If we where paused, make sure we abort that pause. Else strange things happen: https://github.com/Ultimaker/Ultimaker2Marlin/issues/32
     stoptime=millis();
@@ -104,6 +110,15 @@ void abortPrint()
     if (led_mode == LED_MODE_WHILE_PRINTING)
         analogWrite(LED_PIN, 0);
 #endif
+
+    // reset defaults
+    feedmultiply = 100;
+    fanSpeedPercent = 100;
+    for(uint8_t e=0; e<EXTRUDERS; e++)
+    {
+        volume_to_filament_length[e] = 1.0;
+        extrudemultiply[e] = 100;
+    }
 }
 
 static void userAbortPrint()
@@ -147,49 +162,64 @@ void doStartPrint()
     // zero the extruder position
     current_position[E_AXIS] = 0.0;
     plan_set_e_position(0);
-
-	// since we are going to prime the nozzle, forget about any G10/G11 retractions that happened at end of previous print
-	retracted = false;
-	primed = false;
+	primed = 0;
 	position_error = false;
 
-    for(uint8_t e = 0; e<EXTRUDERS; e++)
-    {
-        // don't prime the extruder if it isn't used in the (Ulti)gcode
-        // traditional gcode files typically won't have the Material lines at start, so we won't prime for those
-        // Also, on dual/multi extrusion files, only prime the extruders that are used in the gcode-file.
-
-#if EXTRUDERS == 2
-        uint8_t index = (swapExtruders() ? e ^ 0x01 : e);
-        if (!LCD_DETAIL_CACHE_MATERIAL(index))
-            continue;
-#else
-        if (!LCD_DETAIL_CACHE_MATERIAL(e))
-            continue;
+#if (EXTRUDERS > 1)
+    // reset active extruder
+	switch_extruder(0);
 #endif
+
+	// since we are going to prime the nozzle, forget about any G10/G11 retractions that happened at end of previous print
+	reset_retractstate();
+
+    for(uint8_t e = 0; e<EXTRUDERS; ++e)
+    {
+#ifdef FWRETRACT
+        // clear reheat flag
+        retract_state &= ~(EXTRUDER_PREHEAT << e);
+#endif
+        if (!LCD_DETAIL_CACHE_MATERIAL(e))
+        {
+            // don't prime the extruder if it isn't used in the (Ulti)gcode
+            // traditional gcode files typically won't have the Material lines at start, so we won't prime for those
+            // Also, on dual/multi extrusion files, only prime the extruders that are used in the gcode-file.
+            continue;
+        }
+
+        extruder_lastused[e] = millis();
 
         if (!primed)
         {
             // move to priming height
             current_position[Z_AXIS] = priming_z;
             plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], homing_feedrate[Z_AXIS], e);
-            // note that we have primed, so that we know to de-prime at the end
-            primed = true;
         }
         // undo the end-of-print retraction
-        plan_set_e_position((- end_of_print_retraction) / volume_to_filament_length[e]);
+#if EXTRUDERS > 1
+        plan_set_e_position((0.0 - toolchange_retractlen[e]) / volume_to_filament_length[e]);
+#else
+        plan_set_e_position((0.0 - END_OF_PRINT_RETRACTION) / volume_to_filament_length[e]);
+#endif
         plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], END_OF_PRINT_RECOVERY_SPEED, e);
 
         // perform additional priming
         plan_set_e_position(-PRIMING_MM3);
         plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], (PRIMING_MM3_PER_SEC * volume_to_filament_length[e]), e);
 
+        // note that we have primed, so that we know to de-prime at the end
+        primed |= (EXTRUDER_PRIMED << e);
+        primed |= ENDOFPRINT_RETRACT;
 #if EXTRUDERS > 1
         // for extruders other than the first one, perform end of print retraction
-        if (e != active_extruder)
+        if (e > 0)
         {
-            plan_set_e_position((volume_to_filament_length[e] + end_of_print_retraction) / volume_to_filament_length[e]);
-            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], retract_feedrate/60, e);
+            retract_recover_length[e] = toolchange_retractlen[e] / volume_to_filament_length[e];
+            SET_EXTRUDER_RETRACT(e);
+            plan_set_e_position(retract_recover_length[e]);
+            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], retract_recover_feedrate[e]/60, e);
+            // extruder is no longer primed
+            primed &= ~(EXTRUDER_PRIMED << e);
         }
 #endif
     }
@@ -199,7 +229,7 @@ void doStartPrint()
         // move to the recover start position
         plan_set_e_position(recover_position[E_AXIS]);
         plan_buffer_line(recover_position[X_AXIS], recover_position[Y_AXIS], recover_position[Z_AXIS], recover_position[E_AXIS], min(homing_feedrate[X_AXIS], homing_feedrate[Z_AXIS]), active_extruder);
-        for(int8_t i=0; i < NUM_AXIS; i++) {
+        for(int8_t i=0; i < NUM_AXIS; ++i) {
             current_position[i] = recover_position[i];
         }
         // first recovering move
@@ -227,11 +257,6 @@ static void userStartPrint()
     else
     {
         recover_height = 0.0f;
-#if EXTRUDERS > 1
-        active_extruder = (swapExtruders() ? 1 : 0);
-#else
-        active_extruder = 0;
-#endif // EXTRUDERS
         menu.add_menu(menu_t((ui_mode & UI_MODE_EXPERT) ? lcd_menu_printing_tg : lcd_menu_print_printing, MAIN_MENU_ITEM_POS(1)));
         doStartPrint();
     }
@@ -486,11 +511,6 @@ void lcd_menu_print_select()
             {
                 //Start print
                 sleep_state = 0x0;
-            #if EXTRUDERS > 1
-                active_extruder = (swapExtruders() ? 1 : 0);
-            #else
-                active_extruder = 0;
-            #endif // EXTRUDERS
                 card.openFile(card.filename, true);
                 if (card.isFileOpen() && !is_command_queued())
                 {
@@ -544,14 +564,8 @@ void lcd_menu_print_select()
 //                            SERIAL_ECHOPGM(": ");
 //                            SERIAL_ECHOLN(LCD_DETAIL_CACHE_MATERIAL(e));
 
-#if EXTRUDERS == 2
-                            uint8_t index = (swapExtruders() ? e^0x01 : e);
-                            if (LCD_DETAIL_CACHE_MATERIAL(index) < 1)
-                                continue;
-#else
                             if (LCD_DETAIL_CACHE_MATERIAL(e) < 1)
                                 continue;
-#endif
 
                             target_temperature[e] = 0;//material[e].temperature;
 #if TEMP_SENSOR_BED != 0
@@ -569,11 +583,6 @@ void lcd_menu_print_select()
                         else
                         {
                             recover_height = 0.0f;
-                        #if EXTRUDERS > 1
-                            active_extruder = (swapExtruders() ? 1 : 0);
-                        #else
-                            active_extruder = 0;
-                        #endif // EXTRUDERS
                             // move to heatup position
                             char buffer[32] = {0};
                             sprintf_P(buffer, PSTR("G1 F12000 X%i Y%i"), max(int(min_pos[X_AXIS]), 0)+5, max(int(min_pos[Y_AXIS]), 0)+5);
@@ -626,14 +635,8 @@ void lcd_menu_print_heatup()
 #endif
         for(uint8_t e=0; e<EXTRUDERS; ++e)
         {
-#if EXTRUDERS == 2
-            uint8_t index = (swapExtruders() ? e ^ 0x01 : e);
-            if (LCD_DETAIL_CACHE_MATERIAL(index) < 1 || target_temperature[e] > 0)
-                continue;
-#else
             if (LCD_DETAIL_CACHE_MATERIAL(e) < 1 || target_temperature[e] > 0)
                 continue;
-#endif
             target_temperature[e] = material[e].temperature[nozzleSizeToTemperatureIndex(LCD_DETAIL_CACHE_NOZZLE_DIAMETER(e))];
             // printing_state = PRINT_STATE_START;
         }
@@ -663,16 +666,10 @@ void lcd_menu_print_heatup()
 #endif // TEMP_SENSOR_BED
 
     uint8_t progress = 125;
-    for(uint8_t e=0; e<EXTRUDERS; e++)
+    for(uint8_t e=0; e<EXTRUDERS; ++e)
     {
-#if EXTRUDERS == 2
-        uint8_t index = (swapExtruders() ? e ^ 0x01 : e);
-        if (((printing_state != PRINT_STATE_RECOVER) && (LCD_DETAIL_CACHE_MATERIAL(index) < 1)) || (target_temperature[e] < 1))
-            continue;
-#else
         if (((printing_state != PRINT_STATE_RECOVER) && (LCD_DETAIL_CACHE_MATERIAL(e) < 1)) || (target_temperature[e] < 1))
             continue;
-#endif
         if (current_temperature[e] > 20)
             progress = min(progress, (current_temperature[e] - 20) * 125 / (target_temperature[e] - 20 - TEMP_WINDOW));
         else
@@ -945,8 +942,6 @@ static void tune_item_callback(uint8_t nr, uint8_t offsetY, uint8_t flags)
     char buffer[32] = {0};
     if (index++ == nr)
         strcpy_P(buffer, PSTR("< RETURN"));
-//    else if (index++ == nr)
-//        strcpy_P(c, PSTR("Abort"));
     else if (index++ == nr)
         strcpy_P(buffer, PSTR("Speed"));
     else if (index++ == nr)
@@ -977,6 +972,14 @@ static void tune_item_callback(uint8_t nr, uint8_t offsetY, uint8_t flags)
 #endif
     else if (index++ == nr)
         strcpy_P(buffer, PSTR("Retraction"));
+#if EXTRUDERS > 1
+    else if (index++ == nr)
+        strcpy_P(buffer, PSTR("Toolchange retract 1"));
+    else if (index++ == nr)
+        strcpy_P(buffer, PSTR("Toolchange retract 2"));
+    else if (index++ == nr)
+        strcpy_P(buffer, PSTR("Extruder offset"));
+#endif
     else if (index++ == nr)
         strcpy_P(buffer, PSTR("LED Brightness"));
     else if ((ui_mode & UI_MODE_EXPERT) && card.sdprinting && card.pause && (index++ == nr))
@@ -1018,13 +1021,13 @@ static void tune_item_details_callback(uint8_t nr)
     else if (nr == 4 + BED_MENU_OFFSET + EXTRUDERS)
         int_to_string(extrudemultiply[1], buffer, PSTR("%"));
 #endif
-    else if (nr == 4 + BED_MENU_OFFSET + 2*EXTRUDERS)
+    else if (nr == 1 + BED_MENU_OFFSET + 5*EXTRUDERS)
     {
         int_to_string(led_brightness_level, buffer, PSTR("%"));
     }
     else
         return;
-    lcd_lib_draw_string(5, BOTTOM_MENU_YPOS, buffer);
+    lcd_lib_draw_string_left(BOTTOM_MENU_YPOS, buffer);
 }
 
 void lcd_menu_print_tune_heatup_nozzle0()
@@ -1088,7 +1091,7 @@ void lcd_menu_print_tune()
 //    {
 //        lcd_print_pause();
 //    }
-    uint8_t len = 5 + BED_MENU_OFFSET + EXTRUDERS * 2;
+    uint8_t len = 2 + BED_MENU_OFFSET + EXTRUDERS * 5;
     if (ui_mode & UI_MODE_EXPERT)
     {
         ++len; // sleep timer
@@ -1129,6 +1132,20 @@ void lcd_menu_print_tune()
 #endif
         else if (IS_SELECTED_SCROLL(index++))
             menu.add_menu(menu_t(lcd_menu_print_tune_retraction, 0));
+#if EXTRUDERS > 1
+        else if (IS_SELECTED_SCROLL(index++))
+        {
+            lcd_cache[0] = 0;
+            menu.add_menu(menu_t(lcd_menu_tune_tcretract, MAIN_MENU_ITEM_POS(1)));
+        }
+        else if (IS_SELECTED_SCROLL(index++))
+        {
+            lcd_cache[0] = 1;
+            menu.add_menu(menu_t(lcd_menu_tune_tcretract, MAIN_MENU_ITEM_POS(1)));
+        }
+        else if (IS_SELECTED_SCROLL(7 + BED_MENU_OFFSET + EXTRUDERS * 2))
+            menu.add_menu(menu_t(lcd_menu_extruderoffset, MAIN_MENU_ITEM_POS(1)));
+#endif
         else if (IS_SELECTED_SCROLL(index++))
             LCD_EDIT_SETTING(led_brightness_level, "Brightness", "%", 0, 100);
         else if ((ui_mode & UI_MODE_EXPERT) && card.sdprinting && card.pause && IS_SELECTED_SCROLL(index++))
@@ -1169,10 +1186,6 @@ static void lcd_retraction_details(uint8_t nr)
         int_to_string(retract_feedrate / 60 + 0.5, buffer, PSTR("mm/sec"));
     else if(nr == 3)
         float_to_string2(end_of_print_retraction, buffer, PSTR("mm"));
-#if EXTRUDERS > 1
-    else if(nr == 4)
-        int_to_string(extruder_swap_retract_length, buffer, PSTR("mm"));
-#endif
     else
         return;
     lcd_lib_draw_string(5, BOTTOM_MENU_YPOS, buffer);
@@ -1189,12 +1202,6 @@ static void lcd_menu_print_tune_retraction()
             LCD_EDIT_SETTING_FLOAT001(retract_length, "Retract length", "mm", 0, 50);
         else if (IS_SELECTED_SCROLL(2))
             LCD_EDIT_SETTING_SPEED(retract_feedrate, "Retract speed", "mm/sec", 0, max_feedrate[E_AXIS] * 60);
-        else if (IS_SELECTED_SCROLL(3))
-            LCD_EDIT_SETTING_FLOAT001(end_of_print_retraction, "End of print retract", "mm", 0, 50);
-#if EXTRUDERS > 1
-        else if (IS_SELECTED_SCROLL(4))
-            LCD_EDIT_SETTING_FLOAT001(extruder_swap_retract_length, "Extruder change", "mm", 0, 50);
-#endif
     }
     lcd_lib_update_screen();
 }

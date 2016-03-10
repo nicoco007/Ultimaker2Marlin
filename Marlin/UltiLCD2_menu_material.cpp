@@ -36,7 +36,7 @@ static void cancelMaterialInsert()
     quickStop();
     //Set E motor power to default.
 #if EXTRUDERS > 1 && defined(MOTOR_CURRENT_PWM_E_PIN) && MOTOR_CURRENT_PWM_E_PIN > -1
-    digipot_current(2, active_extruder ? motor_current_e2 : motor_current_setting[2]);
+    digipot_current(2, tmp_extruder ? motor_current_e2 : motor_current_setting[2]);
 #else
     digipot_current(2, motor_current_setting[2]);
 #endif
@@ -48,20 +48,32 @@ void lcd_material_change_init(bool printing)
     if (!printing)
     {
         minProgress = 0;
-        // move head to front
-        char buffer[32] = {0};
-        homeHead();
-        sprintf_P(buffer, PSTR("G1 F%i X%i Y%i"), int(homing_feedrate[0]), int(AXIS_CENTER_POS(X_AXIS)), int(min_pos[Y_AXIS])+5);
-        enquecommand(buffer);
+#if EXTRUDERS > 1
+        if ((tmp_extruder == 0) || (tmp_extruder == active_extruder))
+#endif
+        {
+            // move head to front
+            char buffer[32] = {0};
+            homeHead();
+            sprintf_P(buffer, PSTR("G1 F%i X%i Y%i"), int(homing_feedrate[0]), int(AXIS_CENTER_POS(X_AXIS)), int(min_pos[Y_AXIS])+5);
+            enquecommand(buffer);
+        }
         menu.add_menu(menu_t(lcd_menu_material_main_return));
     }
-    preheat_end_time = millis() + (unsigned long)material[active_extruder].change_preheat_wait_time * 1000L;
+    preheat_end_time = millis() + (unsigned long)material[tmp_extruder].change_preheat_wait_time * 1000L;
 }
 
 void lcd_menu_material_main_return()
 {
-    doCooldown();
-    homeHead();
+    for(uint8_t n=0; n<EXTRUDERS; ++n)
+    {
+        setTargetHotend(0, n);
+    }
+    fanSpeed = 0;
+    if ((tmp_extruder == 0) || (tmp_extruder == active_extruder))
+    {
+        homeHead();
+    }
     enquecommand_P(PSTR("M84 X Y E"));
     menu.return_to_previous(false);
 }
@@ -90,12 +102,12 @@ void lcd_menu_change_material_preheat()
 {
     last_user_interaction = millis();
 #ifdef USE_CHANGE_TEMPERATURE
-    setTargetHotend(material[active_extruder].change_temperature, active_extruder);
+    setTargetHotend(material[tmp_extruder].change_temperature, tmp_extruder);
 #else
-    setTargetHotend(material[active_extruder].temperature[0], active_extruder);
+    setTargetHotend(material[tmp_extruder].temperature[0], tmp_extruder);
 #endif
-    int16_t temp = degHotend(active_extruder) - 20;
-    int16_t target = degTargetHotend(active_extruder) - 20;
+    int16_t temp = degHotend(tmp_extruder) - 20;
+    int16_t target = degTargetHotend(tmp_extruder) - 20;
     if (temp < 0) temp = 0;
 
     // draw menu
@@ -110,7 +122,7 @@ void lcd_menu_change_material_preheat()
     lcd_lib_draw_stringP(3, 10, PSTR("Heating nozzle"));
 #if EXTRUDERS > 1
     strcpy_P(buffer, PSTR("("));
-    int_to_string(active_extruder+1, buffer+1, PSTR(")"));
+    int_to_string(tmp_extruder+1, buffer+1, PSTR(")"));
     lcd_lib_draw_string(3+(15*LCD_CHAR_SPACING), 10, buffer);
 #endif
     lcd_lib_draw_stringP(3, 20, PSTR("for material removal"));
@@ -126,7 +138,7 @@ void lcd_menu_change_material_preheat()
             set_extrude_min_temp(0);
 
             // plan_set_e_position(0);
-            // plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], end_of_print_retraction / volume_to_filament_length[active_extruder], retract_feedrate/60.0, active_extruder);
+            // plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], end_of_print_retraction / volume_to_filament_length[tmp_extruder], retract_feedrate/60.0, tmp_extruder);
 
             float old_max_feedrate_e = max_feedrate[E_AXIS];
             float old_retract_acceleration = retract_acceleration;
@@ -137,8 +149,8 @@ void lcd_menu_change_material_preheat()
             max_e_jerk = FILAMENT_LONG_MOVE_JERK;
 
             plan_set_e_position(0);
-            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], -1.0 / volume_to_filament_length[active_extruder], max_feedrate[E_AXIS], active_extruder);
-            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], -FILAMENT_REVERSAL_LENGTH / volume_to_filament_length[active_extruder], max_feedrate[E_AXIS], active_extruder);
+            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], -1.0 / volume_to_filament_length[tmp_extruder], max_feedrate[E_AXIS], tmp_extruder);
+            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], -FILAMENT_REVERSAL_LENGTH / volume_to_filament_length[tmp_extruder], max_feedrate[E_AXIS], tmp_extruder);
 
             max_feedrate[E_AXIS] = old_max_feedrate_e;
             retract_acceleration = old_retract_acceleration;
@@ -159,7 +171,7 @@ void lcd_menu_change_material_preheat()
     else
     {
 #ifdef USE_CHANGE_TEMPERATURE
-        preheat_end_time = last_user_interaction + (unsigned long)material[active_extruder].change_preheat_wait_time * 1000UL;
+        preheat_end_time = last_user_interaction + (unsigned long)material[tmp_extruder].change_preheat_wait_time * 1000UL;
 #else
         preheat_end_time = last_user_interaction;
 #endif
@@ -176,7 +188,7 @@ static void lcd_menu_change_material_remove()
     lcd_lib_draw_stringP(3, 10, PSTR("Extruder"));
     char buffer[8] = {0};
     strcpy_P(buffer, PSTR("("));
-    int_to_string(active_extruder+1, buffer+1, PSTR(")"));
+    int_to_string(tmp_extruder+1, buffer+1, PSTR(")"));
     lcd_lib_draw_string(3+(9*LCD_CHAR_SPACING), 10, buffer);
 #endif
     lcd_lib_draw_stringP(3, 20, PSTR("Reversing material"));
@@ -221,13 +233,13 @@ static void lcd_change_to_material_main()
 static void lcd_menu_change_material_remove_wait_user()
 {
     LED_GLOW
-    setTargetHotend(material[active_extruder].temperature[0], active_extruder);
+    setTargetHotend(material[tmp_extruder].temperature[0], tmp_extruder);
     lcd_question_screen(NULL, lcd_menu_change_material_remove_wait_user_ready, PSTR("READY"), lcd_change_to_material_main, cancelMaterialInsert, PSTR("CANCEL"));
 #if EXTRUDERS > 1
     lcd_lib_draw_stringP(3, 10, PSTR("Extruder"));
     char buffer[8] = {0};
     strcpy_P(buffer, PSTR("("));
-    int_to_string(active_extruder+1, buffer+1, PSTR(")"));
+    int_to_string(tmp_extruder+1, buffer+1, PSTR(")"));
     lcd_lib_draw_string(3+(9*LCD_CHAR_SPACING), 10, buffer);
     lcd_lib_draw_stringP(3, 20, PSTR("Remove material"));
 #else
@@ -239,9 +251,9 @@ static void lcd_menu_change_material_remove_wait_user()
 void lcd_menu_insert_material_preheat()
 {
     last_user_interaction = millis();
-    setTargetHotend(material[active_extruder].temperature[0], active_extruder);
-    int16_t temp = degHotend(active_extruder) - 20;
-    int16_t target = degTargetHotend(active_extruder) - 20 - 10;
+    setTargetHotend(material[tmp_extruder].temperature[0], tmp_extruder);
+    int16_t temp = degHotend(tmp_extruder) - 20;
+    int16_t target = degTargetHotend(tmp_extruder) - 20 - 10;
     if (temp < 0) temp = 0;
     if (temp > target && !is_command_queued())
     {
@@ -264,7 +276,7 @@ void lcd_menu_insert_material_preheat()
     lcd_lib_draw_stringP(3, 10, PSTR("Heating nozzle"));
     char buffer[8] = {0};
     strcpy_P(buffer, PSTR("("));
-    int_to_string(active_extruder+1, buffer+1, PSTR(")"));
+    int_to_string(tmp_extruder+1, buffer+1, PSTR(")"));
     lcd_lib_draw_string(3+(15*LCD_CHAR_SPACING), 10, buffer);
     lcd_lib_draw_stringP(3, 20, PSTR("for insertion"));
 #else
@@ -281,10 +293,10 @@ static void lcd_menu_change_material_insert_wait_user()
 {
     LED_GLOW
 
-    if (target_temperature[active_extruder] && (printing_state == PRINT_STATE_NORMAL) && (movesplanned() < 2))
+    if (target_temperature[tmp_extruder] && (printing_state == PRINT_STATE_NORMAL) && (movesplanned() < 2))
     {
         plan_set_e_position(0);
-        plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], 0.5 / volume_to_filament_length[active_extruder], FILAMENT_INSERT_SPEED, active_extruder);
+        plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], 0.5 / volume_to_filament_length[tmp_extruder], FILAMENT_INSERT_SPEED, tmp_extruder);
     }
 
     lcd_question_screen(NULL, lcd_menu_change_material_insert_wait_user_ready, PSTR("READY"), lcd_change_to_previous_menu, cancelMaterialInsert, PSTR("CANCEL"));
@@ -293,7 +305,7 @@ static void lcd_menu_change_material_insert_wait_user()
     lcd_lib_draw_stringP(3, 20, PSTR("for extruder"));
     char buffer[8] = {0};
     strcpy_P(buffer, PSTR("("));
-    int_to_string(active_extruder+1, buffer+1, PSTR(")"));
+    int_to_string(tmp_extruder+1, buffer+1, PSTR(")"));
     lcd_lib_draw_string(3+(13*LCD_CHAR_SPACING), 20, buffer);
     lcd_lib_draw_stringP(3, 30, PSTR("from the backside of"));
     lcd_lib_draw_stringP(3, 40, PSTR("your machine"));
@@ -325,7 +337,7 @@ static void lcd_menu_change_material_insert_wait_user_ready()
     max_e_jerk = FILAMENT_LONG_MOVE_JERK;
 
     plan_set_e_position(0);
-    plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], FILAMENT_FORWARD_LENGTH / volume_to_filament_length[active_extruder], max_feedrate[E_AXIS], active_extruder);
+    plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], FILAMENT_FORWARD_LENGTH / volume_to_filament_length[tmp_extruder], max_feedrate[E_AXIS], tmp_extruder);
 
     //Put back origonal values.
     max_feedrate[E_AXIS] = old_max_feedrate_e;
@@ -343,7 +355,7 @@ static void lcd_menu_change_material_insert_forward()
     lcd_lib_draw_stringP(3, 10, PSTR("Extruder"));
     char buffer[8] = {0};
     strcpy_P(buffer, PSTR("("));
-    int_to_string(active_extruder+1, buffer+1, PSTR(")"));
+    int_to_string(tmp_extruder+1, buffer+1, PSTR(")"));
     lcd_lib_draw_string(3+(9*LCD_CHAR_SPACING), 10, buffer);
 #endif
     lcd_lib_draw_stringP(3, 20, PSTR("Forwarding material"));
@@ -355,7 +367,7 @@ static void lcd_menu_change_material_insert_forward()
 
         //Set the E motor power lower to we skip instead of grind.
 #if EXTRUDERS > 1 && defined(MOTOR_CURRENT_PWM_E_PIN) && MOTOR_CURRENT_PWM_E_PIN > -1
-        digipot_current(2, active_extruder ? (motor_current_e2*2/3) : (motor_current_setting[2]*2/3));
+        digipot_current(2, tmp_extruder ? (motor_current_e2*2/3) : (motor_current_setting[2]*2/3));
 #else
         digipot_current(2, motor_current_setting[2]*2/3);
 #endif
@@ -373,10 +385,10 @@ static void lcd_menu_change_material_insert_forward()
 static void materialInsertReady()
 {
     plan_set_e_position(0);
-    plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], (-end_of_print_retraction-retract_length) / volume_to_filament_length[active_extruder], 25*60, active_extruder);
+    plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], (-end_of_print_retraction-retract_length) / volume_to_filament_length[tmp_extruder], 25*60, tmp_extruder);
     //Set E motor power to default.
 #if EXTRUDERS > 1 && defined(MOTOR_CURRENT_PWM_E_PIN) && MOTOR_CURRENT_PWM_E_PIN > -1
-    digipot_current(2, active_extruder ? motor_current_e2 : motor_current_setting[2]);
+    digipot_current(2, tmp_extruder ? motor_current_e2 : motor_current_setting[2]);
 #else
     digipot_current(2, motor_current_setting[2]);
 #endif
@@ -393,7 +405,7 @@ static void materialInsertReady()
 
 static void lcd_menu_change_material_insert()
 {
-    if (target_temperature[active_extruder])
+    if (target_temperature[tmp_extruder])
     {
         LED_GLOW
 
@@ -403,7 +415,7 @@ static void lcd_menu_change_material_insert()
         lcd_lib_draw_stringP(3, 30, PSTR("comes out nozzle"));
         char buffer[8] = {0};
         strcpy_P(buffer, PSTR("("));
-        int_to_string(active_extruder+1, buffer+1, PSTR(")"));
+        int_to_string(tmp_extruder+1, buffer+1, PSTR(")"));
         lcd_lib_draw_string(3+(17*LCD_CHAR_SPACING), 30, buffer);
 #else
         lcd_lib_draw_string_centerP(20, PSTR("Wait till material"));
@@ -413,7 +425,7 @@ static void lcd_menu_change_material_insert()
         if (movesplanned() < 2)
         {
             plan_set_e_position(0);
-            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], 0.5 / volume_to_filament_length[active_extruder], FILAMENT_INSERT_EXTRUDE_SPEED, active_extruder);
+            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], 0.5 / volume_to_filament_length[tmp_extruder], FILAMENT_INSERT_EXTRUDE_SPEED, tmp_extruder);
         }
         lcd_lib_update_screen();
     }
@@ -465,7 +477,7 @@ static void lcd_menu_change_material_select_material()
     lcd_scroll_menu(PSTR("MATERIAL"), count, lcd_menu_change_material_select_material_callback, lcd_menu_change_material_select_material_details_callback);
     if (lcd_lib_button_pressed)
     {
-        lcd_material_set_material(SELECTED_SCROLL_MENU_ITEM(), active_extruder);
+        lcd_material_set_material(SELECTED_SCROLL_MENU_ITEM(), tmp_extruder);
 
         menu.replace_menu(menu_t(lcd_menu_material_selected, MAIN_MENU_ITEM_POS(0)));
     }
@@ -760,7 +772,7 @@ void lcd_menu_material_select()
         else if (IS_SELECTED_SCROLL(count + 3))
             menu.add_menu(menu_t(lcd_menu_material_import));
         else{
-            lcd_material_set_material(SELECTED_SCROLL_MENU_ITEM() - 1, active_extruder);
+            lcd_material_set_material(SELECTED_SCROLL_MENU_ITEM() - 1, tmp_extruder);
             menu.replace_menu(menu_t(lcd_menu_material_selected, MAIN_MENU_ITEM_POS(0)));
         }
     }
@@ -773,9 +785,9 @@ static void lcd_menu_material_selected()
     lcd_lib_draw_string_centerP(20, PSTR("Selected material:"));
     lcd_lib_draw_string_center(30, LCD_CACHE_FILENAME(0));
 #if EXTRUDERS > 1
-    if (active_extruder == 0)
+    if (tmp_extruder == 0)
         lcd_lib_draw_string_centerP(40, PSTR("for extruder 1"));
-    else if (active_extruder == 1)
+    else if (tmp_extruder == 1)
         lcd_lib_draw_string_centerP(40, PSTR("for extruder 2"));
 #endif
     lcd_lib_update_screen();
@@ -828,32 +840,32 @@ static void lcd_material_settings_details_callback(uint8_t nr)
         if (led_glow_dir)
         {
             for(uint8_t n=0; n<3; ++n)
-                c = int_to_string(material[active_extruder].temperature[n], c, PSTR("C "));
+                c = int_to_string(material[tmp_extruder].temperature[n], c, PSTR("C "));
         }else{
             for(uint8_t n=3; n<MATERIAL_TEMPERATURE_COUNT; ++n)
-                c = int_to_string(material[active_extruder].temperature[n], c, PSTR("C "));
+                c = int_to_string(material[tmp_extruder].temperature[n], c, PSTR("C "));
         }
 #if TEMP_SENSOR_BED != 0
     }else if (nr == 2)
     {
-        int_to_string(material[active_extruder].bed_temperature, buffer, PSTR("C"));
+        int_to_string(material[tmp_extruder].bed_temperature, buffer, PSTR("C"));
 #endif
     }else if (nr == 2 + BED_MENU_OFFSET)
     {
-        float_to_string2(material[active_extruder].diameter, buffer, PSTR("mm"));
+        float_to_string2(material[tmp_extruder].diameter, buffer, PSTR("mm"));
     }else if (nr == 3 + BED_MENU_OFFSET)
     {
-        int_to_string(material[active_extruder].fan_speed, buffer, PSTR("%"));
+        int_to_string(material[tmp_extruder].fan_speed, buffer, PSTR("%"));
     }else if (nr == 4 + BED_MENU_OFFSET)
     {
-        int_to_string(material[active_extruder].flow, buffer, PSTR("%"));
+        int_to_string(material[tmp_extruder].flow, buffer, PSTR("%"));
 #ifdef USE_CHANGE_TEMPERATURE
     }else if (nr == 5 + BED_MENU_OFFSET)
     {
-        int_to_string(material[active_extruder].change_temperature, buffer, PSTR("C"));
+        int_to_string(material[tmp_extruder].change_temperature, buffer, PSTR("C"));
     }else if (nr == 6 + BED_MENU_OFFSET)
     {
-        int_to_string(material[active_extruder].change_preheat_wait_time, buffer, PSTR("Sec"));
+        int_to_string(material[tmp_extruder].change_preheat_wait_time, buffer, PSTR("Sec"));
 #endif
     }
     lcd_lib_draw_string_left(BOTTOM_MENU_YPOS, buffer);
@@ -874,24 +886,24 @@ static void lcd_menu_material_settings()
             lcd_material_store_current_material();
         }else if (IS_SELECTED_SCROLL(1))
         {
-            //LCD_EDIT_SETTING(material[active_extruder].temperature[0], "Temperature", "C", 0, HEATER_0_MAXTEMP - 15);
+            //LCD_EDIT_SETTING(material[tmp_extruder].temperature[0], "Temperature", "C", 0, HEATER_0_MAXTEMP - 15);
             menu.add_menu(menu_t(lcd_menu_material_temperature_settings));
         }
 #if TEMP_SENSOR_BED != 0
         else if (IS_SELECTED_SCROLL(2))
-            LCD_EDIT_SETTING(material[active_extruder].bed_temperature, "Buildplate Temp.", "C", 0, BED_MAXTEMP - 15);
+            LCD_EDIT_SETTING(material[tmp_extruder].bed_temperature, "Buildplate Temp.", "C", 0, BED_MAXTEMP - 15);
 #endif
         else if (IS_SELECTED_SCROLL(2 + BED_MENU_OFFSET))
-            LCD_EDIT_SETTING_FLOAT001(material[active_extruder].diameter, "Material Diameter", "mm", 0, 100);
+            LCD_EDIT_SETTING_FLOAT001(material[tmp_extruder].diameter, "Material Diameter", "mm", 0, 100);
         else if (IS_SELECTED_SCROLL(3 + BED_MENU_OFFSET))
-            LCD_EDIT_SETTING(material[active_extruder].fan_speed, "Fan speed", "%", 0, 100);
+            LCD_EDIT_SETTING(material[tmp_extruder].fan_speed, "Fan speed", "%", 0, 100);
         else if (IS_SELECTED_SCROLL(4 + BED_MENU_OFFSET))
-            LCD_EDIT_SETTING(material[active_extruder].flow, "Material flow", "%", 1, 1000);
+            LCD_EDIT_SETTING(material[tmp_extruder].flow, "Material flow", "%", 1, 1000);
 #ifdef USE_CHANGE_TEMPERATURE
         else if (IS_SELECTED_SCROLL(5 + BED_MENU_OFFSET))
-            LCD_EDIT_SETTING(material[active_extruder].change_temperature, "Change temperature", "C", 0, get_maxtemp(active_extruder));
+            LCD_EDIT_SETTING(material[tmp_extruder].change_temperature, "Change temperature", "C", 0, get_maxtemp(tmp_extruder));
         else if (IS_SELECTED_SCROLL(6 + BED_MENU_OFFSET))
-            LCD_EDIT_SETTING(material[active_extruder].change_preheat_wait_time, "Change wait time", "sec", 0, 180);
+            LCD_EDIT_SETTING(material[tmp_extruder].change_preheat_wait_time, "Change wait time", "sec", 0, 180);
         else if (IS_SELECTED_SCROLL(7 + BED_MENU_OFFSET))
             menu.add_menu(menu_t(lcd_menu_material_settings_store));
 #else
@@ -923,7 +935,7 @@ static void lcd_material_settings_temperature_details_callback(uint8_t nr)
     if (nr > 0)
     {
         char buffer[10] = {0};
-        int_to_string(material[active_extruder].temperature[nr - 1], buffer, PSTR("C"));
+        int_to_string(material[tmp_extruder].temperature[nr - 1], buffer, PSTR("C"));
         lcd_lib_draw_string_left(BOTTOM_MENU_YPOS, buffer);
     }
 }
@@ -941,7 +953,7 @@ static void lcd_menu_material_temperature_settings()
         {
             uint8_t index = SELECTED_SCROLL_MENU_ITEM() - 1;
             menu.return_to_previous();
-            LCD_EDIT_SETTING(material[active_extruder].temperature[index], "Temperature", "C", 0, HEATER_0_MAXTEMP - 15);
+            LCD_EDIT_SETTING(material[tmp_extruder].temperature[index], "Temperature", "C", 0, HEATER_0_MAXTEMP - 15);
         }
     }
     lcd_lib_update_screen();
@@ -1098,19 +1110,19 @@ void lcd_material_set_material(uint8_t nr, uint8_t e)
 
 void lcd_material_store_material(uint8_t nr)
 {
-    eeprom_write_word(EEPROM_MATERIAL_TEMPERATURE_OFFSET(nr), material[active_extruder].temperature[0]);
+    eeprom_write_word(EEPROM_MATERIAL_TEMPERATURE_OFFSET(nr), material[tmp_extruder].temperature[0]);
 #if TEMP_SENSOR_BED != 0
-    eeprom_write_word(EEPROM_MATERIAL_BED_TEMPERATURE_OFFSET(nr), material[active_extruder].bed_temperature);
+    eeprom_write_word(EEPROM_MATERIAL_BED_TEMPERATURE_OFFSET(nr), material[tmp_extruder].bed_temperature);
 #endif
-    eeprom_write_word(EEPROM_MATERIAL_FLOW_OFFSET(nr), material[active_extruder].flow);
+    eeprom_write_word(EEPROM_MATERIAL_FLOW_OFFSET(nr), material[tmp_extruder].flow);
 
-    eeprom_write_byte(EEPROM_MATERIAL_FAN_SPEED_OFFSET(nr), material[active_extruder].fan_speed);
-    eeprom_write_float(EEPROM_MATERIAL_DIAMETER_OFFSET(nr), material[active_extruder].diameter);
+    eeprom_write_byte(EEPROM_MATERIAL_FAN_SPEED_OFFSET(nr), material[tmp_extruder].fan_speed);
+    eeprom_write_float(EEPROM_MATERIAL_DIAMETER_OFFSET(nr), material[tmp_extruder].diameter);
     for(uint8_t n=0; n<MAX_MATERIAL_TEMPERATURES; ++n)
-        eeprom_write_word(EEPROM_MATERIAL_EXTRA_TEMPERATURE_OFFSET(nr, n), material[active_extruder].temperature[n]);
+        eeprom_write_word(EEPROM_MATERIAL_EXTRA_TEMPERATURE_OFFSET(nr, n), material[tmp_extruder].temperature[n]);
 
-    eeprom_write_word(EEPROM_MATERIAL_CHANGE_TEMPERATURE(nr), material[active_extruder].change_temperature);
-    eeprom_write_byte(EEPROM_MATERIAL_CHANGE_WAIT_TIME(nr), material[active_extruder].change_preheat_wait_time);
+    eeprom_write_word(EEPROM_MATERIAL_CHANGE_TEMPERATURE(nr), material[tmp_extruder].change_temperature);
+    eeprom_write_byte(EEPROM_MATERIAL_CHANGE_WAIT_TIME(nr), material[tmp_extruder].change_preheat_wait_time);
 }
 
 void lcd_material_read_current_material()

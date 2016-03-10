@@ -166,7 +166,7 @@ void lcd_dual_material_change()
 static void init_material_settings()
 {
 #if EXTRUDERS < 2
-    active_extruder = 0;
+    tmp_extruder = 0;
     start_material_settings();
 #else
     menu.add_menu(menu_t(lcd_dual_material_settings, MAIN_MENU_ITEM_POS(active_extruder ? 1 : 0)));
@@ -176,7 +176,7 @@ static void init_material_settings()
 static void init_material_move()
 {
 #if EXTRUDERS < 2
-    active_extruder = 0;
+    tmp_extruder = 0;
     start_move_material();
 #else
     menu.add_menu(menu_t(lcd_dual_move_material, MAIN_MENU_ITEM_POS(active_extruder ? 1 : 0)));
@@ -186,20 +186,12 @@ static void init_material_move()
 static void init_material_change()
 {
 #if EXTRUDERS < 2
-    active_extruder = 0;
+    tmp_extruder = 0;
     start_material_change();
 #else
     menu.add_menu(menu_t(lcd_dual_material_change, MAIN_MENU_ITEM_POS(active_extruder ? 1 : 0)));
 #endif
 }
-
-//#if EXTRUDERS > 1
-//    menu.add_menu(menu_t(start_material_move));
-//    menu.add_menu(menu_t(lcd_select_nozzle, MAIN_MENU_ITEM_POS(0)));
-//#else
-//    menu.add_menu(menu_t(start_material_move));
-//#endif
-//}
 
 static void lcd_main_print()
 {
@@ -251,11 +243,7 @@ static void lcd_toggle_preheat_bed()
     PREHEAT_FLAG(0) = !PREHEAT_FLAG(0);
     if (PREHEAT_FLAG(0))
     {
-  #if EXTRUDERS == 2
-        setTargetBed(material[swapExtruders() ? 1 : 0].bed_temperature);
-  #else
-        setTargetBed(target_temperature_bed = material[0].bed_temperature);
-  #endif
+        setTargetBed(material[0].bed_temperature);
     }
     else
     {
@@ -274,11 +262,7 @@ static void init_preheat()
 {
     // init preheat Temperature settings
 #if TEMP_SENSOR_BED != 0
-  #if EXTRUDERS == 2
-    setTargetBed(material[swapExtruders() ? 1 : 0].bed_temperature);
-  #else
-    setTargetBed(target_temperature_bed = material[0].bed_temperature);
-  #endif
+    setTargetBed(material[0].bed_temperature);
     PREHEAT_FLAG(0) = ((int)degTargetBed() > 0) ? 1 : 0;
 #endif
 

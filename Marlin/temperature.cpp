@@ -35,10 +35,11 @@
 #include "UltiLCD2.h"
 #include "temperature.h"
 #include "watchdog.h"
-// #include "Sd2CardExt.h"
 #include "preferences.h"
 #include "tinkergnome.h"
 
+#define HEATER_TIMEOUT_IDLE (1000L * 120L)  // 120 seconds
+#define HEATER_TIMEOUT_OFF (1000L * 300L)  // 300 seconds
 
 //===========================================================================
 //=============================public variables============================
@@ -77,6 +78,8 @@ float current_temperature_bed = 0.0;
 #if ENABLED(BABYSTEPPING)
   volatile int babystepsTodo[3]={0,0,0};
 #endif
+
+unsigned long extruder_lastused[EXTRUDERS];
 
 //===========================================================================
 //=============================private variables============================
@@ -448,9 +451,6 @@ void checkExtruderAutoFans()
 
 void manage_heater()
 {
-  float pid_input;
-  float pid_output;
-
   if(temp_meas_ready != true)   //better readability
     return;
 
@@ -466,11 +466,34 @@ void manage_heater()
 	  min_temp_error(0);
   }
   #endif
-  int target_temp;
 
-  for(int e = 0; e < EXTRUDERS; e++)
+  float pid_input;
+  float pid_output;
+  int target_temp;
+  unsigned long m = millis();
+
+  extruder_lastused[active_extruder] = m;
+
+  for(int e = 0; e < EXTRUDERS; ++e)
   {
     target_temp = (printing_state == PRINT_STATE_RECOVER) ? recover_temperature[e] : target_temperature[e];
+    if ((printing_state != PRINT_STATE_HEATING) && !(retract_state & (EXTRUDER_PREHEAT << e)) && (IS_SD_PRINTING || (m - lastSerialCommandTime < SERIAL_CONTROL_TIMEOUT)))
+    {
+        // reduce target temp of inactive nozzle during printing
+        if ((extruder_lastused[e] + HEATER_TIMEOUT_OFF) < m)
+        {
+            target_temp = 0;
+        }
+        else if ((extruder_lastused[e] + HEATER_TIMEOUT_IDLE) < m)
+        {
+            target_temp = target_temp*4/5;
+            target_temp -= target_temp % 10;
+        }
+        else if (e != active_extruder)
+        {
+            target_temp -= target_temp/20;
+        }
+    }
   #ifdef PIDTEMP
     pid_input = current_temperature[e];
 

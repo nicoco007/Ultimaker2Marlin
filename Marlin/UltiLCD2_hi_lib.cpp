@@ -363,7 +363,7 @@ void lcd_select_nozzle(menuFunc_t callbackOnSelect, menuFunc_t callbackOnAbort)
         uint8_t index(SELECTED_MAIN_MENU_ITEM());
         if (index < 2)
         {
-            active_extruder = index;
+            tmp_extruder = index;
             if (callbackOnSelect) callbackOnSelect();
         }
         else

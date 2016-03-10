@@ -17,6 +17,9 @@
 #include "UltiLCD2_menu_print.h"
 #include "UltiLCD2_menu_material.h"
 #include "UltiLCD2_menu_maintenance.h"
+#if (EXTRUDERS > 1)
+#include "ConfigurationDual.h"
+#endif
 
 #include "tinkergnome.h"
 
@@ -1541,7 +1544,7 @@ static void init_target_positions()
     }
 }
 
-void lcd_simple_buildplate_cancel()
+static void lcd_simple_buildplate_cancel()
 {
     // reload settings
     Config_RetrieveSettings();
@@ -1575,7 +1578,7 @@ static void lcd_simple_buildplate_store()
     menu.return_to_previous();
 }
 
-void lcd_simple_buildplate_quit()
+static void lcd_simple_buildplate_quit()
 {
     // home z-axis
     homeBed();
@@ -1647,7 +1650,7 @@ static void drawSimpleBuildplateSubmenu(uint8_t nr, uint8_t &flags)
     }
 }
 
-void lcd_menu_simple_buildplate()
+static void lcd_menu_simple_buildplate()
 {
     lcd_basic_screen();
     // lcd_lib_draw_hline(3, 124, 13);
@@ -1677,7 +1680,7 @@ void lcd_prepare_buildplate_adjust()
     enquecommand_P(PSTR("M84 X0 Y0"));
 }
 
-void lcd_simple_buildplate_init()
+static void lcd_simple_buildplate_init()
 {
     menu.set_active(get_simple_buildplate_menuoption, 2);
 }

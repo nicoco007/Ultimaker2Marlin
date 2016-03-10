@@ -55,8 +55,6 @@ void lcd_init()
     glow_millis = millis() + 750;
     led_glow = led_glow_dir = 0;
 
-    active_extruder = 0;
-
     // initialize menu stack and show start animation
     *lcd_status_message = 0;
     menu.init_menu(menu_t(lcd_menu_main, MAIN_MENU_ITEM_POS(0)), false);

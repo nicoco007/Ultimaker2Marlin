@@ -147,14 +147,16 @@ static char * toolchange_retract(char *buffer, uint8_t e)
 {
     float length = toolchange_retractlen[e] / volume_to_filament_length[e];
 #ifdef FWRETRACT
-    if (RETRACTED(e))
+    if (EXTRUDER_RETRACTED(e))
     {
         length = max(0.0, length-retract_recover_length[e]);
-        retract_recover_length[e] += length;
+        // retract_recover_length[e] += length;
+        CLEAR_EXTRUDER_RETRACT(e);
+        SET_TOOLCHANGE_RETRACT(e);
     }
-    else {
-        SET_RETRACT_STATE(e);
-        retract_recover_length[e] = length;
+    else
+    {
+        CLEAR_TOOLCHANGE_RETRACT(e);
     }
 #endif // FWRETRACT
     // dtostrf(-length, 4, 2, LCD_CACHE_FILENAME(3));
@@ -242,10 +244,11 @@ void CommandBuffer::processWipe()
     axis_relative_state = (1 << E_AXIS);
 
 #ifdef FWRETRACT
-    float length = RETRACTED(active_extruder) ? retract_recover_length[active_extruder] : toolchange_retractlen[active_extruder]/volume_to_filament_length[active_extruder];
-    CLEAR_RETRACT_STATE(active_extruder);
+    float length = TOOLCHANGE_RETRACTED(active_extruder) ? retract_recover_length[active_extruder] : toolchange_retractlen[active_extruder]/volume_to_filament_length[active_extruder];
+    CLEAR_TOOLCHANGE_RETRACT(active_extruder);
+    CLEAR_EXTRUDER_RETRACT(active_extruder);
 #else
-    float length = toolchange_retractlen[e]/volume_to_filament_length[active_extruder];
+    float length = toolchange_retractlen[active_extruder]/volume_to_filament_length[active_extruder];
 #endif // FWRETRACT
 
     // undo the toolchange retraction
@@ -253,13 +256,13 @@ void CommandBuffer::processWipe()
     sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G1 E%s F%i"), LCD_CACHE_FILENAME(3), (int)toolchange_retractfeedrate[active_extruder]);
     process_command(LCD_CACHE_FILENAME(2));
 
-
     // prime nozzle
     float_to_string2(toolchange_prime[active_extruder]+(length*0.2), LCD_CACHE_FILENAME(3), NULL);
     sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G1 E%s F%i"), LCD_CACHE_FILENAME(3), 40);
     process_command(LCD_CACHE_FILENAME(2));
 
     // retract before wipe
+    length = toolchange_retractlen[active_extruder]/volume_to_filament_length[active_extruder];
     float_to_string2(length*-0.4, LCD_CACHE_FILENAME(3), NULL);
     sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G1 E%s F%i"), LCD_CACHE_FILENAME(3), (int)toolchange_retractfeedrate[active_extruder]);
     process_command(LCD_CACHE_FILENAME(2));
@@ -307,7 +310,7 @@ void CommandBuffer::processWipe()
     process_command(LCD_CACHE_FILENAME(2));
 #ifdef FWRETRACT
     retract_recover_length[active_extruder] = 0.5*length;
-    SET_RETRACT_STATE(active_extruder);
+    SET_TOOLCHANGE_RETRACT(active_extruder);
 #endif // FWRETRACT
     sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G0 Y70 F%i"), 100*60);
     process_command(LCD_CACHE_FILENAME(2));
