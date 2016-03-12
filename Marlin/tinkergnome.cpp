@@ -9,6 +9,7 @@
 #include "machinesettings.h"
 #include "filament_sensor.h"
 #include "preferences.h"
+#include "commandbuffer.h"
 #include "UltiLCD2_low_lib.h"
 #include "UltiLCD2_hi_lib.h"
 #include "UltiLCD2.h"
@@ -1197,13 +1198,9 @@ void lcd_menu_print_heatup_tg()
 #endif
         for(uint8_t e=0; e<EXTRUDERS; ++e)
         {
-#if EXTRUDERS > 1
             if (LCD_DETAIL_CACHE_MATERIAL(e) < 1 || target_temperature[e] > 0)
                 continue;
-#else
-            if (LCD_DETAIL_CACHE_MATERIAL(e) < 1 || target_temperature[e] > 0)
-                continue;
-#endif
+
             target_temperature[e] = material[e].temperature[nozzleSizeToTemperatureIndex(LCD_DETAIL_CACHE_NOZZLE_DIAMETER(e))];
         }
 
@@ -1211,22 +1208,23 @@ void lcd_menu_print_heatup_tg()
         if (current_temperature_bed >= target_temperature_bed - TEMP_WINDOW * 2 && !is_command_queued())
         {
 #endif // TEMP_SENSOR_BED
-            bool ready = true;
-            for(uint8_t e=0; (e<EXTRUDERS) && ready; ++e)
+            bool ready = false;
+            for(uint8_t e=0; e<EXTRUDERS; ++e)
             {
-                if (current_temperature[e] < target_temperature[e] - TEMP_WINDOW)
+                if ((target_temperature[e] > 0) && (current_temperature[e] >= target_temperature[e] - TEMP_WINDOW))
                 {
-                    ready = false;
+                    ready = true;
+                    break;
                 }
             }
-
+			
             if (ready)
             {
                 menu.reset_submenu();
                 // printing_state = PRINT_STATE_NORMAL;
+                menu.replace_menu(menu_t(lcd_menu_printing_tg, MAIN_MENU_ITEM_POS(1)), false);
                 doStartPrint();
                 printing_page = 0;
-                menu.replace_menu(menu_t(lcd_menu_printing_tg, MAIN_MENU_ITEM_POS(1)), false);
             }
 #if TEMP_SENSOR_BED != 0
         }
@@ -1513,15 +1511,17 @@ static void lcd_expert_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
     {
         strcpy_P(buffer+1, PSTR("Move axis"));
     }
+#if EXTRUDERS == 1
     else if (nr == 2)
     {
         strcpy_P(buffer+1, PSTR("Adjust Z position"));
     }
-    else if (nr == 3)
+#endif
+    else if (nr == 4-EXTRUDERS)
     {
         strcpy_P(buffer+1, PSTR("Recover print"));
     }
-    else if (nr == 4)
+    else if (nr == 5-EXTRUDERS)
     {
         strcpy_P(buffer+1, PSTR("Disable steppers"));
     }
@@ -1557,7 +1557,7 @@ static void lcd_simple_buildplate_cancel()
 static void lcd_simple_buildplate_store()
 {
 #if (EXTRUDERS > 1)
-    if (active_extruder)
+    if (tmp_extruder)
     {
         add_homeing_z2 -= current_position[Z_AXIS];
         Dual_StoreAddHomeingZ2();
@@ -1580,11 +1580,12 @@ static void lcd_simple_buildplate_store()
 
 static void lcd_simple_buildplate_quit()
 {
+    cmd_synchronize();
     // home z-axis
-    homeBed();
+    CommandBuffer::homeBed();
     // home head
-    homeHead();
-    enquecommand_P(PSTR("M84 X0 Y0"));
+    CommandBuffer::homeHead();
+    process_command_P(PSTR("M84 X0 Y0"));
 }
 
 // create menu options for "move axes"
@@ -1944,18 +1945,20 @@ void lcd_menu_expert_recover()
 
 void lcd_menu_maintenance_expert()
 {
-    lcd_scroll_menu(PSTR("Expert functions"), 5, lcd_expert_item, NULL);
+    lcd_scroll_menu(PSTR("Expert functions"), 6-EXTRUDERS, lcd_expert_item, NULL);
     if (lcd_lib_button_pressed)
     {
         if (IS_SELECTED_SCROLL(1))
         {
             menu.add_menu(menu_t(lcd_menu_move_axes, MAIN_MENU_ITEM_POS(0)));
         }
+#if EXTRUDERS == 1
         else if (IS_SELECTED_SCROLL(2))
         {
             menu.add_menu(menu_t(lcd_prepare_buildplate_adjust, lcd_menu_simple_buildplate_init, NULL, ENCODER_NO_SELECTION));
         }
-        else if (IS_SELECTED_SCROLL(3))
+#endif
+        else if (IS_SELECTED_SCROLL(4-EXTRUDERS))
         {
             for (uint8_t i=0; i<EXTRUDERS; ++i)
             {
@@ -1968,7 +1971,7 @@ void lcd_menu_maintenance_expert()
             card.setroot();
             menu.add_menu(menu_t(lcd_menu_print_select, SCROLL_MENU_ITEM_POS(0)));
         }
-        else if (IS_SELECTED_SCROLL(4))
+        else if (IS_SELECTED_SCROLL(5-EXTRUDERS))
         {
             // disable steppers
             enquecommand_P(PSTR("M84"));
@@ -2042,7 +2045,7 @@ static void plan_move(AxisEnum axis)
         if ((abs(TARGET_POS(axis) - current_position[axis])>0.005) && !endstop_reached(axis, (TARGET_POS(axis)>current_position[axis]) ? 1 : -1))
         {
             current_position[axis] = TARGET_POS(axis);
-            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], homing_feedrate[axis]/800, active_extruder);
+            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], homing_feedrate[axis]/800, tmp_extruder);
         }
     }
 }
@@ -2100,7 +2103,7 @@ static void lcd_move_axis(AxisEnum axis, float diff)
             {
                 TARGET_POS(axis) = round((current_position[axis]+float(movingSpeed)*diff)/diff)*diff;
                 current_position[axis] = constrain(TARGET_POS(axis), min_pos[axis], max_pos[axis]);
-                plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], abs(movingSpeed), active_extruder);
+                plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], abs(movingSpeed), tmp_extruder);
                 if (endstop_reached(axis, movingSpeed))
                 {
                     // quickstop
@@ -2179,7 +2182,7 @@ static const menu_t & get_move_menuoption(uint8_t nr, menu_t &opt)
     if (nr == index++)
     {
         // Home all axis
-        opt.setData(MENU_NORMAL, homeAll);
+        opt.setData(MENU_NORMAL, CommandBuffer::homeAll);
     }
     else if (nr == index++)
     {
@@ -2229,7 +2232,7 @@ static const menu_t & get_move_menuoption(uint8_t nr, menu_t &opt)
     else if (nr == index++)
     {
         // z home
-        opt.setData(MENU_NORMAL, homeBed);
+        opt.setData(MENU_NORMAL, CommandBuffer::homeBed);
     }
     return opt;
 }
@@ -2553,8 +2556,9 @@ void manage_encoder_position(int8_t encoder_pos_interrupt)
 static void lcd_extrude_homehead()
 {
     lcd_lib_keyclick();
-    homeHead();
-    enquecommand_P(PSTR("M84 X0 Y0"));
+    cmd_synchronize();
+    CommandBuffer::homeHead();
+    process_command_P(PSTR("M84 X0 Y0"));
 }
 
 static void lcd_extrude_headtofront()
@@ -2564,15 +2568,16 @@ static void lcd_extrude_headtofront()
     char buffer[32] = {0};
     sprintf_P(buffer, PSTR("G1 F12000 X%i Y%i"), int(AXIS_CENTER_POS(X_AXIS)), int(min_pos[Y_AXIS])+5);
 
-    homeHead();
-    enquecommand(buffer);
-    enquecommand_P(PSTR("M84 X0 Y0"));
+    cmd_synchronize();
+    CommandBuffer::homeHead();
+    process_command(buffer);
+    process_command_P(PSTR("M84 X0 Y0"));
 }
 
 static void lcd_extrude_disablexy()
 {
     lcd_lib_keyclick();
-    enquecommand_P(PSTR("M84 X0 Y0"));
+    process_command_P(PSTR("M84 X0 Y0"));
 }
 
 static const menu_t & get_extrude_tune_menuoption(uint8_t nr, menu_t &opt)
@@ -2697,13 +2702,13 @@ static void lcd_extrude_return()
     menu.return_to_previous();
     if (!card.sdprinting)
     {
-        target_temperature[active_extruder] = 0;
+        target_temperature[tmp_extruder] = 0;
     }
 }
 
 static void lcd_extrude_temperature()
 {
-    lcd_tune_value(target_temperature[active_extruder], 0, get_maxtemp(active_extruder) - 15);
+    lcd_tune_value(target_temperature[tmp_extruder], 0, get_maxtemp(tmp_extruder) - 15);
 }
 
 static void lcd_extrude_reset_pos()
@@ -2716,7 +2721,7 @@ static void lcd_extrude_reset_pos()
 static void lcd_extrude_init_move()
 {
     st_synchronize();
-    plan_set_e_position(st_get_position(E_AXIS) / axis_steps_per_unit[E_AXIS] / volume_to_filament_length[active_extruder]);
+    plan_set_e_position(st_get_position(E_AXIS) / axis_steps_per_unit[E_AXIS] / volume_to_filament_length[tmp_extruder]);
     TARGET_POS(E_AXIS) = st_get_position(E_AXIS) / axis_steps_per_unit[E_AXIS];
 }
 
@@ -2726,7 +2731,7 @@ static void lcd_extrude_move()
     {
         if (lcd_tune_value(TARGET_POS(E_AXIS), -10000.0, +10000.0, 0.1))
         {
-            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], TARGET_POS(E_AXIS) / volume_to_filament_length[active_extruder], 10, active_extruder);
+            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], TARGET_POS(E_AXIS) / volume_to_filament_length[tmp_extruder], 10, tmp_extruder);
         }
     }
 }
@@ -2740,11 +2745,11 @@ static void lcd_extrude_quit_move()
 static void lcd_extrude_init_pull()
 {
     st_synchronize();
-    plan_set_e_position(st_get_position(E_AXIS) / axis_steps_per_unit[E_AXIS] / volume_to_filament_length[active_extruder]);
+    plan_set_e_position(st_get_position(E_AXIS) / axis_steps_per_unit[E_AXIS] / volume_to_filament_length[tmp_extruder]);
     TARGET_POS(E_AXIS) = st_get_position(E_AXIS) / axis_steps_per_unit[E_AXIS];
     //Set E motor power lower so the motor will skip instead of grind.
 #if EXTRUDERS > 1 && defined(MOTOR_CURRENT_PWM_E_PIN) && MOTOR_CURRENT_PWM_E_PIN > -1
-    digipot_current(2, active_extruder ? (motor_current_e2*2/3) : (motor_current_setting[2]*2/3));
+    digipot_current(2, tmp_extruder ? (motor_current_e2*2/3) : (motor_current_setting[2]*2/3));
 #else
     digipot_current(2, motor_current_setting[2]*2/3);
 #endif
@@ -2765,7 +2770,7 @@ static void lcd_extrude_quit_pull()
     max_e_jerk = OLD_JERK;
     //Set E motor power to default.
 #if EXTRUDERS > 1 && defined(MOTOR_CURRENT_PWM_E_PIN) && MOTOR_CURRENT_PWM_E_PIN > -1
-    digipot_current(2, active_extruder ? motor_current_e2 : motor_current_setting[2]);
+    digipot_current(2, tmp_extruder ? motor_current_e2 : motor_current_setting[2]);
 #else
     digipot_current(2, motor_current_setting[2]);
 #endif
@@ -2779,8 +2784,8 @@ static void lcd_extrude_pull()
     {
         if (printing_state == PRINT_STATE_NORMAL && movesplanned() < 1)
         {
-            TARGET_POS(E_AXIS) -= FILAMENT_REVERSAL_LENGTH / volume_to_filament_length[active_extruder];
-            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], TARGET_POS(E_AXIS), max_feedrate[E_AXIS]*0.7f, active_extruder);
+            TARGET_POS(E_AXIS) -= FILAMENT_REVERSAL_LENGTH / volume_to_filament_length[tmp_extruder];
+            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], TARGET_POS(E_AXIS), max_feedrate[E_AXIS]*0.7f, tmp_extruder);
         }
     } else {
         quickStop();
@@ -2880,17 +2885,17 @@ static void drawExtrudeSubmenu (uint8_t nr, uint8_t &flags)
             char *c=buffer+7;
 #if EXTRUDERS > 1
             strcpy_P(c, PSTR("("));
-            c=int_to_string(active_extruder+1, c+1, PSTR(") "));
+            c=int_to_string(tmp_extruder+1, c+1, PSTR(") "));
 #endif
-            int_to_string(target_temperature[active_extruder], int_to_string(dsp_temperature[active_extruder], c, PSTR(DEGREE_SLASH)), PSTR(DEGREE_SYMBOL));
+            int_to_string(target_temperature[tmp_extruder], int_to_string(dsp_temperature[tmp_extruder], c, PSTR(DEGREE_SLASH)), PSTR(DEGREE_SYMBOL));
             lcd_lib_draw_string_left(5, buffer);
             flags |= MENU_STATUSLINE;
         }
 
-        lcd_lib_draw_heater(LCD_GFX_WIDTH-LCD_CHAR_MARGIN_RIGHT-13*LCD_CHAR_SPACING, 20, getHeaterPower(active_extruder));
-        int_to_string(dsp_temperature[active_extruder], buffer, PSTR(DEGREE_SLASH));
+        lcd_lib_draw_heater(LCD_GFX_WIDTH-LCD_CHAR_MARGIN_RIGHT-13*LCD_CHAR_SPACING, 20, getHeaterPower(tmp_extruder));
+        int_to_string(dsp_temperature[tmp_extruder], buffer, PSTR(DEGREE_SLASH));
         lcd_lib_draw_string_right(LCD_GFX_WIDTH-2*LCD_CHAR_MARGIN_RIGHT-4*LCD_CHAR_SPACING, 20, buffer);
-        int_to_string(target_temperature[active_extruder], buffer, PSTR(DEGREE_SYMBOL));
+        int_to_string(target_temperature[tmp_extruder], buffer, PSTR(DEGREE_SYMBOL));
         LCDMenu::drawMenuString(LCD_GFX_WIDTH-LCD_CHAR_MARGIN_RIGHT-4*LCD_CHAR_SPACING
                           , 20
                           , 24
@@ -2975,7 +2980,7 @@ void lcd_extrude_quit_menu()
 void lcd_menu_expert_extrude()
 {
     // reset heater timeout until target temperature is reached
-    if ((target_temperature[active_extruder]) && ((current_temperature[active_extruder] < 100) || (current_temperature[active_extruder] < (target_temperature[active_extruder] - 20))))
+    if ((target_temperature[tmp_extruder]) && ((current_temperature[tmp_extruder] < 100) || (current_temperature[tmp_extruder] < (target_temperature[tmp_extruder] - 20))))
     {
         last_user_interaction = millis();
     }
@@ -2998,7 +3003,7 @@ void lcd_menu_expert_extrude()
 #if EXTRUDERS > 1
     char buffer[8] = {0};
     strcpy_P(buffer, PSTR("("));
-    int_to_string(active_extruder+1, buffer+1, PSTR(")"));
+    int_to_string(tmp_extruder+1, buffer+1, PSTR(")"));
     lcd_lib_draw_string(LCD_CHAR_MARGIN_LEFT+(14*LCD_CHAR_SPACING), 5, buffer);
 #endif
     }
@@ -3016,14 +3021,13 @@ void recover_start_print(const char *cmd)
     strcpy(LCD_CACHE_FILENAME(0), cmd);
     printing_state = PRINT_STATE_START;
 
-    // move to heatup position
-    homeAll();
-    char buffer[32] = {0};
-    sprintf_P(buffer, PSTR("G1 F12000 X%i Y%i"), int(min_pos[X_AXIS])+5, int(min_pos[Y_AXIS])+5);
-    enquecommand(buffer);
-
     menu.return_to_main();
     menu.add_menu(menu_t((ui_mode & UI_MODE_EXPERT) ? lcd_menu_print_heatup_tg : lcd_menu_print_heatup));
+
+    // move to heatup position
+    CommandBuffer::homeAll();
+    cmd_synchronize();
+    CommandBuffer::move2heatup();
 }
 
 #endif//ENABLE_ULTILCD2

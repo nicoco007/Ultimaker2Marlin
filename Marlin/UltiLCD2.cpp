@@ -30,7 +30,7 @@ float dsp_temperature_bed = 20.0;
 char lcd_status_message[LCD_CHARS_PER_LINE+1];
 
 //#define SPECIAL_STARTUP
-#define MILLIS_GLOW  (1000L / 40L)
+#define MILLIS_GLOW  (1000L / 30L)
 // #define MILLIS_GLOW  (25L)
 static unsigned long glow_millis;
 

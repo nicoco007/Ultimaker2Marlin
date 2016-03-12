@@ -17,6 +17,10 @@ extern uint8_t lcd_cache[LCD_CACHE_SIZE];
 
 extern unsigned long predictedTime;
 
+extern uint8_t primed;
+#define EXTRUDER_PRIMED      1
+#define ENDOFPRINT_RETRACT 128
+
 void lcd_menu_print_select();
 void lcd_clear_cache();
 

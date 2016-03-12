@@ -203,7 +203,7 @@
   //#define PID_DEBUG // Sends debug data to the serial port.
   //#define PID_OPENLOOP 1 // Puts PID in open loop. M104/M140 sets the output power from 0 to PID_MAX
  #ifdef __AVR
-  #define PID_FUNCTIONAL_RANGE 15 // If the temperature difference between the target temperature and the actual temperature
+  #define PID_FUNCTIONAL_RANGE 25 // If the temperature difference between the target temperature and the actual temperature
                                   // is more then PID_FUNCTIONAL_RANGE then the PID will be shut off and the heater will be set to min/max.
  #else
   #define PID_FUNCTIONAL_RANGE 100 // simulator mode
@@ -220,8 +220,8 @@
 
 // Ultimaker2
     #define  DEFAULT_Kp 10.0
-    #define  DEFAULT_Ki 2.5
-    #define  DEFAULT_Kd 100.0
+    #define  DEFAULT_Ki 1.5
+    #define  DEFAULT_Kd 70.0
 
 // Makergear
 //    #define  DEFAULT_Kp 7.0

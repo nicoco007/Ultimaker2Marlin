@@ -878,11 +878,7 @@ void lcd_menu_retraction()
     lcd_basic_screen();
     lcd_lib_draw_hline(3, 124, 13);
 
-#if EXTRUDERS > 1
-    menu.process_submenu(get_retract_menuoption, 6);
-#else
     menu.process_submenu(get_retract_menuoption, 5);
-#endif
 
     uint8_t flags = 0;
 #if EXTRUDERS > 1

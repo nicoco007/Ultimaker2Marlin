@@ -7,6 +7,7 @@
 #include "temperature.h"
 #include "ConfigurationStore.h"
 #include "machinesettings.h"
+#include "commandbuffer.h"
 #include "UltiLCD2.h"
 #include "UltiLCD2_hi_lib.h"
 #include "UltiLCD2_menu_material.h"
@@ -79,7 +80,7 @@ void lcd_menu_first_run_start_bed_leveling()
 
 static void homeAndRaiseBed()
 {
-    homeBed();
+    CommandBuffer::homeBed();
     char buffer[32] = {0};
     sprintf_P(buffer, PSTR("G1 F%i Z%i"), int(homing_feedrate[0]), 35);
     enquecommand(buffer);
@@ -99,10 +100,11 @@ static void lcd_menu_first_run_init_2()
 
 static void homeAndParkHeadForCenterAdjustment()
 {
-    homeHead();
+    cmd_synchronize();
+    CommandBuffer::homeHead();
     char buffer[32] = {0};
     sprintf_P(buffer, PSTR("G1 F%i Z%i X%i Y%i"), int(homing_feedrate[0]), 35, int(AXIS_CENTER_POS(X_AXIS)), int(max_pos[Y_AXIS])-10);
-    enquecommand(buffer);
+    process_command(buffer);
 }
 
 static void lcd_menu_first_run_init_3()
@@ -267,12 +269,12 @@ static void storeBedLeveling()
     if (IS_FIRST_RUN_DONE())
     {
         // home all
-        homeAll();
+        CommandBuffer::homeAll();
     }
     else
     {
         // home z-axis
-        homeBed();
+        CommandBuffer::homeBed();
     }
 }
 

@@ -13,6 +13,7 @@
 #include "UltiLCD2_menu_maintenance.h"
 #include "UltiLCD2_menu_utils.h"
 #include "preferences.h"
+#include "commandbuffer.h"
 
 struct materialSettings material[EXTRUDERS];
 static unsigned long preheat_end_time;
@@ -53,10 +54,9 @@ void lcd_material_change_init(bool printing)
 #endif
         {
             // move head to front
-            char buffer[32] = {0};
-            homeHead();
-            sprintf_P(buffer, PSTR("G1 F%i X%i Y%i"), int(homing_feedrate[0]), int(AXIS_CENTER_POS(X_AXIS)), int(min_pos[Y_AXIS])+5);
-            enquecommand(buffer);
+            CommandBuffer::homeHead();
+            cmd_synchronize();
+            CommandBuffer::move2front();
         }
         menu.add_menu(menu_t(lcd_menu_material_main_return));
     }
@@ -72,7 +72,8 @@ void lcd_menu_material_main_return()
     fanSpeed = 0;
     if ((tmp_extruder == 0) || (tmp_extruder == active_extruder))
     {
-        homeHead();
+        cmd_synchronize();
+        CommandBuffer::homeHead();
     }
     enquecommand_P(PSTR("M84 X Y E"));
     menu.return_to_previous(false);

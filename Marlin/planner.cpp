@@ -501,9 +501,9 @@ void check_axes_activity()
   fanSpeedSoftPwm = tail_fan_speed;
   #else
   analogWrite(FAN_PIN,tail_fan_speed);
-#ifdef DUAL_FAN
-  if (active_extruder) analogWrite(LED_PIN, tail_fan_speed);
-#endif
+ #ifdef DUAL_FAN
+  analogWrite(LED_PIN, (active_extruder>0) ? tail_fan_speed : 0);
+ #endif
   #endif//!FAN_SOFT_PWM
   }
   else

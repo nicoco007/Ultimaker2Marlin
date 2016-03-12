@@ -16,6 +16,10 @@
 #include "pins.h"
 #include "preferences.h"
 #include "tinkergnome.h"
+#include "commandbuffer.h"
+#if (EXTRUDERS > 1)
+#include "UltiLCD2_menu_dual.h"
+#endif
 
 static void lcd_menu_maintenance_advanced_heatup();
 //static void lcd_menu_maintenance_led();
@@ -34,7 +38,8 @@ void lcd_menu_maintenance()
     {
         if (IS_SELECTED_MAIN(0))
         {
-            menu.add_menu(menu_t(NULL, lcd_change_to_previous_menu, homeHead));
+            cmd_synchronize();
+            menu.add_menu(menu_t(NULL, lcd_change_to_previous_menu, CommandBuffer::homeHead));
             menu.add_menu(menu_t(lcd_menu_first_run_start_bed_leveling));
         }
         else if (IS_SELECTED_MAIN(1))
@@ -54,6 +59,10 @@ static void lcd_advanced_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
         strcpy_P(buffer, PSTR("< RETURN"));
     else if (nr == index++)
         strcpy_P(buffer, PSTR("Preferences"));
+#if (EXTRUDERS > 1)
+    else if (nr == index++)
+        strcpy_P(buffer, PSTR("Dual Extrusion"));
+#endif
     else if (nr == index++)
         strcpy_P(buffer, PSTR("Heatup nozzle"));
 #if TEMP_SENSOR_BED != 0
@@ -86,10 +95,10 @@ static void lcd_advanced_details(uint8_t nr)
 {
     char buffer[32] = {0};
     buffer[0] = '\0';
-    if (!(ui_mode & UI_MODE_EXPERT) && (nr > 8+BED_MENU_OFFSET+2*EXTRUDERS))
-        ++nr;
+//    if (!(ui_mode & UI_MODE_EXPERT) && (nr > 8+EXTRUDERS+BED_MENU_OFFSET))
+//        ++nr;
 
-    if (nr == 2)
+    if (nr == 1+EXTRUDERS)
     {
 #if EXTRUDERS > 1
         int_to_string(int(target_temperature[1]), int_to_string(int(dsp_temperature[1]), int_to_string(int(target_temperature[0]), int_to_string(int(dsp_temperature[0]), buffer, PSTR("C/")), PSTR("C ")), PSTR("C/")), PSTR("C"));
@@ -98,12 +107,12 @@ static void lcd_advanced_details(uint8_t nr)
 #endif // EXTRUDERS
     }
 #if TEMP_SENSOR_BED != 0
-    else if (nr == 3)
+    else if (nr == 2+EXTRUDERS)
     {
         int_to_string(int(target_temperature_bed), int_to_string(int(dsp_temperature_bed), buffer, PSTR("C/")), PSTR("C"));
     }
 #endif
-    else if (nr == BED_MENU_OFFSET + 8)
+    else if (nr == BED_MENU_OFFSET + 7 + EXTRUDERS)
     {
         int_to_string(int(fanSpeed) * 100 / 255, buffer, PSTR("%"));
     }
@@ -240,35 +249,20 @@ static void lcd_preferences_details(uint8_t nr)
     lcd_lib_draw_string_left(BOTTOM_MENU_YPOS, buffer);
 }
 
-void homeHead()
-{
-    enquecommand_P(PSTR("G28 X0 Y0"));
-}
-
-void homeBed()
-{
-    enquecommand_P(PSTR("G28 Z0"));
-}
-
-void homeAll()
-{
-    enquecommand_P(PSTR("G28"));
-}
-
 static void lcd_menu_maintenance_advanced_return()
 {
     doCooldown();
-    homeHead();
-    enquecommand_P(PSTR("M84 X Y E"));
+    cmd_synchronize();
+    CommandBuffer::homeHead();
+    process_command_P(PSTR("M84 X Y E"));
     menu.return_to_previous(false);
 }
 
 static void move_head_to_front()
 {
-    char buffer[32] = {0};
-    homeHead();
-    sprintf_P(buffer, PSTR("G1 F%i X%i Y%i"), int(homing_feedrate[0]), int(AXIS_CENTER_POS(X_AXIS)), int(min_pos[Y_AXIS])+5);
-    enquecommand(buffer);
+    CommandBuffer::homeHead();
+    cmd_synchronize();
+    CommandBuffer::move2front();
 }
 
 static void start_nozzle_heatup()
@@ -332,7 +326,7 @@ void lcd_dual_move_material()
 
 void lcd_menu_maintenance_advanced()
 {
-    lcd_scroll_menu(PSTR("ADVANCED"), BED_MENU_OFFSET + ((ui_mode & UI_MODE_EXPERT) ? 11 : 10), lcd_advanced_item, lcd_advanced_details);
+    lcd_scroll_menu(PSTR("ADVANCED"), BED_MENU_OFFSET + EXTRUDERS + ((ui_mode & UI_MODE_EXPERT) ? 10 : 9), lcd_advanced_item, lcd_advanced_details);
     if (lcd_lib_button_pressed)
     {
         uint8_t index = 0;
@@ -340,6 +334,10 @@ void lcd_menu_maintenance_advanced()
             menu.return_to_previous();
         else if (IS_SELECTED_SCROLL(index++))
             menu.add_menu(menu_t(lcd_menu_preferences, SCROLL_MENU_ITEM_POS(0)));
+#if (EXTRUDERS > 1)
+        else if (IS_SELECTED_SCROLL(index++))
+            menu.add_menu(menu_t(lcd_menu_dual, SCROLL_MENU_ITEM_POS(0)));
+#endif
         else if (IS_SELECTED_SCROLL(index++))
         {
             // heatup nozzle
@@ -359,18 +357,21 @@ void lcd_menu_maintenance_advanced()
         else if (IS_SELECTED_SCROLL(index++))
         {
             lcd_lib_keyclick();
-            homeHead();
+            cmd_synchronize();
+            CommandBuffer::homeHead();
         }
         else if (IS_SELECTED_SCROLL(index++))
         {
             lcd_lib_keyclick();
-            homeBed();
+            cmd_synchronize();
+            CommandBuffer::homeBed();
         }
         else if (IS_SELECTED_SCROLL(index++))
         {
             lcd_lib_keyclick();
-            homeBed();
-            enquecommand_P(PSTR("G1 Z40"));
+            cmd_synchronize();
+            CommandBuffer::homeBed();
+            process_command_P(PSTR("G1 Z40"));
         }
         else if (IS_SELECTED_SCROLL(index++))
         {

@@ -247,6 +247,8 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ);
 extern float retract_recover_length[EXTRUDERS];
 extern float retract_recover_feedrate[EXTRUDERS];
 
+void reheatNozzle(uint8_t e);
+
 FORCE_INLINE void reset_retractstate()
 {
     for (uint8_t e=0; e<EXTRUDERS; ++e)
