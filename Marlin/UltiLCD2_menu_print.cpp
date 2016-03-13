@@ -552,7 +552,11 @@ void lcd_menu_print_select()
             {
                 //Start print
                 sleep_state = 0x0;
+#if (EXTRUDERS > 1)
                 switch_extruder(0, false);
+#else
+                active_extruder = 0;
+#endif
                 card.openFile(card.filename, true);
                 if (card.isFileOpen() && !is_command_queued())
                 {

@@ -7,6 +7,9 @@
 #include "UltiLCD2_hi_lib.h"
 #include "temperature.h"
 #include "UltiLCD2_menu_utils.h"
+#if EXTRUDERS > 1
+#include "UltiLCD2_menu_dual.h"
+#endif
 
 menuFunc_t postMenuCheck;
 uint8_t minProgress;
@@ -320,7 +323,7 @@ bool check_heater_timeout()
     {
         const unsigned long m = millis();
         const unsigned long period = heater_timeout*MILLISECONDS_PER_MINUTE;
-        if ((m-last_user_interaction > period) && (m-lastSerialCommandTime > period))
+        if (m-last_user_interaction > period)
         {
             if (target_temperature[active_extruder] > (EXTRUDE_MINTEMP - 40))
             {
@@ -352,32 +355,6 @@ bool check_preheat()
     }
     return true;
 }
-
-#if EXTRUDERS > 1
-void lcd_select_nozzle(menuFunc_t callbackOnSelect, menuFunc_t callbackOnAbort)
-{
-    lcd_tripple_menu(PSTR("EXTRUDER|1"), PSTR("EXTRUDER|2"), PSTR("RETURN"));
-
-    if (lcd_lib_button_pressed)
-    {
-        uint8_t index(SELECTED_MAIN_MENU_ITEM());
-        if (index < 2)
-        {
-            tmp_extruder = index;
-            if (callbackOnSelect) callbackOnSelect();
-        }
-        else
-        {
-            if (callbackOnAbort)
-                callbackOnAbort();
-            else
-                menu.return_to_previous();
-        }
-    }
-
-    lcd_lib_update_screen();
-}
-#endif
 
 
 #endif//ENABLE_ULTILCD2

@@ -13,7 +13,9 @@
 #include "tinkergnome.h"
 #include "machinesettings.h"
 #include "preferences.h"
-
+#if (EXTRUDERS > 1)
+#include "UltiLCD2_menu_dual.h"
+#endif
 #define PREHEAT_FLAG(n) (lcd_cache[2*LCD_CACHE_COUNT+n])
 
 static void lcd_main_preheat();
@@ -166,7 +168,7 @@ void lcd_dual_material_change()
 static void init_material_settings()
 {
 #if EXTRUDERS < 2
-    tmp_extruder = 0;
+    menu_extruder = 0;
     start_material_settings();
 #else
     menu.add_menu(menu_t(lcd_dual_material_settings, MAIN_MENU_ITEM_POS(active_extruder ? 1 : 0)));
@@ -176,7 +178,7 @@ static void init_material_settings()
 static void init_material_move()
 {
 #if EXTRUDERS < 2
-    tmp_extruder = 0;
+    menu_extruder = 0;
     start_move_material();
 #else
     menu.add_menu(menu_t(lcd_dual_move_material, MAIN_MENU_ITEM_POS(active_extruder ? 1 : 0)));
@@ -186,7 +188,7 @@ static void init_material_move()
 static void init_material_change()
 {
 #if EXTRUDERS < 2
-    tmp_extruder = 0;
+    menu_extruder = 0;
     start_material_change();
 #else
     menu.add_menu(menu_t(lcd_dual_material_change, MAIN_MENU_ITEM_POS(active_extruder ? 1 : 0)));

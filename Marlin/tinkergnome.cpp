@@ -20,6 +20,7 @@
 #include "UltiLCD2_menu_maintenance.h"
 #if (EXTRUDERS > 1)
 #include "ConfigurationDual.h"
+#include "UltiLCD2_menu_dual.h"
 #endif
 
 #include "tinkergnome.h"
@@ -1217,7 +1218,7 @@ void lcd_menu_print_heatup_tg()
                     break;
                 }
             }
-			
+
             if (ready)
             {
                 menu.reset_submenu();
@@ -1468,7 +1469,7 @@ void lcd_menu_printing_tg()
             {
                 lcd_lib_draw_string_leftP(BOTTOM_MENU_YPOS, PSTR("Heating nozzle"));
 #if EXTRUDERS > 1
-                int_to_string(tmp_extruder+1, buffer, NULL);
+                int_to_string(menu_extruder+1, buffer, NULL);
                 lcd_lib_draw_string(LCD_CHAR_MARGIN_LEFT + 15*LCD_CHAR_SPACING, BOTTOM_MENU_YPOS, buffer);
 #endif // EXTRUDERS
                 index += 3;
@@ -1557,7 +1558,7 @@ static void lcd_simple_buildplate_cancel()
 static void lcd_simple_buildplate_store()
 {
 #if (EXTRUDERS > 1)
-    if (tmp_extruder)
+    if (menu_extruder)
     {
         add_homeing_z2 -= current_position[Z_AXIS];
         Dual_StoreAddHomeingZ2();
@@ -2045,7 +2046,11 @@ static void plan_move(AxisEnum axis)
         if ((abs(TARGET_POS(axis) - current_position[axis])>0.005) && !endstop_reached(axis, (TARGET_POS(axis)>current_position[axis]) ? 1 : -1))
         {
             current_position[axis] = TARGET_POS(axis);
-            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], homing_feedrate[axis]/800, tmp_extruder);
+#if (EXTRUDERS > 1)
+            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], homing_feedrate[axis]/800, menu_extruder);
+#else
+            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], homing_feedrate[axis]/800, active_extruder);
+#endif
         }
     }
 }
@@ -2103,7 +2108,7 @@ static void lcd_move_axis(AxisEnum axis, float diff)
             {
                 TARGET_POS(axis) = round((current_position[axis]+float(movingSpeed)*diff)/diff)*diff;
                 current_position[axis] = constrain(TARGET_POS(axis), min_pos[axis], max_pos[axis]);
-                plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], abs(movingSpeed), tmp_extruder);
+                plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], abs(movingSpeed), menu_extruder);
                 if (endstop_reached(axis, movingSpeed))
                 {
                     // quickstop
@@ -2702,13 +2707,13 @@ static void lcd_extrude_return()
     menu.return_to_previous();
     if (!card.sdprinting)
     {
-        target_temperature[tmp_extruder] = 0;
+        target_temperature[menu_extruder] = 0;
     }
 }
 
 static void lcd_extrude_temperature()
 {
-    lcd_tune_value(target_temperature[tmp_extruder], 0, get_maxtemp(tmp_extruder) - 15);
+    lcd_tune_value(target_temperature[menu_extruder], 0, get_maxtemp(menu_extruder) - 15);
 }
 
 static void lcd_extrude_reset_pos()
@@ -2721,7 +2726,7 @@ static void lcd_extrude_reset_pos()
 static void lcd_extrude_init_move()
 {
     st_synchronize();
-    plan_set_e_position(st_get_position(E_AXIS) / axis_steps_per_unit[E_AXIS] / volume_to_filament_length[tmp_extruder]);
+    plan_set_e_position(st_get_position(E_AXIS) / axis_steps_per_unit[E_AXIS] / volume_to_filament_length[menu_extruder]);
     TARGET_POS(E_AXIS) = st_get_position(E_AXIS) / axis_steps_per_unit[E_AXIS];
 }
 
@@ -2731,7 +2736,7 @@ static void lcd_extrude_move()
     {
         if (lcd_tune_value(TARGET_POS(E_AXIS), -10000.0, +10000.0, 0.1))
         {
-            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], TARGET_POS(E_AXIS) / volume_to_filament_length[tmp_extruder], 10, tmp_extruder);
+            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], TARGET_POS(E_AXIS) / volume_to_filament_length[menu_extruder], 10, menu_extruder);
         }
     }
 }
@@ -2745,11 +2750,11 @@ static void lcd_extrude_quit_move()
 static void lcd_extrude_init_pull()
 {
     st_synchronize();
-    plan_set_e_position(st_get_position(E_AXIS) / axis_steps_per_unit[E_AXIS] / volume_to_filament_length[tmp_extruder]);
+    plan_set_e_position(st_get_position(E_AXIS) / axis_steps_per_unit[E_AXIS] / volume_to_filament_length[menu_extruder]);
     TARGET_POS(E_AXIS) = st_get_position(E_AXIS) / axis_steps_per_unit[E_AXIS];
     //Set E motor power lower so the motor will skip instead of grind.
 #if EXTRUDERS > 1 && defined(MOTOR_CURRENT_PWM_E_PIN) && MOTOR_CURRENT_PWM_E_PIN > -1
-    digipot_current(2, tmp_extruder ? (motor_current_e2*2/3) : (motor_current_setting[2]*2/3));
+    digipot_current(2, menu_extruder ? (motor_current_e2*2/3) : (motor_current_setting[2]*2/3));
 #else
     digipot_current(2, motor_current_setting[2]*2/3);
 #endif
@@ -2770,7 +2775,7 @@ static void lcd_extrude_quit_pull()
     max_e_jerk = OLD_JERK;
     //Set E motor power to default.
 #if EXTRUDERS > 1 && defined(MOTOR_CURRENT_PWM_E_PIN) && MOTOR_CURRENT_PWM_E_PIN > -1
-    digipot_current(2, tmp_extruder ? motor_current_e2 : motor_current_setting[2]);
+    digipot_current(2, menu_extruder ? motor_current_e2 : motor_current_setting[2]);
 #else
     digipot_current(2, motor_current_setting[2]);
 #endif
@@ -2784,8 +2789,8 @@ static void lcd_extrude_pull()
     {
         if (printing_state == PRINT_STATE_NORMAL && movesplanned() < 1)
         {
-            TARGET_POS(E_AXIS) -= FILAMENT_REVERSAL_LENGTH / volume_to_filament_length[tmp_extruder];
-            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], TARGET_POS(E_AXIS), max_feedrate[E_AXIS]*0.7f, tmp_extruder);
+            TARGET_POS(E_AXIS) -= FILAMENT_REVERSAL_LENGTH / volume_to_filament_length[menu_extruder];
+            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], TARGET_POS(E_AXIS), max_feedrate[E_AXIS]*0.7f, menu_extruder);
         }
     } else {
         quickStop();
@@ -2885,17 +2890,17 @@ static void drawExtrudeSubmenu (uint8_t nr, uint8_t &flags)
             char *c=buffer+7;
 #if EXTRUDERS > 1
             strcpy_P(c, PSTR("("));
-            c=int_to_string(tmp_extruder+1, c+1, PSTR(") "));
+            c=int_to_string(menu_extruder+1, c+1, PSTR(") "));
 #endif
-            int_to_string(target_temperature[tmp_extruder], int_to_string(dsp_temperature[tmp_extruder], c, PSTR(DEGREE_SLASH)), PSTR(DEGREE_SYMBOL));
+            int_to_string(target_temperature[menu_extruder], int_to_string(dsp_temperature[menu_extruder], c, PSTR(DEGREE_SLASH)), PSTR(DEGREE_SYMBOL));
             lcd_lib_draw_string_left(5, buffer);
             flags |= MENU_STATUSLINE;
         }
 
-        lcd_lib_draw_heater(LCD_GFX_WIDTH-LCD_CHAR_MARGIN_RIGHT-13*LCD_CHAR_SPACING, 20, getHeaterPower(tmp_extruder));
-        int_to_string(dsp_temperature[tmp_extruder], buffer, PSTR(DEGREE_SLASH));
+        lcd_lib_draw_heater(LCD_GFX_WIDTH-LCD_CHAR_MARGIN_RIGHT-13*LCD_CHAR_SPACING, 20, getHeaterPower(menu_extruder));
+        int_to_string(dsp_temperature[menu_extruder], buffer, PSTR(DEGREE_SLASH));
         lcd_lib_draw_string_right(LCD_GFX_WIDTH-2*LCD_CHAR_MARGIN_RIGHT-4*LCD_CHAR_SPACING, 20, buffer);
-        int_to_string(target_temperature[tmp_extruder], buffer, PSTR(DEGREE_SYMBOL));
+        int_to_string(target_temperature[menu_extruder], buffer, PSTR(DEGREE_SYMBOL));
         LCDMenu::drawMenuString(LCD_GFX_WIDTH-LCD_CHAR_MARGIN_RIGHT-4*LCD_CHAR_SPACING
                           , 20
                           , 24
@@ -2980,7 +2985,7 @@ void lcd_extrude_quit_menu()
 void lcd_menu_expert_extrude()
 {
     // reset heater timeout until target temperature is reached
-    if ((target_temperature[tmp_extruder]) && ((current_temperature[tmp_extruder] < 100) || (current_temperature[tmp_extruder] < (target_temperature[tmp_extruder] - 20))))
+    if ((target_temperature[menu_extruder]) && ((current_temperature[menu_extruder] < 100) || (current_temperature[menu_extruder] < (target_temperature[menu_extruder] - 20))))
     {
         last_user_interaction = millis();
     }
@@ -3003,7 +3008,7 @@ void lcd_menu_expert_extrude()
 #if EXTRUDERS > 1
     char buffer[8] = {0};
     strcpy_P(buffer, PSTR("("));
-    int_to_string(tmp_extruder+1, buffer+1, PSTR(")"));
+    int_to_string(menu_extruder+1, buffer+1, PSTR(")"));
     lcd_lib_draw_string(LCD_CHAR_MARGIN_LEFT+(14*LCD_CHAR_SPACING), 5, buffer);
 #endif
     }

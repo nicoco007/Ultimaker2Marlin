@@ -261,6 +261,12 @@ FORCE_INLINE void reset_retractstate()
 extern unsigned long starttime;
 extern unsigned long stoptime;
 
+#if BUFSIZE > 8
+extern uint16_t serialCmd;
+#else
+extern uint8_t serialCmd;
+#endif // BUFSIZE
+
 //The printing state from the main command processor. Is not zero when the command processor is in a loop waiting for a result.
 extern uint8_t printing_state;
 #define PRINT_STATE_NORMAL      0
@@ -276,7 +282,7 @@ extern uint8_t printing_state;
 
 // Handling multiple extruders pins
 extern uint8_t active_extruder;
-extern uint8_t tmp_extruder;
+extern uint8_t menu_extruder;
 
 #if EXTRUDERS > 2
   # error Unsupported number of extruders

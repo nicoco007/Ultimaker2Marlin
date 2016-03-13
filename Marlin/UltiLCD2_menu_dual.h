@@ -4,9 +4,10 @@
 #include "Configuration.h"
 
 #if EXTRUDERS > 1
-extern uint8_t menu_extruder;
+#include "UltiLCD2_menu_utils.h"
 
 void lcd_menu_dual();
+void lcd_select_nozzle(menuFunc_t callbackOnSelect, menuFunc_t callbackOnAbort);
 void switch_extruder(uint8_t newExtruder, bool moveZ);
 void lcd_menu_tune_tcretract();
 void lcd_menu_extruderoffset();

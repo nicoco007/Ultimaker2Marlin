@@ -21,8 +21,6 @@
 #define ONE_MINUS_ALPHA 0.95f
 #define LCD_CHARS_PER_LINE 20
 
-unsigned long lastSerialCommandTime;
-// bool serialScreenShown;
 uint8_t led_brightness_level = 100;
 uint8_t led_mode = LED_MODE_ALWAYS_ON;
 float dsp_temperature[EXTRUDERS] = { 20.0 };
@@ -62,7 +60,6 @@ void lcd_init()
 #ifndef DUAL_FAN
     analogWrite(LED_PIN, 0);
 #endif
-    lastSerialCommandTime = millis() - SERIAL_CONTROL_TIMEOUT;
 }
 
 void lcd_update()
@@ -138,7 +135,7 @@ void lcd_update()
         LED_GLOW_ERROR
         lcd_lib_update_screen();
     }
-    else if (m - lastSerialCommandTime < SERIAL_CONTROL_TIMEOUT)
+    else if (serialCmd)
     {
         if (!(sleep_state & SLEEP_SERIAL_SCREEN))
         {

@@ -189,7 +189,8 @@ float extruder_offset[2][EXTRUDERS] = {
 };
 #endif
 uint8_t active_extruder = 0;
-uint8_t tmp_extruder = 0;
+uint8_t menu_extruder = 0;
+static uint8_t tmp_extruder = 0;
 uint8_t fanSpeed=0;
 uint8_t fanSpeedPercent=100;
 uint8_t position_state=0;
@@ -234,9 +235,9 @@ uint8_t axis_relative_state = 0;
 
 static char cmdbuffer[BUFSIZE][MAX_CMD_SIZE];
 #if BUFSIZE > 8
-static uint16_t serialCmd = 0;
+uint16_t serialCmd = 0;
 #else
-static uint8_t serialCmd = 0;
+uint8_t serialCmd = 0;
 #endif // BUFSIZE
 static int bufindr = 0;
 static int bufindw = 0;
@@ -673,12 +674,9 @@ static void get_command()
 
         }
 #ifdef ENABLE_ULTILCD2
-        if (!code_seen(cmdbuffer[bufindw], 'M') || (code_value_long() != 105))
+        if (code_seen(cmdbuffer[bufindw], 'M') && (code_value_long() == 105))
         {
-            lastSerialCommandTime = millis();
-        }
-        else
-        {
+            // remove the serial flag for M105 commands
             serialCmd &= ~(1 << bufindw);
         }
 #endif
@@ -703,7 +701,7 @@ static void get_command()
     return;
   if (serial_count!=0)
   {
-    if (millis() - lastSerialCommandTime < SERIAL_CONTROL_TIMEOUT)
+    if (buflen && serialCmd)
       return;
     serial_count = 0;
   }
@@ -846,10 +844,12 @@ static void axis_is_at_home(int axis)
     // min_pos[axis] =          base_min_pos(axis);// + add_homeing[axis];
     // max_pos[axis] =          base_max_pos(axis);// + add_homeing[axis];
 
+#if (EXTRUDERS > 1)
     if (axis <= Y_AXIS)
     {
         current_position[axis] += extruder_offset[axis][active_extruder];
     }
+#endif
     // keep position state in mind
     position_state |= (1 << axis);
 }
@@ -1979,6 +1979,9 @@ void process_command(const char *strCmd)
     }break;
     case 208: // M208 - set retract recover length S[positive mm surplus to the M207 S*] F[feedrate mm/min]
     {
+      if(setTargetedHotend(strCmd, 208)){
+        break;
+      }
       if(code_seen(strCmd, 'S'))
       {
         retract_recover_length[tmp_extruder] = code_value();
@@ -2654,18 +2657,19 @@ void process_command(const char *strCmd)
     }
     else
     {
-      #if EXTRUDERS > 1
+#if EXTRUDERS > 1
       boolean make_move = false;
-      #endif
+#endif
       if(code_seen(strCmd, 'F')) {
-        #if EXTRUDERS > 1
+#if EXTRUDERS > 1
         make_move = true;
-        #endif
+#endif
         next_feedrate = code_value();
         if(next_feedrate > 0.0) {
           feedrate = next_feedrate;
         }
       }
+#if EXTRUDERS > 1
       if (changeExtruder(tmp_extruder, position_state & KNOWNPOS_Z))
       {
         // Move to the old position if 'F' was in the parameters
@@ -2675,6 +2679,7 @@ void process_command(const char *strCmd)
         }
       }
       else
+#endif
       {
           SERIAL_ECHO_START;
           SERIAL_ECHOPGM(MSG_ACTIVE_EXTRUDER);
@@ -3030,10 +3035,6 @@ void idle(bool bCheckSerial)
     manage_inactivity();
     lcd_update();
     lifetime_stats_tick();
-    if (buflen && serialCmd)
-    {
-        lastSerialCommandTime = millis();
-    }
 }
 
 void manage_inactivity()
@@ -3230,6 +3231,7 @@ static bool setTargetedHotend(const char *cmd, int code)
 void reheatNozzle(uint8_t e)
 {
     unsigned long last_output = millis();
+    tmp_extruder = e;
 
     while ( current_temperature[e] < target_temperature[e] - TEMP_WINDOW )
     {

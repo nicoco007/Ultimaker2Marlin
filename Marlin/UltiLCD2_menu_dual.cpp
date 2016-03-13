@@ -1,5 +1,5 @@
 #include "Configuration.h"
-#if (EXTRUDERS > 1) && defined(ENABLE_ULTILCD2) && defined(SDSUPPORT)
+#if (EXTRUDERS > 1) && defined(ENABLE_ULTILCD2)
 #include "ConfigurationStore.h"
 #include "ConfigurationDual.h"
 #include "planner.h"
@@ -12,8 +12,6 @@
 #include "UltiLCD2_menu_utils.h"
 #include "UltiLCD2_menu_maintenance.h"
 #include "UltiLCD2_menu_dual.h"
-
-uint8_t menu_extruder = 0;
 
 void lcd_menu_dual();
 
@@ -847,7 +845,7 @@ void switch_extruder(uint8_t newExtruder, bool moveZ)
 
 static void lcd_switch_extruder()
 {
-    switch_extruder(tmp_extruder, false);
+    switch_extruder(menu_extruder, false);
 }
 
 
@@ -899,7 +897,6 @@ static void lcd_dual_details(uint8_t nr)
 
 static void start_menu_tcretract()
 {
-    menu_extruder = tmp_extruder;
     menu.add_menu(menu_t(lcd_menu_tune_tcretract, MAIN_MENU_ITEM_POS(1)));
 }
 
@@ -920,7 +917,7 @@ void lcd_menu_dual()
         else if (IS_SELECTED_SCROLL(2))
             menu.add_menu(menu_t(lcd_dual_switch_extruder, MAIN_MENU_ITEM_POS(active_extruder ? 1 : 0)));
         else if (IS_SELECTED_SCROLL(3))
-            menu.add_menu(menu_t(lcd_menu_tcretraction, MAIN_MENU_ITEM_POS(tmp_extruder ? 1 : 0)));
+            menu.add_menu(menu_t(lcd_menu_tcretraction, MAIN_MENU_ITEM_POS(menu_extruder)));
         else if (IS_SELECTED_SCROLL(4))
             menu.add_menu(menu_t(lcd_menu_extruderoffset, MAIN_MENU_ITEM_POS(1)));
         else if (IS_SELECTED_SCROLL(5))
@@ -936,5 +933,28 @@ void lcd_menu_dual()
     lcd_lib_update_screen();
 }
 
+void lcd_select_nozzle(menuFunc_t callbackOnSelect, menuFunc_t callbackOnAbort)
+{
+    lcd_tripple_menu(PSTR("EXTRUDER|1"), PSTR("EXTRUDER|2"), PSTR("RETURN"));
 
-#endif//ENABLE_ULTILCD2
+    if (lcd_lib_button_pressed)
+    {
+        uint8_t index(SELECTED_MAIN_MENU_ITEM());
+        if (index < 2)
+        {
+            menu_extruder = index;
+            if (callbackOnSelect) callbackOnSelect();
+        }
+        else
+        {
+            if (callbackOnAbort)
+                callbackOnAbort();
+            else
+                menu.return_to_previous();
+        }
+    }
+
+    lcd_lib_update_screen();
+}
+
+#endif//EXTRUDERS
