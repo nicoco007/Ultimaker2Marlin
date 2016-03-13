@@ -531,6 +531,7 @@ void loop()
           if(card.logging)
           {
             process_command(cmdbuffer[bufindr]);
+            serialCmd &= ~(1 << bufindr);
           }
           else
           {
@@ -546,9 +547,11 @@ void loop()
       else
       {
         process_command(cmdbuffer[bufindr]);
+        serialCmd &= ~(1 << bufindr);
       }
     #else
       process_command(cmdbuffer[bufindr]);
+      serialCmd &= ~(1 << bufindr);
     #endif //SDSUPPORT
     if (buflen > 0)
     {
@@ -673,6 +676,10 @@ static void get_command()
         if (!code_seen(cmdbuffer[bufindw], 'M') || (code_value_long() != 105))
         {
             lastSerialCommandTime = millis();
+        }
+        else
+        {
+            serialCmd &= ~(1 << bufindw);
         }
 #endif
         ++bufindw;
@@ -2784,7 +2791,14 @@ static void get_coordinates(const char *cmd)
             else
             {
                 // keep last retraction in mind
-                retract_recover_length[active_extruder] = -echange;
+                if (EXTRUDER_RETRACTED(active_extruder))
+                {
+                    retract_recover_length[active_extruder] -= echange;
+                }
+                else
+                {
+                    retract_recover_length[active_extruder] = -echange;
+                }
             }
             SET_EXTRUDER_RETRACT(active_extruder);
         }
@@ -2795,7 +2809,6 @@ static void get_coordinates(const char *cmd)
                 // retraction recover after tool change
                 destination[E_AXIS] = current_position[E_AXIS] + retract_recover_length[active_extruder];
                 //feedrate=retract_recover_feedrate[active_extruder];
-                CLEAR_TOOLCHANGE_RETRACT(active_extruder);
             }
             else if (AUTORETRACT_ENABLED && EXTRUDER_RETRACTED(active_extruder))
             {
@@ -2806,6 +2819,8 @@ static void get_coordinates(const char *cmd)
                 feedrate=retract_recover_feedrate[active_extruder];
             }
             CLEAR_EXTRUDER_RETRACT(active_extruder);
+            CLEAR_TOOLCHANGE_RETRACT(active_extruder);
+            retract_recover_length[active_extruder] = 0.0;
         }
     }
 #endif //FWRETRACT
