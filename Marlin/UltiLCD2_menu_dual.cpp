@@ -356,12 +356,12 @@ static void lcd_menu_dockposition()
 
 static void lcd_wipeposition_x()
 {
-    lcd_tune_value(wipe_position[X_AXIS], 0.0f, max_pos[X_AXIS], 0.1f);
+    lcd_tune_value(wipe_position[X_AXIS], min_pos[X_AXIS], max_pos[X_AXIS], 0.1f);
 }
 
 static void lcd_wipeposition_y()
 {
-    lcd_tune_value(wipe_position[Y_AXIS], 0.0f, max_pos[Y_AXIS], 0.1f);
+    lcd_tune_value(wipe_position[Y_AXIS], min_pos[Y_AXIS], max_pos[Y_AXIS], 0.1f);
 }
 
 // create menu options for "axis steps/mm"
@@ -846,6 +846,7 @@ void switch_extruder(uint8_t newExtruder, bool moveZ)
 static void lcd_switch_extruder()
 {
     switch_extruder(menu_extruder, false);
+    menu.return_to_previous();
 }
 
 

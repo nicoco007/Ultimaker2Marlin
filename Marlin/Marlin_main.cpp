@@ -2386,15 +2386,10 @@ void process_command(const char *strCmd)
         st_synchronize();
         float target[4];
         float lastpos[4];
-        target[X_AXIS]=current_position[X_AXIS];
-        target[Y_AXIS]=current_position[Y_AXIS];
-        target[Z_AXIS]=current_position[Z_AXIS];
-        target[E_AXIS]=current_position[E_AXIS];
-        lastpos[X_AXIS]=current_position[X_AXIS];
-        lastpos[Y_AXIS]=current_position[Y_AXIS];
-        lastpos[Z_AXIS]=current_position[Z_AXIS];
-        lastpos[E_AXIS]=current_position[E_AXIS];
+        memcpy(target, current_position, sizeof(target));
+        memcpy(lastpos, current_position, sizeof(lastpos));
 
+        // standard retract
         target[E_AXIS] -= retract_length/volume_to_filament_length[active_extruder];
         plan_buffer_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], target[E_AXIS], retract_feedrate/60, active_extruder);
 
@@ -2422,10 +2417,8 @@ void process_command(const char *strCmd)
         }
         plan_buffer_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], target[E_AXIS], retract_feedrate/60, active_extruder);
 
-        current_position[X_AXIS] = target[X_AXIS];
-        current_position[Y_AXIS] = target[Y_AXIS];
-        current_position[Z_AXIS] = target[Z_AXIS];
-        current_position[E_AXIS] = target[E_AXIS];
+        memcpy(current_position, target, sizeof(current_position));
+
         //finish moves
         st_synchronize();
         //disable extruder steppers so filament can be removed
@@ -2452,10 +2445,7 @@ void process_command(const char *strCmd)
             plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], target[Z_AXIS], target[E_AXIS], homing_feedrate[X_AXIS]/60, active_extruder); //move xy back
             plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], lastpos[Z_AXIS], target[E_AXIS], homing_feedrate[Z_AXIS]/60, active_extruder); //move z back
             plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], lastpos[Z_AXIS], lastpos[E_AXIS], retract_feedrate/60, active_extruder); //final untretract
-            current_position[X_AXIS] = lastpos[X_AXIS];
-            current_position[Y_AXIS] = lastpos[Y_AXIS];
-            current_position[Z_AXIS] = lastpos[Z_AXIS];
-            current_position[E_AXIS] = lastpos[E_AXIS];
+            memcpy(current_position, lastpos, sizeof(current_position));
         }
         serial_action_P(PSTR("resume"));
     }
@@ -3279,7 +3269,7 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
         float zoffset = active_extruder ? add_homeing[Z_AXIS]-add_homeing_z2 : add_homeing_z2-add_homeing[Z_AXIS];
 
         #define MIN_TOOLCHANGE_ZHOP  2.0f
-        #define MAX_TOOLCHANGE_ZHOP 10.0f
+        #define MAX_TOOLCHANGE_ZHOP 14.0f
         float maxDiffZ = Z_HOME_POS + add_homeing[Z_AXIS] - current_position[Z_AXIS];
         maxDiffZ = constrain(maxDiffZ, 0.0f, MAX_TOOLCHANGE_ZHOP);
 

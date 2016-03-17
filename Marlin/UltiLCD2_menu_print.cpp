@@ -248,12 +248,19 @@ void doStartPrint()
 	}
 
 #if (EXTRUDERS > 1)
-    // reset active extruder
-    switch_extruder(0, true);
-    process_command_P(PSTR("G11"));
-    current_position[E_AXIS] = 0.0;
-    plan_set_e_position(0);
-    enquecommand_P(PSTR("G1 E0"));
+	if (primed)
+	{
+        // reset active extruder
+        switch_extruder(0, true);
+
+		if (primed & (EXTRUDER_PRIMED << 0))
+        {
+            process_command_P(PSTR("G11"));
+            current_position[E_AXIS] = 0.0;
+            plan_set_e_position(0);
+            enquecommand_P(PSTR("G1 E0"));
+        }
+	}
 #endif
 
     if (printing_state == PRINT_STATE_START)
@@ -552,7 +559,7 @@ void lcd_menu_print_select()
             {
                 //Start print
                 sleep_state = 0x0;
-#if (EXTRUDERS > 1)
+#if EXTRUDERS > 1
                 switch_extruder(0, false);
 #else
                 active_extruder = 0;
@@ -1030,11 +1037,13 @@ static void tune_item_callback(uint8_t nr, uint8_t offsetY, uint8_t flags)
     else if (index++ == nr)
         strcpy_P(buffer, PSTR("Extruder offset"));
 #endif
+#ifndef DUAL_FAN
     else if (index++ == nr)
         strcpy_P(buffer, PSTR("LED Brightness"));
+#endif
     else if ((ui_mode & UI_MODE_EXPERT) && card.sdprinting && card.pause && (index++ == nr))
         strcpy_P(buffer, PSTR("Move material"));
-    else if (ui_mode & UI_MODE_EXPERT)
+    else if ((ui_mode & UI_MODE_EXPERT) && (index++ == nr))
         strcpy_P(buffer, PSTR("Sleep timer"));
     else
         strcpy_P(buffer, PSTR("???"));
@@ -1071,10 +1080,12 @@ static void tune_item_details_callback(uint8_t nr)
     else if (nr == 4 + BED_MENU_OFFSET + EXTRUDERS)
         int_to_string(extrudemultiply[1], buffer, PSTR("%"));
 #endif
+#ifndef DUAL_FAN
     else if (nr == 1 + BED_MENU_OFFSET + 5*EXTRUDERS)
     {
         int_to_string(led_brightness_level, buffer, PSTR("%"));
     }
+#endif
     else
         return;
     lcd_lib_draw_string_left(BOTTOM_MENU_YPOS, buffer);
@@ -1141,7 +1152,11 @@ void lcd_menu_print_tune()
 //    {
 //        lcd_print_pause();
 //    }
+#ifndef DUAL_FAN
     uint8_t len = 2 + BED_MENU_OFFSET + EXTRUDERS * 5;
+#else
+    uint8_t len = 1 + BED_MENU_OFFSET + EXTRUDERS * 5;
+#endif
     if (ui_mode & UI_MODE_EXPERT)
     {
         ++len; // sleep timer
@@ -1193,11 +1208,13 @@ void lcd_menu_print_tune()
             menu_extruder = 1;
             menu.add_menu(menu_t(lcd_menu_tune_tcretract, MAIN_MENU_ITEM_POS(1)));
         }
-        else if (IS_SELECTED_SCROLL(7 + BED_MENU_OFFSET + EXTRUDERS * 2))
+        else if (IS_SELECTED_SCROLL(index++))
             menu.add_menu(menu_t(lcd_menu_extruderoffset, MAIN_MENU_ITEM_POS(1)));
 #endif
+#ifndef DUAL_FAN
         else if (IS_SELECTED_SCROLL(index++))
             LCD_EDIT_SETTING(led_brightness_level, "Brightness", "%", 0, 100);
+#endif
         else if ((ui_mode & UI_MODE_EXPERT) && card.sdprinting && card.pause && IS_SELECTED_SCROLL(index++))
             menu.add_menu(menu_t(NULL, lcd_menu_expert_extrude, lcd_extrude_quit_menu, 0)); // Move material
         else if ((ui_mode & UI_MODE_EXPERT) && IS_SELECTED_SCROLL(index++))

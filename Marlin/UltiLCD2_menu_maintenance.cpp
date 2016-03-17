@@ -131,8 +131,10 @@ static void lcd_preferences_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
         strcpy_P(buffer, PSTR("< RETURN"));
     else if (nr == index++)
         strcpy_P(buffer, PSTR("User interface"));
+#ifndef DUAL_FAN
     else if (nr == index++)
         strcpy_P(buffer, PSTR("LED settings"));
+#endif
     else if (nr == index++)
         strcpy_P(buffer, PSTR("Click sound"));
     else if (nr == index++)
@@ -168,8 +170,9 @@ static void lcd_preferences_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
 static void lcd_preferences_details(uint8_t nr)
 {
     char buffer[32] = {0};
-    buffer[0] = '\0';
-
+#ifdef DUAL_FAN
+    if (nr > 1) ++nr;
+#endif
     if (nr == 1)
     {
         if (ui_mode & UI_MODE_EXPERT)
@@ -181,10 +184,12 @@ static void lcd_preferences_details(uint8_t nr)
             strcpy_P(buffer, PSTR("Standard Mode"));
         }
     }
+#ifndef DUAL_FAN
     else if (nr == 2)
     {
         int_to_string(led_brightness_level, buffer, PSTR("%"));
     }
+#endif
     else if (nr == 3)
     {
         if (ui_mode & UI_BEEP_OFF)
@@ -225,19 +230,6 @@ static void lcd_preferences_details(uint8_t nr)
             strcpy_P(c, PSTR("off"));
         }
     }
-//#if TEMP_SENSOR_BED != 0
-//    else if (nr == 7)
-//    {
-//        if (pidTempBed())
-//        {
-//            strcpy_P(buffer, PSTR("PID controlled"));
-//        }
-//        else
-//        {
-//            strcpy_P(buffer, PSTR("Off (bang-bang mode)"));
-//        }
-//    }
-//#endif
     else if (nr == 10+BED_MENU_OFFSET)
     {
         strcpy_P(buffer, PSTR(STRING_CONFIG_H_AUTHOR));
@@ -606,6 +598,7 @@ static void lcd_menu_maintenance_motion()
     lcd_lib_update_screen();
 }
 
+#ifndef DUAL_FAN
 static void lcd_led_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
 {
     char buffer[32] = {0};
@@ -649,18 +642,14 @@ static void init_maintenance_led()
 
 static void lcd_menu_maintenance_led()
 {
-#ifndef DUAL_FAN
     analogWrite(LED_PIN, 255 * int(led_brightness_level) / 100);
-#endif
     lcd_scroll_menu(PSTR("LED"), 6, lcd_led_item, lcd_led_details);
     if (lcd_lib_button_pressed)
     {
         if (IS_SELECTED_SCROLL(0))
         {
-#ifndef DUAL_FAN
             if (led_mode != LED_MODE_ALWAYS_ON)
                 analogWrite(LED_PIN, 0);
-#endif
             if ((led_mode != lcd_cache[0]) || (led_brightness_level != lcd_cache[1]))
                 Config_StoreSettings();
             menu.return_to_previous();
@@ -693,6 +682,7 @@ static void lcd_menu_maintenance_led()
     }
     lcd_lib_update_screen();
 }
+#endif // DUAL_FAN
 
 static void lcd_uimode_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
 {
@@ -845,7 +835,11 @@ static void lcd_menu_screen_contrast()
 
 static void lcd_menu_preferences()
 {
+#ifndef DUAL_FAN
     lcd_scroll_menu(PSTR("PREFERENCES"), BED_MENU_OFFSET + 13, lcd_preferences_item, lcd_preferences_details);
+#else
+    lcd_scroll_menu(PSTR("PREFERENCES"), BED_MENU_OFFSET + 12, lcd_preferences_item, lcd_preferences_details);
+#endif
     if (lcd_lib_button_pressed)
     {
         uint8_t index = 0;
@@ -853,8 +847,10 @@ static void lcd_menu_preferences()
             menu.return_to_previous();
         else if (IS_SELECTED_SCROLL(index++))
             menu.add_menu(menu_t(lcd_menu_uimode));
+#ifndef DUAL_FAN
         else if (IS_SELECTED_SCROLL(index++))
             menu.add_menu(menu_t(init_maintenance_led, lcd_menu_maintenance_led, NULL));
+#endif
         else if (IS_SELECTED_SCROLL(index++))
             menu.add_menu(menu_t(lcd_menu_clicksound));
         else if (IS_SELECTED_SCROLL(index++))

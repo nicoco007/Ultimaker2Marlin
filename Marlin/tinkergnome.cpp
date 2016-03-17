@@ -2570,19 +2570,22 @@ static void lcd_extrude_headtofront()
 {
     lcd_lib_keyclick();
     // move to center front
-    char buffer[32] = {0};
-    sprintf_P(buffer, PSTR("G1 F12000 X%i Y%i"), int(AXIS_CENTER_POS(X_AXIS)), int(min_pos[Y_AXIS])+5);
+    char buffer[20] = {0};
+    sprintf_P(buffer, PSTR(HEATUP_POSITION_COMMAND), int(AXIS_CENTER_POS(X_AXIS)), int(min_pos[Y_AXIS]) + (IS_DUAL_ENABLED ? 70 : 10));
 
     cmd_synchronize();
-    CommandBuffer::homeHead();
-    process_command(buffer);
-    process_command_P(PSTR("M84 X0 Y0"));
+    if (!(position_state & (KNOWNPOS_X | KNOWNPOS_Y)))
+    {
+        CommandBuffer::homeHead();
+    }
+    enquecommand(buffer);
+    enquecommand_P(PSTR("M84 X0 Y0"));
 }
 
 static void lcd_extrude_disablexy()
 {
     lcd_lib_keyclick();
-    process_command_P(PSTR("M84 X0 Y0"));
+    enquecommand_P(PSTR("M84 X0 Y0"));
 }
 
 static const menu_t & get_extrude_tune_menuoption(uint8_t nr, menu_t &opt)

@@ -272,30 +272,24 @@ void CommandBuffer::processWipe()
     else
 #endif // SDSUPPORT
     {
-        // wipe moves
-        sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G0 Y70 F%i"), 200*60);
-        process_command(LCD_CACHE_FILENAME(2));
-        float_to_string2(wipe_position[X_AXIS], LCD_CACHE_FILENAME(3), NULL);
-        sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G0 X%s"), LCD_CACHE_FILENAME(3));
-        process_command(LCD_CACHE_FILENAME(2));
-        process_command_P(PSTR("G0 Y30"));
-        float_to_string2(wipe_position[Y_AXIS]-3.0f, LCD_CACHE_FILENAME(3), NULL);
-        sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G0 Y%s F%i"), LCD_CACHE_FILENAME(3), 80*60);
-        process_command(LCD_CACHE_FILENAME(2));
-        float_to_string2(wipe_position[X_AXIS]+5.5f, LCD_CACHE_FILENAME(3), NULL);
-        sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G0 X%s"), LCD_CACHE_FILENAME(3));
-        process_command(LCD_CACHE_FILENAME(2));
-        float_to_string2(wipe_position[X_AXIS]-5.5f, LCD_CACHE_FILENAME(3), NULL);
-        float_to_string2(wipe_position[Y_AXIS], LCD_CACHE_FILENAME(1), NULL);
-        sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G0 X%s Y%s"), LCD_CACHE_FILENAME(3), LCD_CACHE_FILENAME(1));
-        process_command(LCD_CACHE_FILENAME(2));
-        float_to_string2(wipe_position[X_AXIS]+5.5f, LCD_CACHE_FILENAME(3), NULL);
-        float_to_string2(wipe_position[Y_AXIS]+4.0f, LCD_CACHE_FILENAME(1), NULL);
-        sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G0 X%s Y%s"), LCD_CACHE_FILENAME(3), LCD_CACHE_FILENAME(1));
-        process_command(LCD_CACHE_FILENAME(2));
-        sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G0 Y35 F%i"), 50*60);
+        // wipe start position
+        process_command_P(PSTR("G0 X60 F12000"));
+
+        // slow wipe move
+        sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G0 X20 F%i"), 40*60);
         process_command(LCD_CACHE_FILENAME(2));
 
+        // snip move
+        float_to_string2(wipe_position[Y_AXIS]+2.0f, LCD_CACHE_FILENAME(1), NULL);
+        sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G0 Y%s F%i"), LCD_CACHE_FILENAME(1), 125*60);
+        process_command(LCD_CACHE_FILENAME(2));
+
+        // back to start pos
+        float_to_string2(wipe_position[X_AXIS]+extruder_offset[X_AXIS][active_extruder], LCD_CACHE_FILENAME(3), NULL);
+        sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G0 X%s"), LCD_CACHE_FILENAME(3));
+        process_command(LCD_CACHE_FILENAME(2));
+        sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G0 Y65 F%i"), 200*60);
+        process_command(LCD_CACHE_FILENAME(2));
     }
     // small retract after wipe
     float_to_string2(length*-0.1, LCD_CACHE_FILENAME(3), NULL);
@@ -305,35 +299,53 @@ void CommandBuffer::processWipe()
     retract_recover_length[active_extruder] = 0.5*length;
     SET_TOOLCHANGE_RETRACT(active_extruder);
 #endif // FWRETRACT
-    sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G0 Y70 F%i"), 100*60);
-    process_command(LCD_CACHE_FILENAME(2));
     axis_relative_state = old_relative_state;
 }
 #endif // EXTRUDERS
 
+static void moveHead(float x, float y, int feedrate)
+{
+    char strX[8] = {0};
+    char strY[8] = {0};
+    char buffer[30] = {0};
+    float_to_string2(x, strX, NULL);
+    float_to_string2(y, strY, NULL);
+    sprintf_P(buffer, PSTR("G0 F%u X%s Y%s"), feedrate*60, strX, strY);
+    process_command(buffer);
+}
+
 void CommandBuffer::move2heatup()
 {
+    float x, y;
 #if (EXTRUDERS > 1)
-    uint16_t x = max(5, 5 + (int)extruder_offset[X_AXIS][active_extruder]);
-    uint16_t y = IS_DUAL_ENABLED ? 70 : 10;
+    if IS_DUAL_ENABLED
+    {
+        x = wipe_position[X_AXIS]+extruder_offset[X_AXIS][active_extruder];
+        y = 65.0f;
+        plan_buffer_line(x, y, current_position[Z_AXIS], current_position[E_AXIS], 200, active_extruder);
+        y = wipe_position[Y_AXIS];
+    }
+    else
+    {
+        x = max(5.0f, min_pos[X_AXIS] + extruder_offset[X_AXIS][active_extruder] + 5);
+        y = min_pos[Y_AXIS] + 10.0;
+    }
 #else
-    uint8_t x = 5;
-    uint8_t y = 10;
+    x = max(5.0f, min_pos[X_AXIS] + 5);
+    y = min_pos[Y_AXIS] + 10.0;
 #endif
-    sprintf_P(LCD_CACHE_FILENAME(3), PSTR(HEATUP_POSITION_COMMAND), x, y);
-    process_command(LCD_CACHE_FILENAME(3));
+    moveHead(x, y, 200);
 }
 
 void CommandBuffer::move2front()
 {
-    uint16_t x = int(AXIS_CENTER_POS(X_AXIS));
+    float x = AXIS_CENTER_POS(X_AXIS);
 #if (EXTRUDERS > 1)
-    uint8_t y = IS_DUAL_ENABLED ? int(min_pos[Y_AXIS])+70 : int(min_pos[Y_AXIS])+10;
+    float y = IS_DUAL_ENABLED ? int(min_pos[Y_AXIS])+70 : int(min_pos[Y_AXIS])+10;
 #else
-    uint8_t y = int(min_pos[Y_AXIS])+10;
+    float y = int(min_pos[Y_AXIS])+10;
 #endif
-    sprintf_P(LCD_CACHE_FILENAME(3), PSTR(HEATUP_POSITION_COMMAND), x, y);
-    process_command(LCD_CACHE_FILENAME(3));
+    moveHead(x, y, 200);
 }
 
 void CommandBuffer::homeHead()
