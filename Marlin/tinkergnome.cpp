@@ -1197,23 +1197,32 @@ void lcd_menu_print_heatup_tg()
     if (current_temperature_bed >= target_temperature_bed - TEMP_WINDOW * 2)
     {
 #endif
-        for(uint8_t e=0; e<EXTRUDERS; ++e)
+        for(int8_t e=EXTRUDERS-1; e>=0; --e)
         {
-            if (LCD_DETAIL_CACHE_MATERIAL(e) < 1 || target_temperature[e] > 0)
+            if (LCD_DETAIL_CACHE_MATERIAL(e) < 1)
                 continue;
-
-            target_temperature[e] = material[e].temperature[nozzleSizeToTemperatureIndex(LCD_DETAIL_CACHE_NOZZLE_DIAMETER(e))];
+            if (target_temperature[e] <= 0)
+                target_temperature[e] = material[e].temperature[nozzleSizeToTemperatureIndex(LCD_DETAIL_CACHE_NOZZLE_DIAMETER(e))];
+            // limit power consumption: pre-heat only one nozzle at the same time
+            if (target_temperature[e] > 0)
+                break;
         }
-
 #if TEMP_SENSOR_BED != 0
         if (current_temperature_bed >= target_temperature_bed - TEMP_WINDOW * 2 && !is_command_queued())
         {
 #endif // TEMP_SENSOR_BED
             bool ready = false;
-            for(uint8_t e=0; e<EXTRUDERS; ++e)
+            for(int8_t e=EXTRUDERS-1; e>=0; --e)
             {
                 if ((target_temperature[e] > 0) && (current_temperature[e] >= target_temperature[e] - TEMP_WINDOW))
                 {
+                    // set target temperature for other used nozzles
+                    for(int8_t e2=EXTRUDERS-1; e2>=0; --e2)
+                    {
+                        if ((LCD_DETAIL_CACHE_MATERIAL(e2) < 1) || (target_temperature[e2] > 0))
+                            continue;
+                        target_temperature[e2] = material[e2].temperature[nozzleSizeToTemperatureIndex(LCD_DETAIL_CACHE_NOZZLE_DIAMETER(e2))];
+                    }
                     ready = true;
                     break;
                 }
@@ -1233,7 +1242,7 @@ void lcd_menu_print_heatup_tg()
 #endif
 
     uint8_t progress = 125;
-    for(uint8_t e=0; e<EXTRUDERS; e++)
+    for(int8_t e=EXTRUDERS-1; e>=0; --e)
     {
         if (target_temperature[e] < 1)
             continue;

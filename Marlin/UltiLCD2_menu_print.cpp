@@ -52,9 +52,15 @@ void abortPrint()
 {
     postMenuCheck = NULL;
     quickStop();
-    for (uint8_t i=0; i<NUM_AXIS; ++i)
+    for (uint8_t axis=0; axis<NUM_AXIS; ++axis)
     {
-        current_position[i] = st_get_position(i)/axis_steps_per_unit[i];
+        current_position[axis] = st_get_position(axis)/axis_steps_per_unit[axis];
+#if EXTRUDERS > 1
+        if (axis <= Y_AXIS)
+        {
+            current_position[axis] += extruder_offset[axis][active_extruder];
+        }
+#endif
     }
     current_position[E_AXIS] /= volume_to_filament_length[active_extruder];
 
@@ -83,9 +89,9 @@ void abortPrint()
         primed = 0;
     }
 
-#if EXTRUDERS > 1
-    switch_extruder(0, false);
-#endif // EXTRUDERS
+//#if EXTRUDERS > 1
+//    switch_extruder(0, false);
+//#endif // EXTRUDERS
 
     if (card.sdprinting)
     {
@@ -183,7 +189,7 @@ void doStartPrint()
 	// since we are going to prime the nozzle, forget about any G10/G11 retractions that happened at end of previous print
 	reset_retractstate();
 
-    for(uint8_t e = 0; e<EXTRUDERS; ++e)
+    for(int8_t e = EXTRUDERS-1; e>=0; --e)
     {
 #ifdef FWRETRACT
         // clear reheat flag
@@ -248,18 +254,13 @@ void doStartPrint()
 	}
 
 #if (EXTRUDERS > 1)
-	if (primed)
+	if (primed & (EXTRUDER_PRIMED << active_extruder))
 	{
-        // reset active extruder
-        switch_extruder(0, true);
-
-		if (primed & (EXTRUDER_PRIMED << 0))
-        {
-            process_command_P(PSTR("G11"));
-            current_position[E_AXIS] = 0.0;
-            plan_set_e_position(0);
-            enquecommand_P(PSTR("G1 E0"));
-        }
+		// recover tool change retract
+		process_command_P(PSTR("G11"));
+		current_position[E_AXIS] = 0.0;
+		plan_set_e_position(0);
+		enquecommand_P(PSTR("G1 E0"));
 	}
 #endif
 
@@ -685,23 +686,32 @@ void lcd_menu_print_heatup()
     if (current_temperature_bed > target_temperature_bed - TEMP_WINDOW*2)
     {
 #endif
-        for(uint8_t e=0; e<EXTRUDERS; ++e)
+        for(int8_t e=EXTRUDERS-1; e>=0; --e)
         {
-            if (LCD_DETAIL_CACHE_MATERIAL(e) < 1 || target_temperature[e] > 0)
+            if (LCD_DETAIL_CACHE_MATERIAL(e) < 1)
                 continue;
-            target_temperature[e] = material[e].temperature[nozzleSizeToTemperatureIndex(LCD_DETAIL_CACHE_NOZZLE_DIAMETER(e))];
-            // printing_state = PRINT_STATE_START;
+            if (target_temperature[e] <= 0)
+                target_temperature[e] = material[e].temperature[nozzleSizeToTemperatureIndex(LCD_DETAIL_CACHE_NOZZLE_DIAMETER(e))];
+            // limit power consumption: pre-heat only one nozzle at the same time
+            if (target_temperature[e] > 0)
+                break;
         }
-
 #if TEMP_SENSOR_BED != 0
         if (current_temperature_bed >= target_temperature_bed - TEMP_WINDOW * 2 && !is_command_queued())
         {
 #endif // TEMP_SENSOR_BED
             bool ready = false;
-            for(uint8_t e=0; e<EXTRUDERS; e++)
+            for(int8_t e=EXTRUDERS-1; e>=0; --e)
             {
                 if ((target_temperature[e] > 0) && (current_temperature[e] >= target_temperature[e] - TEMP_WINDOW))
                 {
+                    // set target temperature for other used nozzles
+                    for(int8_t e2=EXTRUDERS-1; e2>=0; --e2)
+                    {
+                        if ((LCD_DETAIL_CACHE_MATERIAL(e2) < 1) || (target_temperature[e2] > 0))
+                            continue;
+                        target_temperature[e2] = material[e2].temperature[nozzleSizeToTemperatureIndex(LCD_DETAIL_CACHE_NOZZLE_DIAMETER(e2))];
+                    }
                     ready = true;
                     break;
                 }
@@ -723,7 +733,7 @@ void lcd_menu_print_heatup()
 #endif // TEMP_SENSOR_BED
 
     uint8_t progress = 125;
-    for(uint8_t e=0; e<EXTRUDERS; ++e)
+    for(int8_t e=EXTRUDERS-1; e>=0; --e)
     {
         if (((printing_state != PRINT_STATE_RECOVER) && (LCD_DETAIL_CACHE_MATERIAL(e) < 1)) || (target_temperature[e] < 1))
             continue;
