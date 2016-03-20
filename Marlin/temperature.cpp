@@ -42,11 +42,7 @@
 #define HEATER_TIMEOUT_OFF (1000L * 300L)   // 300 seconds
 #define HEATER_TIMEOUT_MINTEMP 80           // 80C
 #define MAX_HEATERS  2                      // activate max. 2 heaters at the same time
-// heater enabled flags
-#define HEATER_0_ENABLED      1
-#define HEATER_1_ENABLED      2
-#define HEATER_2_ENABLED      4
-#define HEATER_BED_ENABLED  128
+
 
 //===========================================================================
 //=============================public variables============================
@@ -1242,9 +1238,6 @@ ISR(TIMER0_COMPB_vect)
     #endif
     #if defined(HEATER_BED_PIN) && HEATER_BED_PIN > -1
     soft_pwm_b = soft_pwm_bed;
-      #if EXTRUDERS < 2
-        if(soft_pwm_b > 0) WRITE(HEATER_BED_PIN,1);
-      #endif
     #endif
     #ifdef FAN_SOFT_PWM
     soft_pwm_fan = fanSpeedSoftPwm / 2;
@@ -1259,29 +1252,29 @@ ISR(TIMER0_COMPB_vect)
   if(soft_pwm_2 <= pwm_count) WRITE(HEATER_2_PIN,0);
   #endif
   #if defined(HEATER_BED_PIN) && HEATER_BED_PIN > -1
-    if(soft_pwm_b <= pwm_count)
-    {
-        WRITE(HEATER_BED_PIN,0);
-    }
+  if(soft_pwm_b <= pwm_count)
+  {
+    WRITE(HEATER_BED_PIN,0);
+  }
+  else
+  {
+    uint8_t heat_count = 0;
+    if (READ(HEATER_0_PIN))  ++heat_count;
     #if EXTRUDERS > 1
+    if (READ(HEATER_1_PIN))  ++heat_count;
+    #endif
+    #if EXTRUDERS > 2
+    if (READ(HEATER_2_PIN))  ++heat_count;
+    #endif
+    if (heat_count < MAX_HEATERS)
+    {
+        WRITE(HEATER_BED_PIN, 1);
+    }
     else
     {
-      uint8_t heat_count = 0;
-      if (READ(HEATER_0_PIN))  ++heat_count;
-      if (READ(HEATER_1_PIN))  ++heat_count;
-      #if EXTRUDERS > 2
-      if (READ(HEATER_2_PIN))  ++heat_count;
-      #endif
-      if (heat_count < MAX_HEATERS)
-      {
-          WRITE(HEATER_BED_PIN, 1);
-      }
-      else
-      {
-          WRITE(HEATER_BED_PIN, 0);
-      }
+        WRITE(HEATER_BED_PIN, 0);
     }
-    #endif // EXTRUDERS
+  }
   #endif
   #ifdef FAN_SOFT_PWM
   if(soft_pwm_fan <= pwm_count) WRITE(FAN_PIN,0);

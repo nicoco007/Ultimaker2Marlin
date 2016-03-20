@@ -145,11 +145,6 @@ void lcd_update()
         }
         menu.processEvents();
     }
-//    else if ((sleep_state & SLEEP_SERIAL_SCREEN) && buflen && !fromsd)
-//    {
-//        // show the usb printing screen as long as serial commands are queued
-//        menu.processEvents();
-//    }
     else
     {
         if (sleep_state & SLEEP_SERIAL_SCREEN)

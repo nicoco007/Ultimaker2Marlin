@@ -26,6 +26,13 @@ fi
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
+# #For building under MacOS we need gnutar instead of tar
+# if [ -z `which gnutar` ]; then
+# 	TAR=tar
+# else
+# 	TAR=gnutar
+# fi
+
 #############################
 # Build the required firmwares
 #############################
@@ -51,13 +58,6 @@ fi
 
 # USE_CHANGE_TEMPERATURE
 
-# $MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2 clean
-# sleep 2
-# mkdir _Ultimaker2
-# $MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2 DEFINES="'STRING_CONFIG_H_AUTHOR=\"Tinker_${BUILD_NAME}\"' TEMP_SENSOR_1=0 EXTRUDERS=1 FILAMENT_SENSOR_PIN=30 BABYSTEPPING HEATER_0_MAXTEMP=315 HEATER_1_MAXTEMP=315 HEATER_2_MAXTEMP=315"
-# 
-# cp _Ultimaker2/Marlin.hex resources/firmware/Tinker-MarlinUltimaker2-${BUILD_NAME}.hex
-
 $MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Mark2Dual clean
 sleep 2
 mkdir _Mark2Dual
@@ -65,9 +65,3 @@ $MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_V
 
 cp _Mark2Dual/Marlin.hex resources/firmware/Tinker-Mark2-dual-${BUILD_NAME}.hex
 
-# $MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2plus clean
-# sleep 2
-# mkdir _Ultimaker2plus
-# $MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2plus DEFINES="'STRING_CONFIG_H_AUTHOR=\"Tinker_${BUILD_NAME}+\"' TEMP_SENSOR_1=0 EXTRUDERS=1 FILAMENT_SENSOR_PIN=30 BABYSTEPPING HEATER_0_MAXTEMP=315 HEATER_1_MAXTEMP=315 HEATER_2_MAXTEMP=315 INVERT_E0_DIR=true INVERT_E1_DIR=true INVERT_E2_DIR=true 'EEPROM_VERSION=\"V12\"'"
-# 
-# cp _Ultimaker2plus/Marlin.hex resources/firmware/Tinker-MarlinUltimaker2plus-${BUILD_NAME}.hex
