@@ -1486,10 +1486,10 @@ void lcd_menu_printing_tg()
             else if (printing_state == PRINT_STATE_HEATING)
             {
                 lcd_lib_draw_string_leftP(BOTTOM_MENU_YPOS, PSTR("Heating nozzle"));
-#if EXTRUDERS > 1
-                int_to_string(menu_extruder+1, buffer, NULL);
-                lcd_lib_draw_string(LCD_CHAR_MARGIN_LEFT + 15*LCD_CHAR_SPACING, BOTTOM_MENU_YPOS, buffer);
-#endif // EXTRUDERS
+//#if EXTRUDERS > 1
+//                int_to_string(menu_extruder+1, buffer, NULL);
+//                lcd_lib_draw_string(LCD_CHAR_MARGIN_LEFT + 15*LCD_CHAR_SPACING, BOTTOM_MENU_YPOS, buffer);
+//#endif // EXTRUDERS
                 index += 3;
             }
             else if (printing_state == PRINT_STATE_HEATING_BED)
@@ -2588,15 +2588,17 @@ static void lcd_extrude_headtofront()
 {
     lcd_lib_keyclick();
     // move to center front
-    char buffer[20] = {0};
-    sprintf_P(buffer, PSTR(HEATUP_POSITION_COMMAND), int(AXIS_CENTER_POS(X_AXIS)), int(min_pos[Y_AXIS]) + (IS_DUAL_ENABLED ? 70 : 10));
-
-    cmd_synchronize();
     if (!(position_state & (KNOWNPOS_X | KNOWNPOS_Y)))
     {
         CommandBuffer::homeHead();
     }
-    enquecommand(buffer);
+    cmd_synchronize();
+
+#if (EXTRUDERS > 1)
+    CommandBuffer::moveHead(AXIS_CENTER_POS(X_AXIS), min_pos[Y_AXIS] + (IS_DUAL_ENABLED ? 65 : 10), 180);
+#else
+    CommandBuffer::moveHead(AXIS_CENTER_POS(X_AXIS), min_pos[Y_AXIS] + 10, 180);
+#endif
     enquecommand_P(PSTR("M84 X0 Y0"));
 }
 

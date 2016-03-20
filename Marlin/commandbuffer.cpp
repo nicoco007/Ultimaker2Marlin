@@ -303,7 +303,7 @@ void CommandBuffer::processWipe()
 }
 #endif // EXTRUDERS
 
-static void moveHead(float x, float y, int feedrate)
+void CommandBuffer::moveHead(float x, float y, int feedrate)
 {
     char strX[8] = {0};
     char strY[8] = {0};
@@ -322,7 +322,7 @@ void CommandBuffer::move2heatup()
     {
         x = wipe_position[X_AXIS]+extruder_offset[X_AXIS][active_extruder];
         y = 65.0f;
-        plan_buffer_line(x, y, current_position[Z_AXIS], current_position[E_AXIS], 200, active_extruder);
+        CommandBuffer::moveHead(x, y, 200);
         y = wipe_position[Y_AXIS];
     }
     else
@@ -334,7 +334,7 @@ void CommandBuffer::move2heatup()
     x = max(5.0f, min_pos[X_AXIS] + 5);
     y = min_pos[Y_AXIS] + 10.0;
 #endif
-    moveHead(x, y, 200);
+    CommandBuffer::moveHead(x, y, 200);
 }
 
 void CommandBuffer::move2front()
@@ -345,7 +345,7 @@ void CommandBuffer::move2front()
 #else
     float y = int(min_pos[Y_AXIS])+10;
 #endif
-    moveHead(x, y, 200);
+    CommandBuffer::moveHead(x, y, 200);
 }
 
 void CommandBuffer::homeHead()
