@@ -284,7 +284,7 @@ void doStartPrint()
     starttime = millis();
     stoptime = starttime;
     predictedTime = 0;
-    sleep_state = 0x0;
+    sleep_state = (sleep_state & SLEEP_SERIAL_SCREEN);
 }
 
 static void userStartPrint()
