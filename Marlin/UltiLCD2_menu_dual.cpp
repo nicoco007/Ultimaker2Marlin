@@ -503,7 +503,7 @@ static void lcd_tune_tcretractfeed()
 
 static void lcd_tune_tcprime()
 {
-    lcd_tune_value(toolchange_prime[menu_extruder], 0.0f, 20.0f, 0.1f);
+    lcd_tune_value(toolchange_prime[menu_extruder], -20.0f, 20.0f, 0.1f);
 }
 
 // create menu options for "axis steps/mm"
@@ -589,7 +589,7 @@ static void drawTCRetractSubmenu(uint8_t nr, uint8_t &flags)
         }
         lcd_lib_draw_string_leftP(17, PSTR("Len"));
         float_to_string2(toolchange_retractlen[menu_extruder], buffer, NULL);
-        LCDMenu::drawMenuString(LCD_CHAR_MARGIN_LEFT+LCD_CHAR_SPACING*7
+        LCDMenu::drawMenuString(LCD_CHAR_MARGIN_LEFT+LCD_CHAR_SPACING*8
                                 , 17
                                 , LCD_CHAR_SPACING*5
                                 , LCD_CHAR_HEIGHT
@@ -607,7 +607,7 @@ static void drawTCRetractSubmenu(uint8_t nr, uint8_t &flags)
         }
         lcd_lib_draw_string_leftP(27, PSTR("Speed"));
         float_to_string2(toolchange_retractfeedrate[menu_extruder]/60, buffer, NULL);
-        LCDMenu::drawMenuString(LCD_CHAR_MARGIN_LEFT+LCD_CHAR_SPACING*7
+        LCDMenu::drawMenuString(LCD_CHAR_MARGIN_LEFT+LCD_CHAR_SPACING*8
                                 , 27
                                 , LCD_CHAR_SPACING*5
                                 , LCD_CHAR_HEIGHT
@@ -627,7 +627,7 @@ static void drawTCRetractSubmenu(uint8_t nr, uint8_t &flags)
         float_to_string2(toolchange_prime[menu_extruder], buffer, NULL);
         LCDMenu::drawMenuString(LCD_CHAR_MARGIN_LEFT+LCD_CHAR_SPACING*7
                                 , 37
-                                , LCD_CHAR_SPACING*5
+                                , LCD_CHAR_SPACING*6
                                 , LCD_CHAR_HEIGHT
                                 , buffer
                                 , ALIGN_RIGHT | ALIGN_VCENTER
@@ -832,7 +832,7 @@ void switch_extruder(uint8_t newExtruder, bool moveZ)
         if (!(position_state & (KNOWNPOS_X | KNOWNPOS_Y)))
         {
             // home head
-            enquecommand_P(PSTR("G28 X0 Y0"));
+            CommandBuffer::homeHead();
             cmd_synchronize();
             st_synchronize();
         }
