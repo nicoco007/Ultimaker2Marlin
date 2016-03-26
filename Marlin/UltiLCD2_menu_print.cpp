@@ -1443,39 +1443,20 @@ static void drawResumeSubmenu(uint8_t nr, uint8_t &flags)
     uint8_t index(0);
     if (nr == index++)
     {
-        if (card.pause && (!IS_SD_PRINTING || (movesplanned() == 0)))
+        LCDMenu::drawMenuString_P(LCD_CHAR_MARGIN_LEFT+3
+                                , LCD_LINE_HEIGHT
+                                , 52
+                                , LCD_LINE_HEIGHT*4
+                                , PSTR("RESUME|")
+                                , ALIGN_CENTER
+                                , flags);
+        if (flags & MENU_SELECTED)
         {
-            LCDMenu::drawMenuString_P(LCD_CHAR_MARGIN_LEFT+3
-                                    , LCD_LINE_HEIGHT
-                                    , 52
-                                    , LCD_LINE_HEIGHT*4
-                                    , PSTR("RESUME|")
-                                    , ALIGN_CENTER
-                                    , flags);
-            if (flags & MENU_SELECTED)
-            {
-                lcd_lib_clear_gfx(LCD_CHAR_MARGIN_LEFT+26, LCD_LINE_HEIGHT*3+2, startGfx);
-            }
-            else
-            {
-                lcd_lib_draw_gfx(LCD_CHAR_MARGIN_LEFT+26, LCD_LINE_HEIGHT*3+2, startGfx);
-            }
-        } else {
-            LCDMenu::drawMenuString_P(LCD_CHAR_MARGIN_LEFT+3
-                                    , LCD_LINE_HEIGHT
-                                    , 52
-                                    , LCD_LINE_HEIGHT*4
-                                    , PSTR("PAUSING|")
-                                    , ALIGN_CENTER
-                                    , flags);
-            if (flags & MENU_SELECTED)
-            {
-                lcd_lib_clear_gfx(LCD_CHAR_MARGIN_LEFT+26, LCD_LINE_HEIGHT*3+2, hourglassGfx);
-            }
-            else
-            {
-                lcd_lib_draw_gfx(LCD_CHAR_MARGIN_LEFT+26, LCD_LINE_HEIGHT*3+2, hourglassGfx);
-            }
+            lcd_lib_clear_gfx(LCD_CHAR_MARGIN_LEFT+26, LCD_LINE_HEIGHT*3+2, startGfx);
+        }
+        else
+        {
+            lcd_lib_draw_gfx(LCD_CHAR_MARGIN_LEFT+26, LCD_LINE_HEIGHT*3+2, startGfx);
         }
     }
     else if (IS_SD_PRINTING && (nr == index++))
