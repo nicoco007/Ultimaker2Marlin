@@ -1332,25 +1332,19 @@ void lcd_print_abort()
     menu.add_menu(menu_t(lcd_menu_print_abort, MAIN_MENU_ITEM_POS(1)));
 }
 
-static void lcd_menu_print_resume_ready()
+static void lcd_print_resume()
 {
     menu.return_to_previous();
-//    pauseRequested = false;
     card.pause = false;
     if (LCD_DETAIL_CACHE_MATERIAL(active_extruder))
         primed |= (EXTRUDER_PRIMED << active_extruder);
     primed |= ENDOFPRINT_RETRACT;
-}
-
-static void lcd_print_resume()
-{
-    menu.replace_menu(menu_t(lcd_menu_print_resume_ready));
     check_preheat();
 }
 
 static void lcd_print_change_material()
 {
-    if (!movesplanned())
+    if (!blocks_queued())
     {
         lcd_material_change_init(false);
         menu.add_menu(menu_t(lcd_change_to_menu_change_material_return), false);
@@ -1360,8 +1354,8 @@ static void lcd_print_change_material()
 
 static void lcd_show_pause_menu()
 {
-    lcd_print_pause();
     menu.replace_menu(menu_t(lcd_select_first_submenu, lcd_menu_print_resume, NULL, MAIN_MENU_ITEM_POS(0)));
+    lcd_print_pause();
 }
 
 static const menu_t & get_pause_menuoption(uint8_t nr, menu_t &opt)
@@ -1582,15 +1576,6 @@ static void drawResumeSubmenu(uint8_t nr, uint8_t &flags)
 
 void lcd_menu_print_resume()
 {
-//    if (pauseRequested)
-//    {
-//        lcd_print_pause();
-//    }
-//    if (movesplanned())
-//    {
-//        last_user_interaction = millis();
-//    }
-
     lcd_lib_clear();
     lcd_lib_draw_vline(64, 5, 46);
     lcd_lib_draw_hline(3, 124, 50);
