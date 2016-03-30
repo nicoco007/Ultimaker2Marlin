@@ -38,6 +38,7 @@
 #include "preferences.h"
 #include "tinkergnome.h"
 
+#define HEATER_TIMEOUT_START (1000L * 30L)  //  30 seconds
 #define HEATER_TIMEOUT_IDLE (1000L * 120L)  // 120 seconds
 #define HEATER_TIMEOUT_OFF (1000L * 300L)   // 300 seconds
 #define HEATER_TIMEOUT_MINTEMP 80           // 80C
@@ -492,7 +493,7 @@ void manage_heater()
             target_temp = target_temp*4/5;
             target_temp -= target_temp % 10;
         }
-        else if (e != active_extruder)
+        else if ((extruder_lastused[e] + HEATER_TIMEOUT_START) < m)
         {
             target_temp -= target_temp/20;
         }
