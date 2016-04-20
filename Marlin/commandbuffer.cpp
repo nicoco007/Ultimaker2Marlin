@@ -348,6 +348,15 @@ void CommandBuffer::move2front()
     CommandBuffer::moveHead(x, y, 200);
 }
 
+// move to a safe y position in dual mode
+void CommandBuffer::move2SafeYPos()
+{
+    if (IS_DUAL_ENABLED && current_position[Y_AXIS] < DUAL_Y_MIN_POS)
+    {
+        moveHead(current_position[X_AXIS], DUAL_Y_MIN_POS, 120);
+    }
+}
+
 void CommandBuffer::homeHead()
 {
     enquecommand_P(PSTR("G28 X0 Y0"));

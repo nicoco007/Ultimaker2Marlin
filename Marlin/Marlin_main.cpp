@@ -47,6 +47,7 @@
 #include "machinesettings.h"
 #include "filament_sensor.h"
 #include "preferences.h"
+#include "UltiLCD2_menu_print.h"
 
 #if (EXTRUDERS > 1)
 #include "commandbuffer.h"
@@ -513,6 +514,10 @@ void setup()
 
 void loop()
 {
+  if (printing_state == PRINT_STATE_ABORT)
+  {
+    abortPrint();
+  }
   if(buflen < (BUFSIZE-1))
   {
     get_command();
@@ -698,7 +703,7 @@ static void get_command()
   {
     card.sdprinting = false;
   }
-  if(!card.sdprinting)
+  if(!card.sdprinting || (printing_state == PRINT_STATE_ABORT))
     return;
   if (serial_count!=0)
   {
@@ -3310,6 +3315,13 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
            current_position[i] += extruder_offset[i][nextExtruder];
         }
 
+        // keep the position of the E_AXIS in mind
+        float current_epos = current_position[E_AXIS];
+        if(EXTRUDER_RETRACTED(active_extruder) || TOOLCHANGE_RETRACTED(active_extruder))
+        {
+            current_epos += retract_recover_length[active_extruder];
+        }
+
         // Set the new active extruder and restore position
         active_extruder = nextExtruder;
 
@@ -3340,29 +3352,45 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
 
             // wait for nozzle heatup
             reheatNozzle(active_extruder);
-
-#ifdef PREVENT_DANGEROUS_EXTRUDE
-            if (target_temperature[active_extruder] >= get_extrude_min_temp())
-#endif
+            if (printing_state == PRINT_STATE_ABORT)
             {
-                // execute wipe script
-                cmdBuffer.processWipe();
+                CommandBuffer::move2SafeYPos();
             }
-
-            // finish wipe moves
-            st_synchronize();
-
-            // reset wipe offset
-            current_position[Z_AXIS] += wipeOffset;
-            // raise buildplate if necessary
-            if (zoffset > 0.0f)
+            else
             {
-               current_position[Z_AXIS] += zoffset;
+    #ifdef PREVENT_DANGEROUS_EXTRUDE
+                if (target_temperature[active_extruder] >= get_extrude_min_temp())
+    #endif
+                {
+                    // execute wipe script
+                    cmdBuffer.processWipe();
+                }
+
+                // finish wipe moves
+                st_synchronize();
+
+                // reset wipe offset
+                current_position[Z_AXIS] += wipeOffset;
+                // raise buildplate if necessary
+                if (zoffset > 0.0f)
+                {
+                   current_position[Z_AXIS] += zoffset;
+                }
+
+                // reset the position of E_AXIS
+                current_position[E_AXIS] = current_epos;
+                if(EXTRUDER_RETRACTED(active_extruder) || TOOLCHANGE_RETRACTED(active_extruder))
+                {
+                    current_position[E_AXIS] -= retract_recover_length[active_extruder];
+                }
             }
         }
 
         feedrate = old_feedrate;
-        printing_state = PRINT_STATE_TOOLREADY;
+        if (printing_state < PRINT_STATE_ABORT)
+        {
+            printing_state = PRINT_STATE_TOOLREADY;
+        }
     }
     else
     {

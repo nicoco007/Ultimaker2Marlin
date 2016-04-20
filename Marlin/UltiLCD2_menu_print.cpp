@@ -51,6 +51,7 @@ void lcd_clear_cache()
 void abortPrint()
 {
     postMenuCheck = NULL;
+
     quickStop();
     for (uint8_t axis=0; axis<NUM_AXIS; ++axis)
     {
@@ -93,6 +94,9 @@ void abortPrint()
 //    switch_extruder(0, false);
 //#endif // EXTRUDERS
 
+    // move to a safe y position in dual mode
+    CommandBuffer::move2SafeYPos();
+
     if (card.sdprinting)
     {
     	// we're not printing any more
@@ -124,7 +128,6 @@ void abortPrint()
     stoptime=millis();
     lifetime_stats_print_end();
     card.pause = false;
-//    pauseRequested = false;
     printing_state  = PRINT_STATE_NORMAL;
 #ifndef DUAL_FAN
     if (led_mode == LED_MODE_WHILE_PRINTING)
@@ -144,7 +147,7 @@ void abortPrint()
 
 static void userAbortPrint()
 {
-    abortPrint();
+    printing_state = PRINT_STATE_ABORT;
     sleep_state &= ~SLEEP_LED_OFF;
     menu.return_to_main();
 }
@@ -905,15 +908,26 @@ static void lcd_menu_print_material_warning()
     lcd_lib_update_screen();
 }
 
+static void lcd_menu_print_aborting()
+{
+    LED_GLOW
+    if (printing_state == PRINT_STATE_ABORT)
+    {
+        lcd_lib_clear();
+        lcd_lib_draw_string_centerP(20, PSTR("Aborting..."));
+		lcd_lib_draw_gfx(LCD_GFX_WIDTH/2 - 4, 32, standbyGfx);
+        lcd_lib_update_screen();
+    }
+    else
+    {
+        menu.replace_menu(menu_t(lcd_menu_print_ready, MAIN_MENU_ITEM_POS(0)));
+    }
+}
+
 void lcd_menu_print_abort()
 {
-//    if (pauseRequested)
-//    {
-//        lcd_print_pause();
-//    }
     LED_GLOW
-    lcd_question_screen(lcd_menu_print_ready, userAbortPrint, PSTR("YES"), NULL, lcd_change_to_previous_menu, PSTR("NO"));
-
+    lcd_question_screen(lcd_menu_print_aborting, userAbortPrint, PSTR("YES"), NULL, lcd_change_to_previous_menu, PSTR("NO"));
     lcd_lib_draw_string_centerP(20, PSTR("Abort the print?"));
     lcd_lib_draw_gfx(LCD_GFX_WIDTH/2 - 4, 32, standbyGfx);
 
@@ -936,6 +950,7 @@ void lcd_menu_print_ready()
     if ((led_mode == LED_MODE_BLINK_ON_DONE) && !(sleep_state & SLEEP_LED_OFF))
         analogWrite(LED_PIN, (led_glow << 1) * int(led_brightness_level) / 100);
 #endif
+    LED_GLOW
     lcd_info_screen(NULL, postPrintReady, PSTR("BACK TO MENU"));
 
     lcd_lib_draw_hline(3, 124, 13);

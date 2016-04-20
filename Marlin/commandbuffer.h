@@ -13,6 +13,7 @@ class CommandBuffer
     static void move2heatup();
     static void move2front();
     static void moveHead(float x, float y, int feedrate);
+    static void move2SafeYPos();
 
 #if EXTRUDERS > 1
     void processT0(bool bRetract);
