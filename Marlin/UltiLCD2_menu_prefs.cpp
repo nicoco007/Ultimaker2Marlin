@@ -522,6 +522,12 @@ void lcd_menu_axeslimit()
 static void lcd_store_steps()
 {
     Config_StoreSettings();
+    lcd_cancel_steps;
+}
+
+static void lcd_cancel_steps()
+{
+    plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
     menu.return_to_previous();
 }
 
@@ -557,7 +563,7 @@ static const menu_t & get_steps_menuoption(uint8_t nr, menu_t &opt)
     else if (nr == index++)
     {
         // RETURN
-        opt.setData(MENU_NORMAL, lcd_change_to_previous_menu);
+        opt.setData(MENU_NORMAL, lcd_cancel_steps);
     }
     else if (nr == index++)
     {
