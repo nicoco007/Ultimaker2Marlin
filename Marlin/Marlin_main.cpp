@@ -1345,6 +1345,11 @@ void process_command(const char *strCmd)
       if(code_seen(strCmd, 'S')) codenum = code_value() * 1000; // seconds to wait
 
       st_synchronize();
+      for (uint8_t i=0; i<NUM_AXIS; ++i)
+      {
+          current_position[i]=st_get_position(i) / axis_steps_per_unit[i];
+      }
+
       previous_millis_cmd = millis();
       if (codenum > 0){
         codenum += millis();  // keep track of when we started waiting
@@ -1374,6 +1379,7 @@ void process_command(const char *strCmd)
         {
           idle();
         }
+        plan_set_e_position(current_position[E_AXIS]);
         serial_action_P(PSTR("resume"));
     }
     break;
@@ -2389,12 +2395,17 @@ void process_command(const char *strCmd)
         serial_action_P(PSTR("pause"));
 
         st_synchronize();
-        float target[4];
-        float lastpos[4];
-        memcpy(target, current_position, sizeof(target));
-        memcpy(lastpos, current_position, sizeof(lastpos));
+        float target[NUM_AXIS];
+        float lastpos[NUM_AXIS];
+        // preserve current position
+        for (uint8_t i=0; i<NUM_AXIS; ++i)
+        {
+            // lastpos[i]=target[i]=current_position[i];
+            lastpos[i]=target[i]=st_get_position(i) / axis_steps_per_unit[i];
+        }
+        recover_height = lastpos[Z_AXIS];
 
-        // standard retract
+        // retract
         target[E_AXIS] -= retract_length/volume_to_filament_length[active_extruder];
         plan_buffer_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], target[E_AXIS], retract_feedrate/60, active_extruder);
 
@@ -2416,6 +2427,7 @@ void process_command(const char *strCmd)
         }
         plan_buffer_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], target[E_AXIS], homing_feedrate[X_AXIS]/60, active_extruder);
 
+        // additional retract
         if(code_seen(strCmd, 'L'))
         {
           target[E_AXIS] -= code_value()/volume_to_filament_length[active_extruder];
@@ -2451,6 +2463,7 @@ void process_command(const char *strCmd)
             plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], lastpos[Z_AXIS], target[E_AXIS], homing_feedrate[Z_AXIS]/60, active_extruder); //move z back
             plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], lastpos[Z_AXIS], lastpos[E_AXIS], retract_feedrate/60, active_extruder); //final untretract
             memcpy(current_position, lastpos, sizeof(current_position));
+            memcpy(destination, lastpos, sizeof(destination));
         }
         serial_action_P(PSTR("resume"));
     }

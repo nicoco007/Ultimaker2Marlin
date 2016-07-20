@@ -1173,10 +1173,6 @@ void lcd_menu_print_tune_heatup_nozzle1()
 
 void lcd_menu_print_tune()
 {
-//    if (pauseRequested)
-//    {
-//        lcd_print_pause();
-//    }
 #ifndef DUAL_FAN
     uint8_t len = 2 + BED_MENU_OFFSET + EXTRUDERS * 5;
 #else
@@ -1303,7 +1299,6 @@ void lcd_print_pause()
     if (!card.pause)
     {
         card.pause = true;
-        recover_height = current_position[Z_AXIS];
 
         // move z up according to the current height - but minimum to z=70mm (above the gantry height)
         uint16_t zdiff = 0;

@@ -230,7 +230,7 @@ static void lcd_preferences_details(uint8_t nr)
             strcpy_P(c, PSTR("off"));
         }
     }
-    else if (nr == 10+BED_MENU_OFFSET)
+    else if (nr == 11)
     {
         strcpy_P(buffer, PSTR(STRING_CONFIG_H_AUTHOR));
     }
