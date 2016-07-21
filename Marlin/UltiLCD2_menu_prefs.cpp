@@ -519,16 +519,16 @@ void lcd_menu_axeslimit()
     lcd_lib_update_screen();
 }
 
-static void lcd_store_steps()
-{
-    Config_StoreSettings();
-    lcd_cancel_steps;
-}
-
 static void lcd_cancel_steps()
 {
     plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
     menu.return_to_previous();
+}
+
+static void lcd_store_steps()
+{
+    Config_StoreSettings();
+    lcd_cancel_steps();
 }
 
 static void lcd_steps_x()
