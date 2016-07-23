@@ -2357,11 +2357,13 @@ void process_command(const char *strCmd)
         float target[NUM_AXIS];
         float lastpos[NUM_AXIS];
         // preserve current position
-        for (uint8_t i=0; i<NUM_AXIS; ++i)
-        {
-            // lastpos[i]=target[i]=current_position[i];
-            lastpos[i]=target[i]=st_get_position(i) / axis_steps_per_unit[i];
-        }
+        memcpy(lastpos, current_position, sizeof(lastpos));
+        memcpy(target, current_position, sizeof(target));
+//        for (uint8_t i=0; i<NUM_AXIS; ++i)
+//        {
+//            // lastpos[i]=target[i]=current_position[i];
+//            lastpos[i]=target[i]=st_get_position(i) / axis_steps_per_unit[i];
+//        }
         recover_height = lastpos[Z_AXIS];
 
         // retract
@@ -2393,10 +2395,11 @@ void process_command(const char *strCmd)
         }
         plan_buffer_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], target[E_AXIS], retract_feedrate/60, active_extruder);
 
-        for (uint8_t i=0; i<NUM_AXIS; ++i)
-        {
-            current_position[i] = target[i];
-        }
+        memcpy(current_position, target, sizeof(current_position));
+//        for (uint8_t i=0; i<NUM_AXIS; ++i)
+//        {
+//            current_position[i] = target[i];
+//        }
         //finish moves
         st_synchronize();
         //disable extruder steppers so filament can be removed
@@ -2423,10 +2426,11 @@ void process_command(const char *strCmd)
             plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], target[Z_AXIS], target[E_AXIS], homing_feedrate[X_AXIS]/60, active_extruder); //move xy back
             plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], lastpos[Z_AXIS], target[E_AXIS], homing_feedrate[Z_AXIS]/60, active_extruder); //move z back
             plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], lastpos[Z_AXIS], lastpos[E_AXIS], retract_feedrate/60, active_extruder); //final untretract
-            for (uint8_t i=0; i<NUM_AXIS; ++i)
-            {
-                destination[i] = current_position[i] = lastpos[i];
-            }
+            memcpy(current_position, lastpos, sizeof(current_position));
+//            for (uint8_t i=0; i<NUM_AXIS; ++i)
+//            {
+//                destination[i] = current_position[i] = lastpos[i];
+//            }
         }
         serial_action_P(PSTR("resume"));
     }
