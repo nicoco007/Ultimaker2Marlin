@@ -512,6 +512,42 @@ void setup()
   #endif
 }
 
+FORCE_INLINE float code_value()
+{
+  return (strtod(strchr_pointer + 1, NULL));
+}
+
+FORCE_INLINE long code_value_long()
+{
+  return (strtol(strchr_pointer + 1, NULL, 10));
+}
+
+static bool code_seen(const char *cmd, char code)
+{
+  strchr_pointer = strchr(cmd, code);
+  return (strchr_pointer != NULL);  //Return True if a character was found
+}
+
+#if (EXTRUDERS > 1) && defined(FWRETRACT)
+// check, if a toolchange command appeared and set a flag for nozzle re-heating
+static void checkToolchange(const char *cmd)
+{
+    if (strchr(cmd, 'G') || strchr(cmd, 'M'))
+        return;
+
+    strchr_pointer = strchr(cmd, 'T');
+    if(strchr_pointer)
+    {
+        uint8_t e = code_value_long();
+        if ((e < EXTRUDERS) && (e != active_extruder))
+        {
+            // set reheat flag
+            retract_state |= (EXTRUDER_PREHEAT << e);
+        }
+    }
+}
+#endif
+
 void loop()
 {
   if (printing_state == PRINT_STATE_ABORT)
@@ -568,22 +604,6 @@ void loop()
   }
   idle();
   checkHitEndstops();
-}
-
-FORCE_INLINE float code_value()
-{
-  return (strtod(strchr_pointer + 1, NULL));
-}
-
-FORCE_INLINE long code_value_long()
-{
-  return (strtol(strchr_pointer + 1, NULL, 10));
-}
-
-static bool code_seen(const char *cmd, char code)
-{
-  strchr_pointer = strchr(cmd, code);
-  return (strchr_pointer != NULL);  //Return True if a character was found
 }
 
 static void get_command()
@@ -677,6 +697,13 @@ static void get_command()
           }
 
         }
+#if (EXTRUDERS > 1) && defined(FWRETRACT)
+        // check, if a toolchange command appeared and set a flag for nozzle re-heating
+        else
+        {
+            checkToolchange(cmdbuffer[bufindw]);
+        }
+#endif
 #ifdef ENABLE_ULTILCD2
         if (!code_seen(cmdbuffer[bufindw], 'M') || (code_value_long() != 105))
 #endif
@@ -766,6 +793,10 @@ static void get_command()
         return; //if empty line
       }
       cmdbuffer[bufindw][serial_count] = 0; //terminate string
+#if (EXTRUDERS > 1) && defined(FWRETRACT)
+        // check, if a toolchange command appeared and set a flag for nozzle re-heating
+        checkToolchange(cmdbuffer[bufindw]);
+#endif
 //      if(!comment_mode){
         // clear serial flag
         serialCmd &= ~(1 << bufindw);
@@ -1087,10 +1118,8 @@ void process_command(const char *strCmd)
       if(!EXTRUDER_RETRACTED(active_extruder))
       {
         float oldFeedrate = feedrate;
-        for (uint8_t i=0; i<NUM_AXIS; ++i)
-        {
-            destination[i]=current_position[i];
-        }
+        float oldpos = current_position[E_AXIS];
+        memcpy(destination, current_position, sizeof(destination));
         #if EXTRUDERS > 1
         if (code_seen(strCmd, 'S') && code_value_long() == 1)
         {
@@ -1111,6 +1140,8 @@ void process_command(const char *strCmd)
         SET_EXTRUDER_RETRACT(active_extruder);
         prepare_move(strCmd);
         feedrate = oldFeedrate;
+        destination[E_AXIS] = current_position[E_AXIS] = oldpos;
+        plan_set_e_position(oldpos);
       }
 
       break;
@@ -1119,17 +1150,18 @@ void process_command(const char *strCmd)
         break;
       if(EXTRUDER_RETRACTED(active_extruder) || TOOLCHANGE_RETRACTED(active_extruder))
       {
-        for (uint8_t i=0; i<NUM_AXIS; ++i)
-        {
-            destination[i]=current_position[i];
-        }
+        float oldpos = current_position[E_AXIS];
+        memcpy(destination, current_position, sizeof(destination));
         destination[E_AXIS]+=retract_recover_length[active_extruder];
         float oldFeedrate = feedrate;
         feedrate=retract_recover_feedrate[active_extruder];
         CLEAR_EXTRUDER_RETRACT(active_extruder);
         CLEAR_TOOLCHANGE_RETRACT(active_extruder);
+		retract_recover_length[active_extruder] = 0.0f;
         prepare_move(strCmd);
         feedrate = oldFeedrate;
+        destination[E_AXIS] = current_position[E_AXIS] = oldpos;
+        plan_set_e_position(oldpos);
       }
       break;
       #endif //FWRETRACT
@@ -1311,11 +1343,11 @@ void process_command(const char *strCmd)
       for(int8_t i=0; i < NUM_AXIS; ++i) {
         if(code_seen(strCmd, axis_codes[i])) {
            if(i == E_AXIS) {
-             current_position[i] = code_value();
+             destination[i] = current_position[i] = code_value();
              plan_set_e_position(current_position[i]);
            }
            else {
-             current_position[i] = code_value();
+             destination[i] = current_position[i] = code_value();
              plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
            }
         }
@@ -2403,11 +2435,6 @@ void process_command(const char *strCmd)
         // preserve current position
         memcpy(lastpos, current_position, sizeof(lastpos));
         memcpy(target, current_position, sizeof(target));
-//        for (uint8_t i=0; i<NUM_AXIS; ++i)
-//        {
-//            // lastpos[i]=target[i]=current_position[i];
-//            lastpos[i]=target[i]=st_get_position(i) / axis_steps_per_unit[i];
-//        }
         recover_height = lastpos[Z_AXIS];
 
         // retract
@@ -2440,10 +2467,6 @@ void process_command(const char *strCmd)
         plan_buffer_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], target[E_AXIS], retract_feedrate/60, active_extruder);
 
         memcpy(current_position, target, sizeof(current_position));
-//        for (uint8_t i=0; i<NUM_AXIS; ++i)
-//        {
-//            current_position[i] = target[i];
-//        }
 
         //finish moves
         st_synchronize();
@@ -2472,10 +2495,7 @@ void process_command(const char *strCmd)
             plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], lastpos[Z_AXIS], target[E_AXIS], homing_feedrate[Z_AXIS]/60, active_extruder); //move z back
             plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], lastpos[Z_AXIS], lastpos[E_AXIS], retract_feedrate/60, active_extruder); //final untretract
             memcpy(current_position, lastpos, sizeof(current_position));
-//            for (uint8_t i=0; i<NUM_AXIS; ++i)
-//            {
-//                destination[i] = current_position[i] = lastpos[i];
-//            }
+            memcpy(destination, current_position, sizeof(destination));
         }
         serial_action_P(PSTR("resume"));
     }
@@ -2758,6 +2778,10 @@ static void get_coordinates(const char *cmd)
 #ifdef FWRETRACT
     uint8_t seen=0;
 #endif
+    if (printing_state < PRINT_STATE_TOOLCHANGE)
+    {
+        memcpy(destination, current_position, sizeof(destination));
+    }
     for(uint8_t i=0; i < NUM_AXIS; ++i)
     {
         if(code_seen(cmd, axis_codes[i]))
@@ -2771,10 +2795,6 @@ static void get_coordinates(const char *cmd)
             seen |= (1 << i);
 #endif
         }
-        else if (printing_state < PRINT_STATE_TOOLCHANGE)
-        {
-            destination[i] = current_position[i]; //Are these else lines really needed?
-        }
     }
 
     if(code_seen(cmd, 'F'))
@@ -2784,10 +2804,11 @@ static void get_coordinates(const char *cmd)
     }
 
 #ifdef FWRETRACT
+    float echange=destination[E_AXIS]-current_position[E_AXIS];
+
     if(seen == (1 << E_AXIS))
     {
         // e axis only
-        float echange=destination[E_AXIS]-current_position[E_AXIS];
         if (echange<-MIN_RETRACT)
         {
             // accumulate retract length during tool change
@@ -2795,7 +2816,16 @@ static void get_coordinates(const char *cmd)
             {
                 if (TOOLCHANGE_RETRACTED(active_extruder))
                 {
-                    retract_recover_length[active_extruder] -= echange;
+                    if (printing_state == PRINT_STATE_TOOLCHANGE)
+                    {
+                        // additional toolchange retract
+                        retract_recover_length[active_extruder] -= echange;
+                    }
+                    else
+                    {
+                        // ignore additional retracts
+                        destination[E_AXIS] = current_position[E_AXIS];
+                    }
                 }
                 else
                 {
@@ -2832,8 +2862,12 @@ static void get_coordinates(const char *cmd)
             if (TOOLCHANGE_RETRACTED(active_extruder))
             {
                 // retraction recover after tool change
-                destination[E_AXIS] = current_position[E_AXIS] + retract_recover_length[active_extruder];
-                //feedrate=retract_recover_feedrate[active_extruder];
+                float correctede=-echange+retract_recover_length[active_extruder]; //total unretract=retract_length+retract_recover_length[surplus]
+                current_position[E_AXIS]-=correctede; //to generate the additional steps, not the destination is changed, but inversely the current position
+                plan_set_e_position(current_position[E_AXIS]);
+
+//                destination[E_AXIS] = current_position[E_AXIS] + retract_recover_length[active_extruder];
+//                //feedrate=retract_recover_feedrate[active_extruder];
             }
             else if (AUTORETRACT_ENABLED && EXTRUDER_RETRACTED(active_extruder))
             {
@@ -2847,6 +2881,14 @@ static void get_coordinates(const char *cmd)
             CLEAR_TOOLCHANGE_RETRACT(active_extruder);
             retract_recover_length[active_extruder] = 0.0;
         }
+    }
+    else if ((seen & (1 << E_AXIS)) && TOOLCHANGE_RETRACTED(active_extruder) && (echange>0.0f))
+    {
+        // first e-move after toolchange -> recover retraction
+        float olddest[NUM_AXIS];
+        memcpy(olddest, destination, sizeof(olddest));
+        process_command_P(PSTR("G11"));
+        memcpy(destination, olddest, sizeof(destination));
     }
 #endif //FWRETRACT
 
@@ -2983,9 +3025,7 @@ static void prepare_move(const char *cmd)
     }
   }
 #endif
-  for(int8_t i=0; i < NUM_AXIS; i++) {
-    current_position[i] = destination[i];
-  }
+  memcpy(current_position, destination, sizeof(current_position));
 }
 
 static void prepare_arc_move(char isclockwise)
@@ -3288,6 +3328,7 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
     {
         printing_state = PRINT_STATE_TOOLCHANGE;
         float old_feedrate = feedrate;
+        float oldepos = current_position[E_AXIS];
 
         // reset xy offsets
         for(uint8_t i = 0; i < 2; ++i)
@@ -3338,13 +3379,6 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
         for(uint8_t i = 0; i < 2; ++i)
         {
            current_position[i] += extruder_offset[i][nextExtruder];
-        }
-
-        // keep the position of the E_AXIS in mind
-        float current_epos = current_position[E_AXIS];
-        if(EXTRUDER_RETRACTED(active_extruder) || TOOLCHANGE_RETRACTED(active_extruder))
-        {
-            current_epos += retract_recover_length[active_extruder];
         }
 
         // Set the new active extruder and restore position
@@ -3402,16 +3436,13 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
                    current_position[Z_AXIS] += zoffset;
                 }
 
-                // reset the position of E_AXIS
-                current_position[E_AXIS] = current_epos;
-                if(EXTRUDER_RETRACTED(active_extruder) || TOOLCHANGE_RETRACTED(active_extruder))
-                {
-                    current_position[E_AXIS] -= retract_recover_length[active_extruder];
-                }
             }
         }
 
+        // restore settings
         feedrate = old_feedrate;
+        destination[E_AXIS] = current_position[E_AXIS] = oldepos;
+
         if (printing_state < PRINT_STATE_ABORT)
         {
             printing_state = PRINT_STATE_TOOLREADY;
