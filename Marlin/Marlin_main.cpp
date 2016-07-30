@@ -1377,11 +1377,6 @@ void process_command(const char *strCmd)
       if(code_seen(strCmd, 'S')) codenum = code_value() * 1000; // seconds to wait
 
       st_synchronize();
-      for (uint8_t i=0; i<NUM_AXIS; ++i)
-      {
-          current_position[i]=st_get_position(i) / axis_steps_per_unit[i];
-      }
-
       previous_millis_cmd = millis();
       if (codenum > 0){
         codenum += millis();  // keep track of when we started waiting
@@ -2480,6 +2475,10 @@ void process_command(const char *strCmd)
         while(card.pause)
         {
           idle();
+          if (printing_state == PRINT_STATE_ABORT)
+          {
+            abortPrint();
+          }
         }
 
         plan_set_e_position(current_position[E_AXIS]);
@@ -2713,7 +2712,7 @@ void process_command(const char *strCmd)
       if (changeExtruder(tmp_extruder, position_state & KNOWNPOS_Z))
       {
         // Move to the old position if 'F' was in the parameters
-        if(make_move && Stopped == false)
+        if((printing_state < PRINT_STATE_ABORT) && make_move && Stopped == false && (IS_SD_PRINTING || is_command_queued()))
         {
            prepare_move(strCmd);
         }
@@ -3293,7 +3292,7 @@ void reheatNozzle(uint8_t e)
     unsigned long last_output = millis();
     tmp_extruder = e;
 
-    while ( current_temperature[e] < target_temperature[e] - TEMP_WINDOW )
+    while ((printing_state < PRINT_STATE_ABORT) && ( current_temperature[e] < target_temperature[e] - TEMP_WINDOW ))
     {
     #if (defined(TEMP_0_PIN) && TEMP_0_PIN > -1) || defined(HEATER_0_USES_MAX6675)
       if( (millis() - last_output) > 1000UL )

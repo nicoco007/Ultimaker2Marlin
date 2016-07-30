@@ -128,7 +128,7 @@ void abortPrint()
     stoptime=millis();
     lifetime_stats_print_end();
     card.pause = false;
-    printing_state  = PRINT_STATE_NORMAL;
+    printing_state = PRINT_STATE_NORMAL;
 #ifndef DUAL_FAN
     if (led_mode == LED_MODE_WHILE_PRINTING)
         analogWrite(LED_PIN, 0);
@@ -138,7 +138,7 @@ void abortPrint()
 	retract_state = 0;
     feedmultiply = 100;
     fanSpeedPercent = 100;
-    for(uint8_t e=0; e<EXTRUDERS; e++)
+    for(uint8_t e=0; e<EXTRUDERS; ++e)
     {
         volume_to_filament_length[e] = 1.0;
         extrudemultiply[e] = 100;
