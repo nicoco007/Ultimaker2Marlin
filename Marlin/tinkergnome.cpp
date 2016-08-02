@@ -2107,7 +2107,14 @@ static void lcd_move_axis(AxisEnum axis, float diff)
         }
         if (movingSpeed != 0)
         {
-            movingSpeed = constrain(movingSpeed, -20, 20);
+            if (axis == Z_AXIS)
+            {
+                movingSpeed = constrain(movingSpeed, -10, 10);
+            }
+            else
+            {
+                movingSpeed = constrain(movingSpeed, -20, 20);
+            }
             if (abs(movingSpeed) < 6)
             {
                 movingSpeed = 6*((movingSpeed > 0) - (movingSpeed < 0));
