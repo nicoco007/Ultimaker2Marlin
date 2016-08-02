@@ -25,7 +25,7 @@
 #include "stepper.h"
 #include "planner.h"
 #include "temperature.h"
-#include "ultralcd.h"
+#include "preferences.h"
 #include "UltiLCD2.h"
 #include "language.h"
 #include "lifetime_stats.h"
@@ -210,7 +210,7 @@ void checkHitEndstops()
      SERIAL_ECHOPAIR(" Z:",(float)endstops_trigsteps[Z_AXIS]/axis_steps_per_unit[Z_AXIS]);
      LCD_MESSAGEPGM(MSG_ENDSTOPS_HIT "Z");
    }
-   SERIAL_ECHOLN("");
+   SERIAL_EOL;
    endstop_x_hit=false;
    endstop_y_hit=false;
    endstop_z_hit=false;
@@ -338,6 +338,10 @@ FORCE_INLINE void trapezoid_generator_reset() {
 
 }
 
+#if EXTRUDERS > 1
+  unsigned char last_extruder = 0xFF;
+#endif // EXTRUDERS
+
 // "The Stepper Driver Interrupt" - This timer interrupt is the workhorse.
 // It pops blocks from the block_buffer and executes them by pulsing the stepper pins appropriately.
 ISR(TIMER1_COMPA_vect)
@@ -348,6 +352,42 @@ ISR(TIMER1_COMPA_vect)
     current_block = plan_get_current_block();
     if (current_block != NULL) {
       current_block->busy = true;
+#if EXTRUDERS > 1
+      if (current_block->active_extruder != last_extruder)
+      {
+        // disable unused steppers
+        if (last_extruder == 0)
+        {
+            disable_e0();
+        }
+        else if (last_extruder == 1)
+        {
+            disable_e1();
+        }
+        else
+        {
+            disable_e2();
+        }
+    #if defined(MOTOR_CURRENT_PWM_E_PIN) && MOTOR_CURRENT_PWM_E_PIN > -1
+        // adjust motor current
+        digipot_current(2, current_block->active_extruder ? motor_current_e2 : motor_current_setting[2]);
+        last_extruder = current_block->active_extruder;
+    #endif
+        // enable current stepper
+        if (last_extruder == 0)
+        {
+            enable_e0();
+        }
+        else if (last_extruder == 1)
+        {
+            enable_e1();
+        }
+        else
+        {
+            enable_e2();
+        }
+      }
+#endif // EXTRUDERS
       trapezoid_generator_reset();
       counter_x = -(current_block->step_event_count >> 1);
       counter_y = counter_x;
@@ -848,6 +888,9 @@ void st_init()
     WRITE(E2_STEP_PIN,INVERT_E_STEP_PIN);
     disable_e2();
   #endif
+  #if EXTRUDERS > 1
+    last_extruder = 0xFF;
+  #endif
 
   // waveform generation = 0100 = CTC
   TCCR1B &= ~(1<<WGM13);
@@ -889,12 +932,10 @@ void st_init()
 // Block until all buffered steps are executed
 void st_synchronize()
 {
-    while( blocks_queued()) {
-    manage_heater();
-    manage_inactivity();
-    lcd_update();
-    lifetime_stats_tick();
-  }
+    while( blocks_queued())
+    {
+        idle();
+    }
 }
 
 void st_set_position(const long &x, const long &y, const long &z, const long &e)
@@ -940,6 +981,9 @@ void finishAndDisableSteppers()
   disable_e0();
   disable_e1();
   disable_e2();
+#if EXTRUDERS > 1
+  last_extruder = 0xFF;
+#endif
 }
 
 void quickStop()
@@ -951,11 +995,11 @@ void quickStop()
   ENABLE_STEPPER_DRIVER_INTERRUPT();
 }
 
-#ifdef BABYSTEPPING
+#if ENABLED(BABYSTEPPING)
 
 // MUST ONLY BE CALLED BY AN ISR,
 // No other ISR should ever interrupt this!
-void babystep(const uint8_t axis,const bool direction)
+void babystep(const uint8_t axis, const bool direction)
 {
   switch(axis)
   {
@@ -1035,6 +1079,7 @@ void babystep(const uint8_t axis,const bool direction)
     #ifdef Z_DUAL_STEPPER_DRIVERS
       WRITE(Z2_STEP_PIN, !INVERT_Z_STEP_PIN);
     #endif
+    //wait a tiny bit
     delayMicroseconds(2);
     WRITE(Z_STEP_PIN, INVERT_Z_STEP_PIN);
     #ifdef Z_DUAL_STEPPER_DRIVERS
@@ -1046,7 +1091,6 @@ void babystep(const uint8_t axis,const bool direction)
     #ifdef Z_DUAL_STEPPER_DRIVERS
       WRITE(Z2_DIR_PIN,old_z_dir_pin);
     #endif
-
   }
   break;
 #else //DELTA
@@ -1114,9 +1158,9 @@ void digipot_init() //Initialize Digipot Motor Current
     pinMode(MOTOR_CURRENT_PWM_XY_PIN, OUTPUT);
     pinMode(MOTOR_CURRENT_PWM_Z_PIN, OUTPUT);
     pinMode(MOTOR_CURRENT_PWM_E_PIN, OUTPUT);
-    digipot_current(0, motor_current_setting[0]);
-    digipot_current(1, motor_current_setting[1]);
-    digipot_current(2, motor_current_setting[2]);
+    for (uint8_t i=0; i<3; ++i)
+        digipot_current(i, motor_current_setting[i]);
+
     //Set timer5 to 31khz so the PWM of the motor power is as constant as possible.
     TCCR5B = (TCCR5B & ~(_BV(CS50) | _BV(CS51) | _BV(CS52))) | _BV(CS50);
   #endif
