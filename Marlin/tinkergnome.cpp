@@ -483,7 +483,7 @@ static void lcd_store_babystep_z()
     lcd_lib_keyclick();
     if (fabs(FLOAT_SETTING(Z_AXIS)) > 0.001)
     {
-        add_homeing[Z_AXIS] += FLOAT_SETTING(Z_AXIS);
+        add_homeing[Z_AXIS] -= FLOAT_SETTING(Z_AXIS);
         Config_StoreSettings();
         FLOAT_SETTING(Z_AXIS) = 0;
     }
@@ -1576,12 +1576,10 @@ static void lcd_simple_buildplate_cancel()
 static void lcd_simple_buildplate_store()
 {
 #if (EXTRUDERS > 1)
-    if (menu_extruder)
+    if (active_extruder)
     {
         add_homeing_z2 -= current_position[Z_AXIS];
         Dual_StoreAddHomeingZ2();
-        // restore homing offset of the first extruder
-        Config_RetrieveSettings();
     }
     else
     {
@@ -1693,12 +1691,17 @@ void lcd_prepare_buildplate_adjust()
 {
     Config_RetrieveSettings();
     // remove homing offset
-    add_homeing[Z_AXIS] = 0;
 #if (EXTRUDERS > 1)
     if (active_extruder)
     {
         add_homeing_z2 = 0;
     }
+    else
+    {
+        add_homeing[Z_AXIS] = 0;
+    }
+#else
+    add_homeing[Z_AXIS] = 0;
 #endif
     char buffer[32] = {0};
     // home axis first
