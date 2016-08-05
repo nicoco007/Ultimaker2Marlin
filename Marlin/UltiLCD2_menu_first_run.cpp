@@ -61,11 +61,10 @@ static void ZUnlimitedDefaultSettings()
     // reset homeing offsets
     enquecommand_P(PSTR("M206 X0.00 Y0.00 Z0.00"));
     // default steps/mm
-    // temp for temp setup with different timing pulley
 #ifdef UM2PLUS
-    enquecommand_P(PSTR("M92 X80.00 Y80.00 Z1666.6667 E369.00"));
+    enquecommand_P(PSTR("M92 X80.00 Y80.00 Z1333.3333 E369.00"));
 #else
-    enquecommand_P(PSTR("M92 X80.00 Y80.00 Z1666.6667 E282.00"));
+    enquecommand_P(PSTR("M92 X80.00 Y80.00 Z1333.3333 E282.00"));
 #endif
     // maximum feedrate
     enquecommand_P(PSTR("M203 X200.00 Y200.00 Z10.00 E45.00"));
