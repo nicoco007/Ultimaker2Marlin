@@ -8,7 +8,7 @@
 #############################
 
 ##Which version name are we appending to the final archive
-export BUILD_NAME=16.07.3
+export BUILD_NAME=16.08.1
 
 #############################
 # Actual build script
@@ -45,6 +45,9 @@ elif [ -d "/Applications/Arduino.app/Contents/Resources/Java" ]; then
 	ARDUINO_VERSION=105
 elif [ -d "C:/Arduino" ]; then
 	ARDUINO_PATH=C:/Arduino
+	ARDUINO_VERSION=165
+elif [ -d "D:/Arduino" ]; then
+	ARDUINO_PATH=D:/Arduino
 	ARDUINO_VERSION=165
 else
 	ARDUINO_PATH=/usr/share/arduino
