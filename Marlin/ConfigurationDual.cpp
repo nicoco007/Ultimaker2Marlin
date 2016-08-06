@@ -2,6 +2,7 @@
 #include "ConfigurationDual.h"
 
 #if (EXTRUDERS > 1)
+#include "UltiLCD2_hi_lib.h"
 
 //Random number to verify that the dual settings are already written to the EEPROM
 #define EEPROM_DUAL_MAGIC 0x218DE93C
