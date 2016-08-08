@@ -130,7 +130,7 @@ uint8_t CommandBuffer::processScript(struct t_cmdline *script)
         script = script->next;
         ++cmdCount;
         // update loop
-        idle();
+        idle(false);
         checkHitEndstops();
     }
     return cmdCount;
@@ -182,7 +182,7 @@ void CommandBuffer::processT0(bool bRetract)
         float_to_string2(dock_position[Y_AXIS], LCD_CACHE_FILENAME(3), NULL);
         sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G0 Y%s F%i"), LCD_CACHE_FILENAME(3), 100*60);
         process_command(LCD_CACHE_FILENAME(2));
-        idle();
+        idle(false);
         float_to_string2(dock_position[X_AXIS], LCD_CACHE_FILENAME(3), NULL);
         sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G0 X%s F%i"), LCD_CACHE_FILENAME(3), 50*60);
         process_command(LCD_CACHE_FILENAME(2));
@@ -190,7 +190,7 @@ void CommandBuffer::processT0(bool bRetract)
         process_command(LCD_CACHE_FILENAME(2));
         sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G0 X171 F%i"), 200*60);
         process_command(LCD_CACHE_FILENAME(2));
-        idle();
+        idle(false);
         axis_relative_state = old_relative_state;
     }
 }
@@ -221,12 +221,12 @@ void CommandBuffer::processT1(bool bRetract)
         float_to_string2(dock_position[Y_AXIS], LCD_CACHE_FILENAME(3), NULL);
         sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G0 Y%s F%i"), LCD_CACHE_FILENAME(3), 100*60);
         process_command(LCD_CACHE_FILENAME(2));
-        idle();
+        idle(false);
         sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G0 X170 F%i"), 50*60);
         process_command(LCD_CACHE_FILENAME(2));
         sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G0 Y55 F%i"), 200*60);
         process_command(LCD_CACHE_FILENAME(2));
-        idle();
+        idle(false);
         axis_relative_state = old_relative_state;
     }
 }

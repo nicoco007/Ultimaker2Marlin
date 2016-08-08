@@ -418,14 +418,8 @@ void cmd_synchronize()
 {
     while( buflen )
     {
-        process_command(cmdbuffer[bufindr]);
-        if (buflen > 0)
-        {
-          --buflen;
-          ++bufindr;
-          bufindr %= BUFSIZE;
-        }
-        idle();
+        next_command();
+        idle(false);
         checkHitEndstops();
     }
 }
@@ -3343,7 +3337,7 @@ void reheatNozzle(uint8_t e)
           last_output = millis();
       }
     #endif
-      idle();
+      idle(false);
     }
 }
 
