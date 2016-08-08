@@ -313,13 +313,55 @@ void clear_command_queue()
     }
 }
 
+static void next_command()
+{
+  #ifdef SDSUPPORT
+    if(card.saving)
+    {
+        if(strstr_P(cmdbuffer[bufindr], PSTR("M29")) == NULL)
+        {
+          card.write_command(cmdbuffer[bufindr]);
+          if(card.logging)
+          {
+            process_command(cmdbuffer[bufindr]);
+            serialCmd &= ~(1 << bufindr);
+          }
+          else
+          {
+            SERIAL_PROTOCOLLNPGM(MSG_OK);
+          }
+        }
+        else
+        {
+          card.closefile();
+          SERIAL_PROTOCOLLNPGM(MSG_FILE_SAVED);
+        }
+    }
+    else
+    {
+    process_command(cmdbuffer[bufindr]);
+    serialCmd &= ~(1 << bufindr);
+    }
+  #else
+    process_command(cmdbuffer[bufindr]);
+    serialCmd &= ~(1 << bufindr);
+  #endif //SDSUPPORT
+
+    --buflen;
+    ++bufindr;
+    bufindr %= BUFSIZE;
+}
+
 //adds an command to the main command buffer
 //thats really done in a non-safe way.
 //needs overworking someday
 void enquecommand(const char *cmd)
 {
-  if(buflen < BUFSIZE)
-  {
+    while(buflen >= BUFSIZE)
+    {
+        next_command();
+        idle(false);
+    }
     //this is dangerous if a mixing of serial and this happsens
     memset(cmdbuffer[bufindw], 0, MAX_CMD_SIZE);
     strcpy(&(cmdbuffer[bufindw][0]),cmd);
@@ -332,13 +374,15 @@ void enquecommand(const char *cmd)
     ++bufindw;
     bufindw %= BUFSIZE;
     ++buflen;
-  }
 }
 
 void enquecommand_P(const char *cmd)
 {
-  if(buflen < BUFSIZE)
-  {
+    while(buflen >= BUFSIZE)
+    {
+        next_command();
+        idle(false);
+    }
     //this is dangerous if a mixing of serial and this happsens
     memset(cmdbuffer[bufindw], 0, MAX_CMD_SIZE);
     strcpy_P(&(cmdbuffer[bufindw][0]),cmd);
@@ -351,7 +395,6 @@ void enquecommand_P(const char *cmd)
     ++bufindw;
     bufindw %= BUFSIZE;
     ++buflen;
-  }
 }
 
 bool is_command_queued()
@@ -486,55 +529,15 @@ void setup()
 
 void loop()
 {
-  if(buflen < (BUFSIZE-1))
-  {
-    get_command();
-  }
-
   #ifdef SDSUPPORT
   card.checkautostart(false);
   #endif
   if(buflen)
   {
-    #ifdef SDSUPPORT
-      if(card.saving)
-      {
-        if(strstr_P(cmdbuffer[bufindr], PSTR("M29")) == NULL)
-        {
-          card.write_command(cmdbuffer[bufindr]);
-          if(card.logging)
-          {
-            process_command(cmdbuffer[bufindr]);
-            serialCmd &= ~(1 << bufindr);
-          }
-          else
-          {
-            SERIAL_PROTOCOLLNPGM(MSG_OK);
-          }
-        }
-        else
-        {
-          card.closefile();
-          SERIAL_PROTOCOLLNPGM(MSG_FILE_SAVED);
-        }
-      }
-      else
-      {
-        process_command(cmdbuffer[bufindr]);
-        serialCmd &= ~(1 << bufindr);
-      }
-    #else
-      process_command(cmdbuffer[bufindr]);
-      serialCmd &= ~(1 << bufindr);
-    #endif //SDSUPPORT
-    if (buflen > 0)
-    {
-      --buflen;
-      ++bufindr;
-      bufindr %= BUFSIZE;
-    }
+    // process next command
+    next_command();
   }
-  idle();
+  idle(true);
   checkHitEndstops();
 }
 
@@ -1005,12 +1008,16 @@ inline void gcode_M105(const char *cmd)
 
 static char * truncate_checksum(char *str)
 {
-    char *starpos = strchr(str, '*');
-    if(starpos)
+    if (*str)
     {
-        *starpos='\0';
+        char *starpos = strchr(str, '*');
+        if(starpos)
+        {
+            *starpos='\0';
+        }
+        return starpos;
     }
-    return starpos;
+    return 0;
 }
 
 void process_command(const char *strCmd)
@@ -1061,7 +1068,7 @@ void process_command(const char *strCmd)
       printing_state = PRINT_STATE_DWELL;
       while(millis() < codenum )
       {
-          idle();
+          idle(false);
       }
       serial_action_P(PSTR("resume"));
 
@@ -1322,14 +1329,18 @@ void process_command(const char *strCmd)
 
       st_synchronize();
       previous_millis_cmd = millis();
-      if (codenum > 0){
+      if (codenum > 0)
+      {
         codenum += millis();  // keep track of when we started waiting
         while(millis()  < codenum && !lcd_clicked()){
-          idle();
+          idle(false);
         }
-      }else{
-        while(!lcd_clicked()){
-          idle();
+      }
+      else
+      {
+        while(!lcd_clicked())
+        {
+          idle(false);
         }
       }
       serial_action_P(PSTR("resume"));
@@ -1348,7 +1359,7 @@ void process_command(const char *strCmd)
         card.pause = true;
         while(card.pause)
         {
-          idle();
+          idle(false);
         }
         plan_set_e_position(current_position[E_AXIS]);
         serial_action_P(PSTR("resume"));
@@ -1441,7 +1452,7 @@ void process_command(const char *strCmd)
       }
       break;
     case 923: //M923 - Select file and start printing
-      strchr_pointer += 4;
+      strchr_pointer += 5;
       truncate_checksum(strchr_pointer);
       card.openFile(strchr_pointer,true);
       card.startFileprint();
@@ -1581,7 +1592,7 @@ void process_command(const char *strCmd)
             #endif
             codenum = millis();
           }
-          idle();
+          idle(true);
         #ifdef TEMP_RESIDENCY_TIME
             /* start/restart the TEMP_RESIDENCY_TIME timer whenever we reach target temp for the first time
               or when current temp falls outside the hysteresis after target temp was reached */
@@ -1636,7 +1647,7 @@ void process_command(const char *strCmd)
             SERIAL_EOL;
           #endif
           }
-          idle();
+          idle(true);
           if (printing_state != PRINT_STATE_HEATING_BED)
           {
               // print aborted
@@ -1739,13 +1750,6 @@ void process_command(const char *strCmd)
         bool all_axis = !((code_seen(strCmd, axis_codes[0])) || (code_seen(strCmd, axis_codes[1])) || (code_seen(strCmd, axis_codes[2]))|| (code_seen(strCmd, axis_codes[3])));
         if(all_axis)
         {
-          st_synchronize();
-          disable_e0();
-          disable_e1();
-          disable_e2();
-        #if EXTRUDERS > 1
-          last_extruder = 0xFF;
-        #endif
           finishAndDisableSteppers();
         }
         else
@@ -2317,9 +2321,10 @@ void process_command(const char *strCmd)
         delay(100);
         LCD_ALERTMESSAGEPGM(MSG_FILAMENTCHANGE);
         uint8_t cnt=0;
-        while(!lcd_clicked()){
+        while(!lcd_clicked())
+        {
           cnt++;
-          idle();
+          idle(false);
           if(cnt==0)
           {
           #if BEEPER > 0
@@ -2413,7 +2418,7 @@ void process_command(const char *strCmd)
     #endif
         while(card.pause)
         {
-          idle();
+          idle(false);
         }
 
         plan_set_e_position(current_position[E_AXIS]);
@@ -2985,8 +2990,15 @@ void controllerFan()
 /**
  * Standard idle routine keeps the machine alive
  */
-void idle()
+void idle(bool bReadCmd)
 {
+    if (bReadCmd)
+    {
+      if(buflen < (BUFSIZE))
+      {
+        get_command();
+      }
+    }
     manage_heater();
     manage_inactivity();
     lcd_update();

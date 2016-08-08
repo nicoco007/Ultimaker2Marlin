@@ -102,7 +102,7 @@ void process_command(const char *strCmd);
 void process_command_P(const char *strCmd);
 
 void manage_inactivity();
-void idle(); // the standard idle routine calls manage_inactivity()
+void idle(bool bReadCmd = false); // the standard idle routine calls manage_inactivity()
 
 #if defined(X_ENABLE_PIN) && X_ENABLE_PIN > -1
   #define  enable_x() WRITE(X_ENABLE_PIN, X_ENABLE_ON)
