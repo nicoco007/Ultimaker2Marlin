@@ -934,7 +934,7 @@ void st_synchronize()
 {
     while( blocks_queued())
     {
-        idle();
+        idle(false);
     }
 }
 
