@@ -710,10 +710,11 @@ static void get_command()
         }
 #endif
 #ifdef ENABLE_ULTILCD2
+        // no printing screen for these commands
         if(code_seen(cmdbuffer[bufindw], 'M'))
         {
           gcode_N = code_value_long();
-          if ((gcode_N == 105) || (gcode_N >= 20 && gcode_N <= 30) || (gcode_N == 923) || (gcode_N == 928))
+          if ((gcode_N != 105) && (gcode_N != 923) && (gcode_N != 928) && (gcode_N < 20 || gcode_N > 30))
           {
               gcode_N = 0;
           }
