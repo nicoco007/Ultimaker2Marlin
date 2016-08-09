@@ -228,7 +228,7 @@ static float delta[3] = {0.0, 0.0, 0.0};
 static float offset[3] = {0.0, 0.0, 0.0};
 static bool home_all_axis = true;
 static float feedrate = 1500.0, next_feedrate, saved_feedrate;
-static long gcode_N, gcode_LastN, Stopped_gcode_LastN = 0;
+static long gcode_LastN, Stopped_gcode_LastN = 0;
 
 // static bool relative_mode = false;  //Determines Absolute or Relative Coordinates
 #define RELATIVE_MODE 128
@@ -367,7 +367,7 @@ void enquecommand(const char *cmd)
     while(buflen >= BUFSIZE)
     {
         next_command();
-        idle(false);
+        idle();
     }
     //this is dangerous if a mixing of serial and this happsens
     memset(cmdbuffer[bufindw], 0, MAX_CMD_SIZE);
@@ -388,7 +388,7 @@ void enquecommand_P(const char *cmd)
     while(buflen >= BUFSIZE)
     {
         next_command();
-        idle(false);
+        idle();
     }
     //this is dangerous if a mixing of serial and this happsens
     memset(cmdbuffer[bufindw], 0, MAX_CMD_SIZE);
@@ -419,7 +419,7 @@ void cmd_synchronize()
     while( buflen )
     {
         next_command();
-        idle(false);
+        idle();
         checkHitEndstops();
     }
 }
@@ -551,6 +551,30 @@ void setup()
   #endif
 }
 
+void loop()
+{
+  if (printing_state == PRINT_STATE_ABORT)
+  {
+    abortPrint();
+  }
+  #ifdef SDSUPPORT
+  card.checkautostart(false);
+  #endif
+  if(buflen)
+  {
+    // process next command
+    next_command();
+  }
+  if(buflen < (BUFSIZE))
+  {
+    // get next command
+    get_command();
+  }
+  // manage heater and inactivity
+  idle();
+  checkHitEndstops();
+}
+
 FORCE_INLINE float code_value()
 {
   return (strtod(strchr_pointer + 1, NULL));
@@ -587,26 +611,9 @@ static void checkToolchange(const char *cmd)
 }
 #endif
 
-void loop()
-{
-  if (printing_state == PRINT_STATE_ABORT)
-  {
-    abortPrint();
-  }
-  #ifdef SDSUPPORT
-  card.checkautostart(false);
-  #endif
-  if(buflen)
-  {
-    // process next command
-    next_command();
-  }
-  idle(true);
-  checkHitEndstops();
-}
-
 static void get_command()
 {
+  long gcode_N;
   while( MYSERIAL.available() > 0  && buflen < BUFSIZE) {
     serial_char = MYSERIAL.read();
     if(serial_char == '\n' ||
@@ -633,11 +640,11 @@ static void get_command()
             return;
           }
 
-          if(code_seen(cmdbuffer[bufindw], '*'))
+          if(code_seen(strchr_pointer, '*'))
           {
             byte checksum = 0;
-            byte count = 0;
-            while(cmdbuffer[bufindw][count] != '*') checksum = checksum^cmdbuffer[bufindw][count++];
+            char *pChar = cmdbuffer[bufindw];
+            while(*pChar != '*') checksum ^= *pChar++;
 
             if( (int)(code_value()) != checksum) {
               SERIAL_ERROR_START;
@@ -703,27 +710,31 @@ static void get_command()
         }
 #endif
 #ifdef ENABLE_ULTILCD2
-    #ifdef SDSUPPORT
-        if (card.saving || !code_seen(cmdbuffer[bufindw], 'M') || (code_value_long() != 105))
-    #else
-        if (!code_seen(cmdbuffer[bufindw], 'M') || (code_value_long() != 105))
-    #endif // SDSUPPORT
+        if(code_seen(cmdbuffer[bufindw], 'M'))
+        {
+          gcode_N = code_value_long();
+          if ((gcode_N == 105) || (gcode_N >= 20 && gcode_N <= 30) || (gcode_N == 923) || (gcode_N == 928))
+          {
+              gcode_N = 0;
+          }
+        }
+        else
+        {
+            gcode_N = 0;
+        }
+        if (!gcode_N)
 #endif
         {
             //set serial flag for new command
             serialCmd |= (1 << bufindw);
             lastSerialCommandTime = millis();
-            //start reading next command
-            ++bufindw;
-            bufindw %= BUFSIZE;
-            memset(cmdbuffer[bufindw], 0, MAX_CMD_SIZE);
-            ++buflen;
         }
-        else
-        {
-            //answer M105 immediately
-            process_command(cmdbuffer[bufindw]);
-        }
+
+        //start reading next command
+        ++bufindw;
+        bufindw %= BUFSIZE;
+        memset(cmdbuffer[bufindw], 0, MAX_CMD_SIZE);
+        ++buflen;
       }
       serial_count = 0; //clear buffer
     }
@@ -1128,7 +1139,7 @@ void process_command(const char *strCmd)
       printing_state = PRINT_STATE_DWELL;
       while(millis() < codenum )
       {
-          idle(false);
+          idle();
       }
       serial_action_P(PSTR("resume"));
 
@@ -1411,7 +1422,7 @@ void process_command(const char *strCmd)
       {
         while(!lcd_clicked())
         {
-          idle(false);
+          idle();
         }
       }
       serial_action_P(PSTR("resume"));
@@ -1430,7 +1441,7 @@ void process_command(const char *strCmd)
         card.pause = true;
         while(card.pause)
         {
-          idle(false);
+          idle();
         }
         plan_set_e_position(current_position[E_AXIS]);
         serial_action_P(PSTR("resume"));
@@ -1663,7 +1674,7 @@ void process_command(const char *strCmd)
             #endif
             codenum = millis();
           }
-          idle(true);
+          idle();
         #ifdef TEMP_RESIDENCY_TIME
             /* start/restart the TEMP_RESIDENCY_TIME timer whenever we reach target temp for the first time
               or when current temp falls outside the hysteresis after target temp was reached */
@@ -1681,6 +1692,7 @@ void process_command(const char *strCmd)
           }
         }
         LCD_MESSAGEPGM(MSG_HEATING_COMPLETE);
+        starttime=millis();
         previous_millis_cmd = millis();
       }
       break;
@@ -1714,7 +1726,7 @@ void process_command(const char *strCmd)
             SERIAL_EOL;
           #endif
           }
-          idle(true);
+          idle();
           if (printing_state != PRINT_STATE_HEATING_BED)
           {
               // print aborted
@@ -1867,9 +1879,16 @@ void process_command(const char *strCmd)
       SERIAL_PROTOCOLPGM(MSG_M115_REPORT);
       break;
     case 117: // M117 display message
-      strchr_pointer += 5;
-      truncate_checksum(strchr_pointer);
-      lcd_setstatus(strchr_pointer);
+      if (strlen(strchr_pointer) > 5)
+      {
+        strchr_pointer += 5;
+        truncate_checksum(strchr_pointer);
+        lcd_setstatus(strchr_pointer);
+      }
+      else
+      {
+          lcd_clearstatus();
+      }
       break;
     case 114: // M114
       SERIAL_PROTOCOLPGM("X:");
@@ -2492,7 +2511,7 @@ void process_command(const char *strCmd)
           {
             abortPrint();
           }
-          idle(false);
+          idle();
         }
 
         plan_set_e_position(current_position[E_AXIS]);
@@ -3116,15 +3135,8 @@ void controllerFan()
 /**
  * Standard idle routine keeps the machine alive
  */
-void idle(bool bReadCmd)
+void idle()
 {
-    if (bReadCmd)
-    {
-      if(buflen < (BUFSIZE))
-      {
-        get_command();
-      }
-    }
     manage_heater();
     manage_inactivity();
     lcd_update();
@@ -3337,7 +3349,7 @@ void reheatNozzle(uint8_t e)
           last_output = millis();
       }
     #endif
-      idle(false);
+      idle();
     }
 }
 

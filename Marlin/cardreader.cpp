@@ -446,26 +446,33 @@ void CardReader::checkautostart(bool force)
 
   char autoname[30];
   sprintf_P(autoname, PSTR("auto%i.g"), lastnr);
-  for(uint8_t i=0;i<(uint8_t)strlen(autoname);i++)
-    autoname[i]=tolower(autoname[i]);
-  dir_t p;
 
   root.rewind();
 
   bool found=false;
-  while (root.readDir(&p, NULL) > 0)
   {
-    for(uint8_t i=0;i<(uint8_t)strlen((char*)p.name);i++)
-    p.name[i]=tolower(p.name[i]);
-    if(p.name[9]!='~') //skip safety copies
-    if(strncmp((char*)p.name,autoname,5)==0)
+    dir_t p;
+    while (root.readDir(&p, NULL) > 0)
     {
-      char cmd[30];
+      // convert to lowercase
+      uint8_t *pChar = p.name;
+      while (*pChar)
+      {
+          *pChar = tolower(*pChar);
+          ++pChar;
+      }
+      //    for(uint8_t i=0;i<(uint8_t)strlen((char*)p.name);i++)
+      //    p.name[i]=tolower(p.name[i]);
+      if(!strchr((char*)p.name, '~') &&  //skip safety copies
+        (strncmp((char*)p.name,autoname,5)==0))
+      {
+        char cmd[30];
 
-      sprintf_P(cmd, PSTR("M23 %s"), autoname);
-      enquecommand(cmd);
-      enquecommand_P(PSTR("M24"));
-      found=true;
+        sprintf_P(cmd, PSTR("M23 %s"), autoname);
+        enquecommand(cmd);
+        enquecommand_P(PSTR("M24"));
+        found=true;
+      }
     }
   }
   if(!found)

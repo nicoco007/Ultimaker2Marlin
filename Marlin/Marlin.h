@@ -103,7 +103,7 @@ void process_command(const char *strCmd);
 void process_command_P(const char *strCmd);
 
 void manage_inactivity();
-void idle(bool bReadCmd = false); // the standard idle routine calls manage_inactivity()
+void idle(); // the standard idle routine calls manage_inactivity()
 
 extern uint8_t position_state;
 #define KNOWNPOS_X 1

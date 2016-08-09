@@ -544,7 +544,11 @@ void plan_buffer_line(const float &x, const float &y, const float &z, const floa
   // Rest here until there is room in the buffer.
   while(block_buffer_tail == next_buffer_head)
   {
-    idle(true);
+    idle();
+    if (serialCmd)
+    {
+      lastSerialCommandTime = millis();
+    }
   }
 
   // The target position of the tool in absolute steps
