@@ -359,19 +359,19 @@ static void next_command()
     bufindr %= BUFSIZE;
 }
 
-//adds an command to the main command buffer
-//thats really done in a non-safe way.
-//needs overworking someday
-void enquecommand(const char *cmd)
+static void prepareenque()
 {
     while(buflen >= BUFSIZE)
     {
         next_command();
         idle();
     }
-    //this is dangerous if a mixing of serial and this happsens
+    //this is dangerous if a mixing of serial and this happens
     memset(cmdbuffer[bufindw], 0, MAX_CMD_SIZE);
-    strcpy(&(cmdbuffer[bufindw][0]),cmd);
+}
+
+static void finishenque()
+{
     // clear serial flag
     serialCmd &= ~(1 << bufindw);
     SERIAL_ECHO_START;
@@ -383,25 +383,23 @@ void enquecommand(const char *cmd)
     ++buflen;
 }
 
+//adds an command to the main command buffer
+//thats really done in a non-safe way.
+//needs overworking someday
+void enquecommand(const char *cmd)
+{
+    prepareenque();
+    //this is dangerous if a mixing of serial and this happens
+    strcpy(&(cmdbuffer[bufindw][0]),cmd);
+    finishenque();
+}
+
 void enquecommand_P(const char *cmd)
 {
-    while(buflen >= BUFSIZE)
-    {
-        next_command();
-        idle();
-    }
-    //this is dangerous if a mixing of serial and this happsens
-    memset(cmdbuffer[bufindw], 0, MAX_CMD_SIZE);
+    prepareenque();
+    //this is dangerous if a mixing of serial and this happens
     strcpy_P(&(cmdbuffer[bufindw][0]),cmd);
-    // clear serial flag
-    serialCmd &= ~(1 << bufindw);
-    SERIAL_ECHO_START;
-    SERIAL_ECHOPGM("enqueing \"");
-    SERIAL_ECHO(cmdbuffer[bufindw]);
-    SERIAL_ECHOLNPGM("\"");
-    ++bufindw;
-    bufindw %= BUFSIZE;
-    ++buflen;
+    finishenque();
 }
 
 bool is_command_queued()
@@ -711,19 +709,7 @@ static void get_command()
 #endif
 #ifdef ENABLE_ULTILCD2
         // no printing screen for these commands
-        if(code_seen(cmdbuffer[bufindw], 'M'))
-        {
-          gcode_N = code_value_long();
-          if ((gcode_N != 105) && (gcode_N != 923) && (gcode_N != 928) && (gcode_N < 20 || gcode_N > 30))
-          {
-              gcode_N = 0;
-          }
-        }
-        else
-        {
-            gcode_N = 0;
-        }
-        if (!gcode_N)
+        if(!code_seen(cmdbuffer[bufindw], 'M') || code_value_long() != 105)
 #endif
         {
             //set serial flag for new command
@@ -805,7 +791,6 @@ static void get_command()
         lcd_setstatus(time);
         card.printingHasFinished();
         card.checkautostart(true);
-
       }
       if(!serial_count)
       {
@@ -1880,15 +1865,14 @@ void process_command(const char *strCmd)
       SERIAL_PROTOCOLPGM(MSG_M115_REPORT);
       break;
     case 117: // M117 display message
+      truncate_checksum(strchr_pointer);
       if (strlen(strchr_pointer) > 5)
       {
-        strchr_pointer += 5;
-        truncate_checksum(strchr_pointer);
-        lcd_setstatus(strchr_pointer);
+        lcd_setstatus(strchr_pointer+5);
       }
       else
       {
-          lcd_clearstatus();
+        lcd_clearstatus();
       }
       break;
     case 114: // M114
