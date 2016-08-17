@@ -39,7 +39,6 @@ static void lcd_menu_print_classic_warning();
 static void lcd_menu_print_material_warning();
 static void lcd_menu_print_tune_retraction();
 
-
 void lcd_clear_cache()
 {
     for(uint8_t n=0; n<LCD_CACHE_COUNT; n++)
@@ -50,9 +49,10 @@ void lcd_clear_cache()
 
 void abortPrint()
 {
+	quickStop();
+    clear_command_queue();
     postMenuCheck = NULL;
 
-    quickStop();
     for (uint8_t axis=0; axis<NUM_AXIS; ++axis)
     {
         current_position[axis] = st_get_position(axis)/axis_steps_per_unit[axis];
@@ -65,7 +65,6 @@ void abortPrint()
     }
     current_position[E_AXIS] /= volume_to_filament_length[active_extruder];
 
-    clear_command_queue();
 
     // set up the end of print retraction
     if ((primed & ENDOFPRINT_RETRACT) && (primed & (EXTRUDER_PRIMED << active_extruder)))
@@ -79,7 +78,7 @@ void abortPrint()
         enquecommand_P(PSTR("G1 E0"));
 #else
         char buffer[32] = {0};
-        sprintf_P(buffer, PSTR("G92 E%i"), int(((float)END_OF_PRINT_RETRACTION) / volume_to_filament_length[active_extruder]));
+        sprintf_P(buffer, PSTR("G92 E%i"), int(((float)end_of_print_retraction) / volume_to_filament_length[active_extruder]));
         enquecommand(buffer);
         // perform the retraction at the standard retract speed
         sprintf_P(buffer, PSTR("G1 F%i E0"), int(retract_feedrate));
@@ -143,13 +142,6 @@ void abortPrint()
         volume_to_filament_length[e] = 1.0;
         extrudemultiply[e] = 100;
     }
-}
-
-static void userAbortPrint()
-{
-    printing_state = PRINT_STATE_ABORT;
-    sleep_state &= ~SLEEP_LED_OFF;
-    menu.return_to_main();
 }
 
 static void checkPrintFinished()
@@ -235,13 +227,25 @@ void doStartPrint()
             // wait for nozzle heatup
             reheatNozzle(active_extruder);
 
-            // execute prime and wipe script
-            cmdBuffer.processWipe();
+            if (IS_WIPE_ENABLED)
+            {
+                // execute prime and wipe script
+                cmdBuffer.processWipe();
+            }
             printing_state = old_printstate;
+        }
+        if (!IS_WIPE_ENABLED)
+        {
+            // undo the end-of-print retraction
+            plan_set_e_position((current_position[E_AXIS] - toolchange_retractlen[e]) / volume_to_filament_length[e]);
+            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], END_OF_PRINT_RECOVERY_SPEED, e);
+            // perform additional priming
+            plan_set_e_position(-PRIMING_MM3);
+            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], (PRIMING_MM3_PER_SEC * volume_to_filament_length[e]), e);
         }
 	#else
 		// undo the end-of-print retraction
-		plan_set_e_position((0.0 - END_OF_PRINT_RETRACTION) / volume_to_filament_length[e]);
+		plan_set_e_position((0.0 - end_of_print_retraction) / volume_to_filament_length[e]);
 		plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], END_OF_PRINT_RECOVERY_SPEED, e);
 		// perform additional priming
 		plan_set_e_position(-PRIMING_MM3);
@@ -288,7 +292,7 @@ void doStartPrint()
     starttime = millis();
     stoptime = starttime;
     predictedTime = 0;
-    sleep_state = (sleep_state & SLEEP_SERIAL_SCREEN);
+    // sleep_state = (sleep_state & SLEEP_SERIAL_SCREEN);
 }
 
 static void userStartPrint()
@@ -910,7 +914,7 @@ static void lcd_menu_print_material_warning()
     lcd_lib_update_screen();
 }
 
-static void lcd_menu_print_aborting()
+static void lcd_menu_doabort()
 {
     LED_GLOW
     if (printing_state == PRINT_STATE_ABORT)
@@ -926,10 +930,18 @@ static void lcd_menu_print_aborting()
     }
 }
 
+static void set_abort_state()
+{
+    printing_state = PRINT_STATE_ABORT;
+    postMenuCheck = NULL;
+    sleep_state &= ~SLEEP_LED_OFF;
+    menu.return_to_main();
+}
+
 void lcd_menu_print_abort()
 {
     LED_GLOW
-    lcd_question_screen(lcd_menu_print_aborting, userAbortPrint, PSTR("YES"), NULL, lcd_change_to_previous_menu, PSTR("NO"));
+    lcd_question_screen(lcd_menu_doabort, set_abort_state, PSTR("YES"), NULL, lcd_change_to_previous_menu, PSTR("NO"));
     lcd_lib_draw_string_centerP(20, PSTR("Abort the print?"));
     lcd_lib_draw_gfx(LCD_GFX_WIDTH/2 - 4, 32, standbyGfx);
 
@@ -1323,7 +1335,7 @@ void lcd_print_pause()
         uint16_t y = IS_DUAL_ENABLED ? (int)min_pos[Y_AXIS]+60 : (int)min_pos[Y_AXIS]+5;
         sprintf_P(buffer, PSTR("M601 X%u Y%u Z%u L%s"), x, y, zdiff, buffer_len);
     #else
-        sprintf_P(buffer, PSTR("M601 X5 Y10 Z%u L%u"), zdiff, END_OF_PRINT_RETRACTION);
+        sprintf_P(buffer, PSTR("M601 X5 Y10 Z%u L%u"), zdiff, end_of_print_retraction);
     #endif
 
         process_command(buffer);
@@ -1516,7 +1528,7 @@ static void drawResumeSubmenu(uint8_t nr, uint8_t &flags)
                                 , LCD_LINE_HEIGHT
                                 , 52
                                 , LCD_LINE_HEIGHT*4
-                                , movesplanned() ? PSTR("Pausing...|") : PSTR("RESUME|")
+                                , movesplanned() ? PSTR("PAUSING|") : PSTR("RESUME|")
                                 , ALIGN_CENTER
                                 , flags);
         if (flags & MENU_SELECTED)
