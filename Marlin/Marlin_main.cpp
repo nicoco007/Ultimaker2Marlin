@@ -223,13 +223,13 @@ static float delta[3] = {0.0, 0.0, 0.0};
 static float offset[3] = {0.0, 0.0, 0.0};
 static bool home_all_axis = true;
 static float feedrate = 1500.0, next_feedrate, saved_feedrate;
-static long gcode_N, gcode_LastN, Stopped_gcode_LastN = 0;
+static long gcode_LastN, Stopped_gcode_LastN = 0;
 
 // static bool relative_mode = false;  //Determines Absolute or Relative Coordinates
 #define RELATIVE_MODE 128
 uint8_t axis_relative_state = 0;
 
-static char cmdbuffer[BUFSIZE][MAX_CMD_SIZE];
+static char cmdbuffer[BUFSIZE][MAX_CMD_SIZE] = {0};
 #if BUFSIZE > 8
 uint16_t serialCmd = 0;
 #else
@@ -303,14 +303,80 @@ extern "C"{
   }
 }
 
-//Clear all the commands in the ASCII command buffer, to make sure we have room for abort commands.
+//Clear all the commands in the ASCII command buffer
 void clear_command_queue()
 {
     if (buflen > 0)
     {
-        bufindw = (bufindr + 1)%BUFSIZE;
-        buflen = 1;
+        bufindw = bufindr;
+        buflen = 0;
     }
+}
+
+static void next_command()
+{
+  #ifdef SDSUPPORT
+    if(card.saving)
+    {
+        if(strstr_P(cmdbuffer[bufindr], PSTR("M29")) == NULL)
+        {
+          card.write_command(cmdbuffer[bufindr]);
+          if(card.logging)
+          {
+            process_command(cmdbuffer[bufindr]);
+            serialCmd &= ~(1 << bufindr);
+          }
+          else
+          {
+            SERIAL_PROTOCOLLNPGM(MSG_OK);
+          }
+        }
+        else
+        {
+          card.closefile();
+          SERIAL_PROTOCOLLNPGM(MSG_FILE_SAVED);
+        }
+    }
+    else
+    {
+    process_command(cmdbuffer[bufindr]);
+    serialCmd &= ~(1 << bufindr);
+    }
+  #else
+    process_command(cmdbuffer[bufindr]);
+    serialCmd &= ~(1 << bufindr);
+  #endif //SDSUPPORT
+
+    if (buflen)
+    {
+        --buflen;
+        ++bufindr;
+        bufindr %= BUFSIZE;
+    }
+}
+
+static void prepareenque()
+{
+    while(buflen >= BUFSIZE)
+    {
+        next_command();
+        idle();
+    }
+    //this is dangerous if a mixing of serial and this happens
+    memset(cmdbuffer[bufindw], 0, MAX_CMD_SIZE);
+}
+
+static void finishenque()
+{
+    // clear serial flag
+    serialCmd &= ~(1 << bufindw);
+    SERIAL_ECHO_START;
+    SERIAL_ECHOPGM("enqueing \"");
+    SERIAL_ECHO(cmdbuffer[bufindw]);
+    SERIAL_ECHOLNPGM("\"");
+    ++bufindw;
+    bufindw %= BUFSIZE;
+    ++buflen;
 }
 
 //adds an command to the main command buffer
@@ -318,38 +384,18 @@ void clear_command_queue()
 //needs overworking someday
 void enquecommand(const char *cmd)
 {
-  if(buflen < BUFSIZE)
-  {
-    //this is dangerous if a mixing of serial and this happsens
+    prepareenque();
+    //this is dangerous if a mixing of serial and this happens
     strcpy(&(cmdbuffer[bufindw][0]),cmd);
-    // clear serial flag
-    serialCmd &= ~(1 << bufindw);
-    SERIAL_ECHO_START;
-    SERIAL_ECHOPGM("enqueing \"");
-    SERIAL_ECHO(cmdbuffer[bufindw]);
-    SERIAL_ECHOLNPGM("\"");
-    ++bufindw;
-    bufindw %= BUFSIZE;
-    ++buflen;
-  }
+    finishenque();
 }
 
 void enquecommand_P(const char *cmd)
 {
-  if(buflen < BUFSIZE)
-  {
-    //this is dangerous if a mixing of serial and this happsens
+    prepareenque();
+    //this is dangerous if a mixing of serial and this happens
     strcpy_P(&(cmdbuffer[bufindw][0]),cmd);
-    // clear serial flag
-    serialCmd &= ~(1 << bufindw);
-    SERIAL_ECHO_START;
-    SERIAL_ECHOPGM("enqueing \"");
-    SERIAL_ECHO(cmdbuffer[bufindw]);
-    SERIAL_ECHOLNPGM("\"");
-    ++bufindw;
-    bufindw %= BUFSIZE;
-    ++buflen;
-  }
+    finishenque();
 }
 
 bool is_command_queued()
@@ -484,54 +530,24 @@ void setup()
 
 void loop()
 {
-  if(buflen < (BUFSIZE-1))
+  if (printing_state == PRINT_STATE_ABORT)
   {
-    get_command();
+    abortPrint();
   }
-
   #ifdef SDSUPPORT
   card.checkautostart(false);
   #endif
   if(buflen)
   {
-    #ifdef SDSUPPORT
-      if(card.saving)
-      {
-        if(strstr_P(cmdbuffer[bufindr], PSTR("M29")) == NULL)
-        {
-          card.write_command(cmdbuffer[bufindr]);
-          if(card.logging)
-          {
-            process_command(cmdbuffer[bufindr]);
-            serialCmd &= ~(1 << bufindr);
-          }
-          else
-          {
-            SERIAL_PROTOCOLLNPGM(MSG_OK);
-          }
-        }
-        else
-        {
-          card.closefile();
-          SERIAL_PROTOCOLLNPGM(MSG_FILE_SAVED);
-        }
-      }
-      else
-      {
-        process_command(cmdbuffer[bufindr]);
-        serialCmd &= ~(1 << bufindr);
-      }
-    #else
-      process_command(cmdbuffer[bufindr]);
-      serialCmd &= ~(1 << bufindr);
-    #endif //SDSUPPORT
-    if (buflen > 0)
-    {
-      --buflen;
-      ++bufindr;
-      bufindr %= BUFSIZE;
-    }
+    // process next command
+    next_command();
   }
+  if(buflen < (BUFSIZE))
+  {
+    // get next command
+    get_command();
+  }
+  // manage heater and inactivity
   idle();
   checkHitEndstops();
 }
@@ -554,6 +570,7 @@ static bool code_seen(const char *cmd, char code)
 
 static void get_command()
 {
+  long gcode_N;
   while( MYSERIAL.available() > 0  && buflen < BUFSIZE) {
     serial_char = MYSERIAL.read();
     if(serial_char == '\n' ||
@@ -580,11 +597,11 @@ static void get_command()
             return;
           }
 
-          if(code_seen(cmdbuffer[bufindw], '*'))
+          if(code_seen(strchr_pointer, '*'))
           {
             byte checksum = 0;
-            byte count = 0;
-            while(cmdbuffer[bufindw][count] != '*') checksum = checksum^cmdbuffer[bufindw][count++];
+            char *pChar = cmdbuffer[bufindw];
+            while(*pChar != '*') checksum ^= *pChar++;
 
             if( (int)(code_value()) != checksum) {
               SERIAL_ERROR_START;
@@ -641,10 +658,10 @@ static void get_command()
           default:
             break;
           }
-
         }
 #ifdef ENABLE_ULTILCD2
-        if (!code_seen(cmdbuffer[bufindw], 'M') || (code_value_long() != 105))
+        // no printing screen for these commands
+        if(!code_seen(cmdbuffer[bufindw], 'M') || code_value_long() != 105)
 #endif
         {
             //set serial flag for new command
@@ -652,8 +669,10 @@ static void get_command()
             lastSerialCommandTime = millis();
         }
 
+        //start reading next command
         ++bufindw;
         bufindw %= BUFSIZE;
+        memset(cmdbuffer[bufindw], 0, MAX_CMD_SIZE);
         ++buflen;
       }
       serial_count = 0; //clear buffer
@@ -669,11 +688,11 @@ static void get_command()
   {
     card.sdprinting = false;
   }
-  if(!card.sdprinting)
+  if(!card.sdprinting || (printing_state == PRINT_STATE_ABORT))
     return;
   if (serial_count!=0)
   {
-    if ((buflen && serialCmd) || (millis() - lastSerialCommandTime < SERIAL_CONTROL_TIMEOUT))
+    if ((is_command_queued() && serialCmd) || ((millis() - lastSerialCommandTime) < SERIAL_CONTROL_TIMEOUT))
       return;
     serial_count = 0;
   }
@@ -724,7 +743,6 @@ static void get_command()
         lcd_setstatus(time);
         card.printingHasFinished();
         card.checkautostart(true);
-
       }
       if(!serial_count)
       {
@@ -737,6 +755,7 @@ static void get_command()
         serialCmd &= ~(1 << bufindw);
         ++bufindw;
         bufindw %= BUFSIZE;
+        memset(cmdbuffer[bufindw], 0, MAX_CMD_SIZE);
         ++buflen;
 //      }
       comment_mode = false; //for new command
@@ -821,6 +840,10 @@ static void axis_is_at_home(int axis) {
     // max_pos[axis] =          base_max_pos(axis);// + add_homeing[axis];
 }
 
+// Move the given axis to the home position.
+// Movement is in two parts:
+// 1) A quick move until the endstop switch is reached.
+// 2) A short backup and then slow move to home for accurately determining the home position.
 static void homeaxis(int axis) {
 #define HOMEAXIS_DO(LETTER) \
   ((LETTER##_MIN_PIN > -1 && LETTER##_HOME_DIR==-1) || (LETTER##_MAX_PIN > -1 && LETTER##_HOME_DIR==1))
@@ -834,6 +857,7 @@ static void homeaxis(int axis) {
       if (servo_endstops[axis] > -1) servos[servo_endstops[axis]].write(servo_endstop_angles[axis * 2]);
     #endif
 
+    // Do a fast run to the home position.
     current_position[axis] = 0;
     plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
     destination[axis] = 1.5 * (max_pos[axis]-min_pos[axis]) * home_dir(axis);
@@ -864,12 +888,14 @@ static void homeaxis(int axis) {
         return;
     }
 
+    // Move back a little bit.
     current_position[axis] = 0;
     plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
     destination[axis] = -home_retract_mm(axis) * home_dir(axis);
     plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate/60, active_extruder);
     st_synchronize();
 
+    // Verify the endstop switch isn't stuck.
     bool endstop_pressed = false;
     switch(axis)
     {
@@ -898,7 +924,7 @@ static void homeaxis(int axis) {
         #endif
         break;
     }
-    if (endstop_pressed && axis == Z_AXIS)
+    if (endstop_pressed && axis == Z_AXIS)  // Temporarily verify Z-axis only until we know what incorrectly triggers the X- and Y-switches errors.
     {
         SERIAL_ERROR_START;
         SERIAL_ERRORLNPGM("Endstop still pressed after backing off. Endstop stuck?");
@@ -910,6 +936,7 @@ static void homeaxis(int axis) {
         return;
     }
 
+    // Do a second run at the home position, but now slower to be more accurate.
     destination[axis] = 2*home_retract_mm(axis) * home_dir(axis);
     feedrate = homing_feedrate[axis]/3;
     plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate/60, active_extruder);
@@ -929,7 +956,7 @@ static void homeaxis(int axis) {
 #define HOMEAXIS(LETTER) homeaxis(LETTER##_AXIS)
 
 #if (TEMP_SENSOR_0 != 0) || (TEMP_SENSOR_BED != 0) || ENABLED(HEATER_0_USES_MAX6675)
-  void print_heaterstates()
+  static void print_heaterstates()
   {
     #if (TEMP_SENSOR_0 != 0) || ENABLED(HEATER_0_USES_MAX6675)
       SERIAL_PROTOCOLPGM(" T:");
@@ -991,10 +1018,23 @@ inline void gcode_M105(const char *cmd)
   SERIAL_EOL;
 }
 
+static char * truncate_checksum(char *str)
+{
+    if (*str)
+    {
+        char *starpos = strchr(str, '*');
+        if(starpos)
+        {
+            *starpos='\0';
+        }
+        return starpos;
+    }
+    return 0;
+}
+
 void process_command(const char *strCmd)
 {
   unsigned long codenum; //throw away variable
-  char *starpos = NULL;
 
   if ((printing_state != PRINT_STATE_RECOVER) && (printing_state != PRINT_STATE_START))
     printing_state = PRINT_STATE_NORMAL;
@@ -1091,7 +1131,8 @@ void process_command(const char *strCmd)
     case 28: //G28 Home all Axis one at a time
       if ((printing_state == PRINT_STATE_RECOVER) || (printing_state == PRINT_STATE_HOMING))
         break;
-      if (printing_state != PRINT_STATE_START)
+
+      if ((printing_state != PRINT_STATE_START) && (printing_state != PRINT_STATE_ABORT))
         printing_state = PRINT_STATE_HOMING;
 
       saved_feedrate = feedrate;
@@ -1184,7 +1225,8 @@ void process_command(const char *strCmd)
         current_position[X_AXIS] = 0;current_position[Y_AXIS] = 0;
 
         plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
-        destination[X_AXIS] = 1.5 * AXIS_LENGTH(X_AXIS) * X_HOME_DIR;destination[Y_AXIS] = 1.5 * AXIS_LENGTH(Y_AXIS) * Y_HOME_DIR;
+        destination[X_AXIS] = 1.5 * AXIS_LENGTH(X_AXIS) * X_HOME_DIR;
+		destination[Y_AXIS] = 1.5 * AXIS_LENGTH(Y_AXIS) * Y_HOME_DIR;
         feedrate = homing_feedrate[X_AXIS];
         if(homing_feedrate[Y_AXIS]<feedrate)
           feedrate =homing_feedrate[Y_AXIS];
@@ -1301,13 +1343,17 @@ void process_command(const char *strCmd)
 
       st_synchronize();
       previous_millis_cmd = millis();
-      if (codenum > 0){
+      if (codenum > 0)
+      {
         codenum += millis();  // keep track of when we started waiting
         while(millis()  < codenum && !lcd_clicked()){
           idle();
         }
-      }else{
-        while(!lcd_clicked()){
+      }
+      else
+      {
+        while(!lcd_clicked())
+        {
           idle();
         }
       }
@@ -1369,10 +1415,9 @@ void process_command(const char *strCmd)
     case 23: //M23 - Select file
       if (printing_state == PRINT_STATE_RECOVER)
         break;
-      starpos = (strchr(strchr_pointer + 4,'*'));
-      if(starpos!=NULL)
-        *(starpos)='\0';
-      card.openFile(strchr_pointer + 4,true);
+      strchr_pointer += 4;
+      truncate_checksum(strchr_pointer);
+      card.openFile(strchr_pointer, true);
       break;
     case 24: //M24 - Start SD print
       if (printing_state == PRINT_STATE_RECOVER)
@@ -1396,13 +1441,12 @@ void process_command(const char *strCmd)
       card.getStatus();
       break;
     case 28: //M28 - Start SD write
-      starpos = (strchr(strchr_pointer + 4,'*'));
-      if(starpos != NULL){
+      strchr_pointer += 4;
+      if(truncate_checksum(strchr_pointer)){
         char* npos = strchr(strCmd, 'N');
         strchr_pointer = strchr(npos,' ') + 1;
-        *(starpos) = '\0';
       }
-      card.openFile(strchr_pointer+4,false);
+      card.openFile(strchr_pointer, false);
       break;
     case 29: //M29 - Stop SD write
       //processed in write to file routine above
@@ -1413,32 +1457,29 @@ void process_command(const char *strCmd)
         break;
       if (card.isOk()){
         card.closefile();
-        starpos = (strchr(strchr_pointer + 4,'*'));
-        if(starpos != NULL){
+        strchr_pointer += 4;
+        if(truncate_checksum(strchr_pointer)){
           char* npos = strchr(strCmd, 'N');
           strchr_pointer = strchr(npos,' ') + 1;
-          *(starpos) = '\0';
         }
-        card.removeFile(strchr_pointer + 4);
+        card.removeFile(strchr_pointer);
       }
       break;
     case 923: //M923 - Select file and start printing
-      starpos = (strchr(strchr_pointer + 4,'*'));
-      if(starpos!=NULL)
-        *(starpos-1)='\0';
-      card.openFile(strchr_pointer + 4,true);
+      strchr_pointer += 5;
+      truncate_checksum(strchr_pointer);
+      card.openFile(strchr_pointer,true);
       card.startFileprint();
       starttime=millis();
       stoptime=starttime;
       break;
     case 928: //M928 - Start SD write
-      starpos = (strchr(strchr_pointer + 5,'*'));
-      if(starpos != NULL){
+      strchr_pointer += 5;
+      if(truncate_checksum(strchr_pointer)){
         char* npos = strchr(strCmd, 'N');
         strchr_pointer = strchr(npos,' ') + 1;
-        *(starpos) = '\0';
       }
-      card.openLogFile(strchr_pointer+5);
+      card.openLogFile(strchr_pointer);
       break;
 
 #endif //SDSUPPORT
@@ -1583,6 +1624,7 @@ void process_command(const char *strCmd)
           }
         }
         LCD_MESSAGEPGM(MSG_HEATING_COMPLETE);
+        starttime=millis();
         previous_millis_cmd = millis();
       }
       break;
@@ -1723,13 +1765,6 @@ void process_command(const char *strCmd)
         bool all_axis = !((code_seen(strCmd, axis_codes[0])) || (code_seen(strCmd, axis_codes[1])) || (code_seen(strCmd, axis_codes[2]))|| (code_seen(strCmd, axis_codes[3])));
         if(all_axis)
         {
-          st_synchronize();
-          disable_e0();
-          disable_e1();
-          disable_e2();
-        #if EXTRUDERS > 1
-          last_extruder = 0xFF;
-        #endif
           finishAndDisableSteppers();
         }
         else
@@ -1780,10 +1815,15 @@ void process_command(const char *strCmd)
       SERIAL_PROTOCOLPGM(MSG_M115_REPORT);
       break;
     case 117: // M117 display message
-      starpos = (strchr(strchr_pointer + 5,'*'));
-      if(starpos!=NULL)
-        *(starpos-1)='\0';
-      lcd_setstatus(strchr_pointer + 5);
+      truncate_checksum(strchr_pointer);
+      if (strlen(strchr_pointer) > 5)
+      {
+        lcd_setstatus(strchr_pointer+5);
+      }
+      else
+      {
+        lcd_clearstatus();
+      }
       break;
     case 114: // M114
       SERIAL_PROTOCOLPGM("X:");
@@ -2302,7 +2342,8 @@ void process_command(const char *strCmd)
         delay(100);
         LCD_ALERTMESSAGEPGM(MSG_FILAMENTCHANGE);
         uint8_t cnt=0;
-        while(!lcd_clicked()){
+        while(!lcd_clicked())
+        {
           cnt++;
           idle();
           if(cnt==0)
@@ -2346,7 +2387,7 @@ void process_command(const char *strCmd)
         if (printing_state == PRINT_STATE_RECOVER)
           break;
 
-        serial_action_P(PSTR("pause"));
+//        serial_action_P(PSTR("pause"));
 
         st_synchronize();
         float target[NUM_AXIS];
@@ -2386,6 +2427,7 @@ void process_command(const char *strCmd)
         plan_buffer_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], target[E_AXIS], retract_feedrate/60, active_extruder);
 
         memcpy(current_position, target, sizeof(current_position));
+        memcpy(destination, current_position, sizeof(destination));
 
         //finish moves
         st_synchronize();
@@ -2396,27 +2438,34 @@ void process_command(const char *strCmd)
     #if EXTRUDERS > 1
         last_extruder = 0xFF;
     #endif
-        while(card.pause)
-        {
+        while(card.pause){
           idle();
+          if (printing_state == PRINT_STATE_ABORT)
+          {
+            break;
+          }
         }
 
+        memcpy(current_position, target, sizeof(current_position));
+        memcpy(destination, current_position, sizeof(destination));
         plan_set_e_position(current_position[E_AXIS]);
-        //return to normal
-        if(code_seen(strCmd, 'L'))
+
+        if ((printing_state != PRINT_STATE_ABORT) && (card.sdprinting))
         {
-          target[E_AXIS] += code_value()/volume_to_filament_length[active_extruder];
-        }
-        plan_buffer_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], target[E_AXIS], retract_feedrate/60, active_extruder); //Move back the L feed.
-        if (card.sdprinting)    //Only move to the last position if we are still printing. Else we aborted.
-        {
+            //return to normal
+            if(code_seen(strCmd, 'L'))
+            {
+                target[E_AXIS] += code_value()/volume_to_filament_length[active_extruder];
+            }
+            plan_buffer_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], target[E_AXIS], retract_feedrate/60, active_extruder); //Move back the L feed.
+
             plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], target[Z_AXIS], target[E_AXIS], homing_feedrate[X_AXIS]/60, active_extruder); //move xy back
             plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], lastpos[Z_AXIS], target[E_AXIS], homing_feedrate[Z_AXIS]/60, active_extruder); //move z back
             plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], lastpos[Z_AXIS], lastpos[E_AXIS], retract_feedrate/60, active_extruder); //final untretract
             memcpy(current_position, lastpos, sizeof(current_position));
             memcpy(destination, current_position, sizeof(destination));
         }
-        serial_action_P(PSTR("resume"));
+//        serial_action_P(PSTR("resume"));
     }
     break;
 
@@ -2529,13 +2578,20 @@ void process_command(const char *strCmd)
           if (printing_state == PRINT_STATE_RECOVER)
             break;
           uint8_t x = 0, y = 0;
-          if (code_seen(strCmd, 'X')) {
+          if (code_seen(strCmd, 'X'))
+          {
             x = code_value_long();
             if (code_seen(strCmd, 'Y')) y = code_value_long();
             if (code_seen(strCmd, 'S')) lcd_lib_draw_string(x, y, strchr_pointer + 1);
-          } else {
+          }
+          else
+          {
             if (code_seen(strCmd, 'Y')) y = code_value_long();
-            if (code_seen(strCmd, 'S')) lcd_lib_draw_string_center(y, strchr_pointer + 1);
+            if (code_seen(strCmd, 'S'))
+            {
+              truncate_checksum(++strchr_pointer);
+              lcd_lib_draw_string_center(y, strchr_pointer);
+            }
           }
         }
         break;
@@ -2544,13 +2600,20 @@ void process_command(const char *strCmd)
           if (printing_state == PRINT_STATE_RECOVER)
             break;
           uint8_t x = 0, y = 0;
-          if (code_seen(strCmd, 'X')) {
+          if (code_seen(strCmd, 'X'))
+          {
             x = code_value_long();
             if (code_seen(strCmd, 'Y')) y = code_value_long();
             if (code_seen(strCmd, 'S')) lcd_lib_clear_string(x, y, strchr_pointer + 1);
-          } else {
+          }
+          else
+          {
             if (code_seen(strCmd, 'Y')) y = code_value_long();
-            if (code_seen(strCmd, 'S')) lcd_lib_clear_string_center(y, strchr_pointer + 1);
+            if (code_seen(strCmd, 'S'))
+            {
+              truncate_checksum(++strchr_pointer);
+              lcd_lib_clear_string_center(y, strchr_pointer);
+            }
           }
         }
         break;
