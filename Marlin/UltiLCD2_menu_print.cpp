@@ -65,6 +65,12 @@ void abortPrint()
     }
     current_position[E_AXIS] /= volume_to_filament_length[active_extruder];
 
+    // reset defaults
+    feedmultiply = 100;
+    for(uint8_t e=0; e<EXTRUDERS; e++)
+    {
+        extrudemultiply[e] = 100;
+    }
 
     // set up the end of print retraction
     if ((primed & ENDOFPRINT_RETRACT) && (primed & (EXTRUDER_PRIMED << active_extruder)))
@@ -77,14 +83,19 @@ void abortPrint()
         enquecommand_P(PSTR("G92 E0"));
         enquecommand_P(PSTR("G1 E0"));
 #else
-        char buffer[32] = {0};
-        sprintf_P(buffer, PSTR("G92 E%i"), int(((float)end_of_print_retraction) / volume_to_filament_length[active_extruder]));
-        enquecommand(buffer);
+        char cmdBuffer[16] = {0};
+        char paramBuffer[16] = {0};
+        // set up the end of print retraction
+        float_to_string1(end_of_print_retraction / volume_to_filament_length[active_extruder], paramBuffer, 0);
+        sprintf_P(cmdBuffer, PSTR("G92 E%s"), paramBuffer);
+        enquecommand(cmdBuffer);
         // perform the retraction at the standard retract speed
-        sprintf_P(buffer, PSTR("G1 F%i E0"), int(retract_feedrate));
-        enquecommand(buffer);
+        float_to_string1(retract_feedrate, paramBuffer, 0);
+        sprintf_P(cmdBuffer, PSTR("G1 F%s E0"), paramBuffer);
+        enquecommand(cmdBuffer);
 #endif
         cmd_synchronize();
+
         // no longer primed
         primed = 0;
     }
@@ -106,7 +117,12 @@ void abortPrint()
         }
     }
 
+    // finish all moves
     cmd_synchronize();
+    st_synchronize();
+
+    doCooldown();
+
     if (current_position[Z_AXIS] > max_pos[Z_AXIS] - 30)
     {
         CommandBuffer::homeHead();
@@ -120,12 +136,12 @@ void abortPrint()
     // finish all moves
     cmd_synchronize();
     st_synchronize();
-    doCooldown();
+
     process_command_P(PSTR("M84"));
 
-    //If we where paused, make sure we abort that pause. Else strange things happen: https://github.com/Ultimaker/Ultimaker2Marlin/issues/32
     stoptime=millis();
     lifetime_stats_print_end();
+    //If we where paused, make sure we abort that pause. Else strange things happen: https://github.com/Ultimaker/Ultimaker2Marlin/issues/32
     card.pause = false;
     printing_state = PRINT_STATE_NORMAL;
 #ifndef DUAL_FAN
@@ -135,18 +151,16 @@ void abortPrint()
 
     // reset defaults
 	retract_state = 0;
-    feedmultiply = 100;
     fanSpeedPercent = 100;
     for(uint8_t e=0; e<EXTRUDERS; ++e)
     {
         volume_to_filament_length[e] = 1.0;
-        extrudemultiply[e] = 100;
     }
 }
 
 static void checkPrintFinished()
 {
-    if ((printing_state != PRINT_STATE_RECOVER) && (printing_state != PRINT_STATE_START) && !card.sdprinting && !is_command_queued())
+    if ((printing_state != PRINT_STATE_RECOVER) && (printing_state != PRINT_STATE_START) && (printing_state != PRINT_STATE_ABORT) && !card.sdprinting && !is_command_queued())
     {
         abortPrint();
         recover_height = 0.0f;

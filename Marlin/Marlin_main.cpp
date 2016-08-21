@@ -316,11 +316,8 @@ extern "C"{
 //Clear all the commands in the ASCII command buffer
 void clear_command_queue()
 {
-    if (buflen > 0)
-    {
-        bufindw = bufindr;
-        buflen = 0;
-    }
+    buflen = 0;
+    bufindw = bufindr;
 }
 
 static void next_command()
@@ -419,12 +416,13 @@ uint8_t commands_queued()
 
 void cmd_synchronize()
 {
-    while( buflen )
-    {
-        next_command();
-        idle();
-        checkHitEndstops();
-    }
+  while(buflen)
+  {
+    // process next command
+    next_command();
+    idle();
+    checkHitEndstops();
+  }
 }
 
 void setup_killpin()
