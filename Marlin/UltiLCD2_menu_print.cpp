@@ -1351,8 +1351,7 @@ void lcd_print_pause()
     #else
         sprintf_P(buffer, PSTR("M601 X5 Y10 Z%u L%u"), zdiff, end_of_print_retraction);
     #endif
-
-        process_command(buffer);
+        process_command(buffer, false);
         // clear flag for end of print retraction
         primed &= ~ENDOFPRINT_RETRACT;
     }
