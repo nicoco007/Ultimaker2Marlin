@@ -97,12 +97,9 @@ FORCE_INLINE void serialprintPGM(const char *str)
   }
 }
 
-
-// void get_command();
 void process_command(const char *strCmd, bool sendAck);
 void process_command_P(const char *strCmd);
 
-void manage_inactivity();
 void idle(); // the standard idle routine calls manage_inactivity()
 
 extern uint8_t position_state;
@@ -192,7 +189,6 @@ uint8_t StoppedReason();
 void clear_command_queue();
 void enquecommand(const char *cmd); //put an ascii command at the end of the current buffer.
 void enquecommand_P(const char *cmd); //put an ascii command at the end of the current buffer, read from flash
-bool is_command_queued();
 uint8_t commands_queued();
 void cmd_synchronize();
 void clamp_to_software_endstops(float target[3]);

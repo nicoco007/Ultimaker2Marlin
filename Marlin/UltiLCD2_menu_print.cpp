@@ -160,7 +160,7 @@ void abortPrint()
 
 static void checkPrintFinished()
 {
-    if ((printing_state != PRINT_STATE_RECOVER) && (printing_state != PRINT_STATE_START) && (printing_state != PRINT_STATE_ABORT) && !card.sdprinting && !is_command_queued())
+    if ((printing_state != PRINT_STATE_RECOVER) && (printing_state != PRINT_STATE_START) && (printing_state != PRINT_STATE_ABORT) && !card.sdprinting && !commands_queued())
     {
         abortPrint();
         recover_height = 0.0f;
@@ -588,7 +588,7 @@ void lcd_menu_print_select()
                 active_extruder = 0;
 #endif
                 card.openFile(card.filename, true);
-                if (card.isFileOpen() && !is_command_queued())
+                if (card.isFileOpen() && !commands_queued())
                 {
 #ifndef DUAL_FAN
                     if (led_mode == LED_MODE_WHILE_PRINTING || led_mode == LED_MODE_BLINK_ON_DONE)
@@ -720,7 +720,7 @@ void lcd_menu_print_heatup()
                 break;
         }
 #if TEMP_SENSOR_BED != 0
-        if (current_temperature_bed >= target_temperature_bed - TEMP_WINDOW * 2 && !is_command_queued())
+        if (current_temperature_bed >= target_temperature_bed - TEMP_WINDOW * 2 && !commands_queued())
         {
 #endif // TEMP_SENSOR_BED
             bool ready = false;

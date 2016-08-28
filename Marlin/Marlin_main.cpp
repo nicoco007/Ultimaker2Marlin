@@ -276,7 +276,7 @@ uint8_t Stopped = false;
 //===========================================================================
 //=============================ROUTINES=============================
 //===========================================================================
-
+static void manage_inactivity();
 static void get_coordinates(const char *cmd);
 static void get_arc_coordinates(const char *cmd);
 static bool setTargetedHotend(const char *cmd, int code);
@@ -315,11 +315,48 @@ extern "C"{
   }
 }
 
+/**
+ * Once a new command is in the ring buffer, call this to commit it
+ */
+static void commit_command(bool isSerialCmd)
+{
+  if (isSerialCmd)
+  {
+    //set serial flag for new command
+    serialCmd |= (1 << bufindw);
+    lastSerialCommandTime = millis();
+  }
+  else
+  {
+    //clear serial flag
+    serialCmd &= ~(1 << bufindw);
+  }
+  ++bufindw;
+  bufindw %= BUFSIZE;
+  ++buflen;
+}
+
+/**
+ * Once the current command is interpreted, remove it from the ring buffer
+ */
+static void remove_command()
+{
+    memset(cmdbuffer[bufindr], 0, MAX_CMD_SIZE);
+    serialCmd &= ~(1 << bufindr);
+    --buflen;
+    ++bufindr;
+    bufindr %= BUFSIZE;
+}
+
 //Clear all the commands in the ASCII command buffer
 void clear_command_queue()
 {
-    buflen = 0;
-    bufindw = bufindr;
+    while (buflen)
+    {
+        remove_command();
+    }
+    bufindw = bufindr = 0;
+    serialCmd = 0;
 }
 
 static void next_command()
@@ -333,7 +370,6 @@ static void next_command()
           if(card.logging)
           {
             process_command(cmdbuffer[bufindr], serialCmd & (1 << bufindr));
-            serialCmd &= ~(1 << bufindr);
           }
           else
           {
@@ -349,18 +385,14 @@ static void next_command()
     else
     {
     process_command(cmdbuffer[bufindr], serialCmd & (1 << bufindr));
-    serialCmd &= ~(1 << bufindr);
     }
   #else
     process_command(cmdbuffer[bufindr], serialCmd & (1 << bufindr));
-    serialCmd &= ~(1 << bufindr);
   #endif //SDSUPPORT
 
     if (buflen)
     {
-        --buflen;
-        ++bufindr;
-        bufindr %= BUFSIZE;
+        remove_command();
     }
 }
 
@@ -371,20 +403,15 @@ static void prepareenque()
         next_command();
         idle();
     }
-    memset(cmdbuffer[bufindw], 0, MAX_CMD_SIZE);
 }
 
 static void finishenque()
 {
-    // clear serial flag
-    serialCmd &= ~(1 << bufindw);
     SERIAL_ECHO_START;
     SERIAL_ECHOPGM("enqueing \"");
     SERIAL_ECHO(cmdbuffer[bufindw]);
     SERIAL_ECHOLNPGM("\"");
-    ++bufindw;
-    bufindw %= BUFSIZE;
-    ++buflen;
+    commit_command(false);
 }
 
 //adds an command to the main command buffer
@@ -404,11 +431,6 @@ void enquecommand_P(const char *cmd)
     //this is dangerous if a mixing of serial and this happens
     strcpy_P(&(cmdbuffer[bufindw][0]),cmd);
     finishenque();
-}
-
-bool is_command_queued()
-{
-    return buflen > 0;
 }
 
 uint8_t commands_queued()
@@ -713,21 +735,14 @@ static void get_command()
       checkToolchange(cmdbuffer[bufindw]);
 #endif
 #ifdef ENABLE_ULTILCD2
-        // no printing screen for these commands
-      if(!code_seen(cmdbuffer[bufindw], 'M') || code_value_long() != 105)
+      // no printing screen for M105 command
+      commit_command(!code_seen(cmdbuffer[bufindw], 'M') || code_value_long() != 105);
+#else
+      commit_command(true);
 #endif
-      {
-        //set serial flag for new command
-        serialCmd |= (1 << bufindw);
-        lastSerialCommandTime = millis();
-      }
 
       //start reading next command
-      ++bufindw;
-      bufindw %= BUFSIZE;
-      memset(cmdbuffer[bufindw], 0, MAX_CMD_SIZE);
-      ++buflen;
-      serial_count = 0; //clear buffer
+      serial_count = 0;
       comment_mode = false;
     }
     else
@@ -738,7 +753,7 @@ static void get_command()
   }
 
   // detect serial communication
-  if ((is_command_queued() && serialCmd) || ((millis() - lastSerialCommandTime) < SERIAL_CONTROL_TIMEOUT))
+  if ((commands_queued() && serialCmd) || ((millis() - lastSerialCommandTime) < SERIAL_CONTROL_TIMEOUT))
   {
       sleep_state |= SLEEP_SERIAL_CMD;
   }
@@ -818,16 +833,9 @@ static void get_command()
         // check, if a toolchange command appeared and set a flag for nozzle re-heating
         checkToolchange(cmdbuffer[bufindw]);
 #endif
-//      if(!comment_mode){
-        // clear serial flag
-        serialCmd &= ~(1 << bufindw);
-        ++bufindw;
-        bufindw %= BUFSIZE;
-        memset(cmdbuffer[bufindw], 0, MAX_CMD_SIZE);
-        ++buflen;
-//      }
+      commit_command(false);
       comment_mode = false; //for new command
-      serial_count = 0; //clear buffer
+      serial_count = 0;
       endOfLineFilePosition = card.getFilePos();
     }
     else
@@ -2776,7 +2784,7 @@ void process_command(const char *strCmd, bool sendAck)
       if (changeExtruder(tmp_extruder, position_state & KNOWNPOS_Z))
       {
         // Move to the old position if 'F' was in the parameters
-        if((printing_state < PRINT_STATE_ABORT) && make_move && Stopped == false && (IS_SD_PRINTING || is_command_queued()))
+        if((printing_state < PRINT_STATE_ABORT) && make_move && Stopped == false && (IS_SD_PRINTING || commands_queued()))
         {
            prepare_move(strCmd);
         }
@@ -3159,7 +3167,7 @@ void idle()
     lifetime_stats_tick();
 }
 
-void manage_inactivity()
+static void manage_inactivity()
 {
   checkFilamentSensor();
   manage_led_timeout();
