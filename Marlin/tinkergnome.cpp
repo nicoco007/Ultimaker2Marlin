@@ -1240,9 +1240,9 @@ void lcd_menu_print_heatup_tg()
             if (ready)
             {
                 menu.reset_submenu();
-                doStartPrint();
                 printing_page = 0;
                 menu.replace_menu(menu_t(lcd_menu_printing_tg, MAIN_MENU_ITEM_POS(1)), false);
+                doStartPrint();
             }
 #if TEMP_SENSOR_BED != 0
         }

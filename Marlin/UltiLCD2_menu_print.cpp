@@ -217,8 +217,8 @@ void doStartPrint()
         if (!primed)
         {
             // move to priming height
-            char buffer[16] = {0};
-            sprintf_P(buffer, PSTR("G1 Z%i F%i"), (int)priming_z, (int)homing_feedrate[Z_AXIS]);
+            char buffer[20] = {0};
+            sprintf_P(buffer, PSTR("G1 Z%d F%d"), (int)priming_z, (int)homing_feedrate[Z_AXIS]);
             enquecommand(buffer);
             // finish z-move
             cmd_synchronize();
@@ -237,6 +237,8 @@ void doStartPrint()
             printing_state = PRINT_STATE_TOOLCHANGE;
             // move to heatup pos
             CommandBuffer::move2heatup();
+            cmd_synchronize();
+            st_synchronize();
 
             // wait for nozzle heatup
             reheatNozzle(active_extruder);

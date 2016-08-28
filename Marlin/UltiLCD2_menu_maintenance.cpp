@@ -365,7 +365,7 @@ void lcd_menu_maintenance_advanced()
             lcd_lib_keyclick();
             cmd_synchronize();
             CommandBuffer::homeBed();
-            process_command_P(PSTR("G1 Z40"));
+            enquecommand_P(PSTR("G1 Z40"));
         }
         else if (IS_SELECTED_SCROLL(index++))
         {
