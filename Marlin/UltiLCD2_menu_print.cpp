@@ -51,19 +51,7 @@ void abortPrint()
 {
 	quickStop();
     clear_command_queue();
-    postMenuCheck = NULL;
-
-    for (uint8_t axis=0; axis<NUM_AXIS; ++axis)
-    {
-        current_position[axis] = st_get_position(axis)/axis_steps_per_unit[axis];
-#if EXTRUDERS > 1
-        if (axis <= Y_AXIS)
-        {
-            current_position[axis] += extruder_offset[axis][active_extruder];
-        }
-#endif
-    }
-    current_position[E_AXIS] /= volume_to_filament_length[active_extruder];
+    postMenuCheck = 0;
 
     // reset defaults
     feedmultiply = 100;
@@ -72,6 +60,9 @@ void abortPrint()
         extrudemultiply[e] = 100;
     }
 
+    // get current position from planner
+    plan_get_position(current_position);
+
     // set up the end of print retraction
     if ((primed & ENDOFPRINT_RETRACT) && (primed & (EXTRUDER_PRIMED << active_extruder)))
     {
@@ -79,23 +70,15 @@ void abortPrint()
 #if EXTRUDERS > 1
         // perform tool change retraction
         CLEAR_EXTRUDER_RETRACT(active_extruder);
-        enquecommand_P(PSTR("G10 S1"));
-        enquecommand_P(PSTR("G92 E0"));
-        enquecommand_P(PSTR("G1 E0"));
+        plan_set_e_position(toolchange_retractlen[active_extruder]/volume_to_filament_length[active_extruder]);
+        current_position[E_AXIS] = 0.0f;
+        plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], toolchange_retractfeedrate[active_extruder]/60, active_extruder);
 #else
-        char cmdBuffer[16] = {0};
-        char paramBuffer[16] = {0};
-        // set up the end of print retraction
-        float_to_string1(end_of_print_retraction / volume_to_filament_length[active_extruder], paramBuffer, 0);
-        sprintf_P(cmdBuffer, PSTR("G92 E%s"), paramBuffer);
-        enquecommand(cmdBuffer);
-        // perform the retraction at the standard retract speed
-        float_to_string1(retract_feedrate, paramBuffer, 0);
-        sprintf_P(cmdBuffer, PSTR("G1 F%s E0"), paramBuffer);
-        enquecommand(cmdBuffer);
+        // perform the end-of-print retraction at the standard retract speed
+        plan_set_e_position(end_of_print_retraction / volume_to_filament_length[active_extruder]);
+        current_position[E_AXIS] = 0.0f;
+        plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], retract_feedrate/60, active_extruder);
 #endif
-        cmd_synchronize();
-
         // no longer primed
         primed = 0;
     }
@@ -117,12 +100,6 @@ void abortPrint()
         }
     }
 
-    // finish all moves
-    cmd_synchronize();
-    st_synchronize();
-
-    doCooldown();
-
     if (current_position[Z_AXIS] > max_pos[Z_AXIS] - 30)
     {
         CommandBuffer::homeHead();
@@ -135,9 +112,9 @@ void abortPrint()
 
     // finish all moves
     cmd_synchronize();
-    st_synchronize();
+    finishAndDisableSteppers();
 
-    process_command_P(PSTR("M84"));
+    doCooldown();
 
     stoptime=millis();
     lifetime_stats_print_end();
@@ -156,27 +133,31 @@ void abortPrint()
     {
         volume_to_filament_length[e] = 1.0;
     }
+    axis_relative_state = 0;
 }
 
 static void checkPrintFinished()
 {
     if ((printing_state != PRINT_STATE_RECOVER) && (printing_state != PRINT_STATE_START) && (printing_state != PRINT_STATE_ABORT) && !card.sdprinting && !commands_queued())
     {
-        abortPrint();
+        // normal end of gcode file
         recover_height = 0.0f;
         sleep_state |= SLEEP_COOLING;
         menu.replace_menu(menu_t(lcd_menu_print_ready, MAIN_MENU_ITEM_POS(0)));
-    }else if (position_error)
+        abortPrint();
+    }
+    else if (position_error)
     {
         quickStop();
-        abortPrint();
         sleep_state &= ~SLEEP_LED_OFF;
         menu.replace_menu(menu_t(lcd_menu_print_error_position, MAIN_MENU_ITEM_POS(0)));
-    }else if (card.errorCode())
-    {
         abortPrint();
+    }
+    else if (card.errorCode())
+    {
         sleep_state &= ~SLEEP_LED_OFF;
         menu.replace_menu(menu_t(lcd_menu_print_error_sd, MAIN_MENU_ITEM_POS(0)));
+        abortPrint();
     }
 }
 
@@ -611,14 +592,14 @@ void lcd_menu_print_select()
                     }
                     card.setIndex(0);
 
-                    fanSpeed = 0;
-                    feedmultiply = 100;
-                    current_nominal_speed = 0.0f;
-
                     lcd_clearstatus();
                     menu.return_to_main();
 
                     //reset all printing parameters to defaults
+                    axis_relative_state = 0;
+                    fanSpeed = 0;
+                    feedmultiply = 100;
+                    current_nominal_speed = 0.0f;
                     fanSpeedPercent = 100;
                     for(uint8_t e=0; e<EXTRUDERS; e++)
                     {
@@ -790,7 +771,7 @@ void lcd_menu_print_heatup()
 
 void lcd_change_to_menu_change_material_return()
 {
-    plan_set_e_position(current_position[E_AXIS]);
+    // plan_set_e_position(current_position[E_AXIS]);
     setTargetHotend(material[active_extruder].temperature[nozzleSizeToTemperatureIndex(LCD_DETAIL_CACHE_NOZZLE_DIAMETER(active_extruder))], active_extruder);
     menu.return_to_previous(false);
 }
@@ -913,12 +894,13 @@ static void lcd_menu_print_classic_warning()
 static void lcd_cancel_material_warning()
 {
     doCooldown();
-    lcd_remove_menu();
+    lcd_return_to_main_menu();
 }
 
 static void lcd_menu_print_material_warning()
 {
-    lcd_question_screen((ui_mode & UI_MODE_EXPERT) ? lcd_menu_print_heatup_tg : lcd_menu_print_heatup, NULL, PSTR("CONTINUE"), lcd_menu_print_select, lcd_cancel_material_warning, PSTR("CANCEL"));
+//    lcd_question_screen((ui_mode & UI_MODE_EXPERT) ? lcd_menu_print_heatup_tg : lcd_menu_print_heatup, NULL, PSTR("CONTINUE"), lcd_menu_print_select, lcd_cancel_material_warning, PSTR("CANCEL"));
+    lcd_question_screen(NULL, lcd_change_to_previous_menu, PSTR("CONTINUE"), NULL, lcd_cancel_material_warning, PSTR("CANCEL"));
 
     lcd_lib_draw_string_centerP(10, PSTR("This file is created"));
     lcd_lib_draw_string_centerP(20, PSTR("for a different"));
@@ -1267,7 +1249,7 @@ void lcd_menu_print_tune()
             LCD_EDIT_SETTING(led_brightness_level, "Brightness", "%", 0, 100);
 #endif
         else if ((ui_mode & UI_MODE_EXPERT) && card.sdprinting && card.pause && IS_SELECTED_SCROLL(index++))
-            menu.add_menu(menu_t(NULL, lcd_menu_expert_extrude, lcd_extrude_quit_menu, 0)); // Move material
+            menu.add_menu(menu_t(lcd_menu_expert_extrude, 0)); // Move material
         else if ((ui_mode & UI_MODE_EXPERT) && IS_SELECTED_SCROLL(index++))
             menu.add_menu(menu_t(lcd_menu_sleeptimer));
     }
@@ -1385,7 +1367,8 @@ static void lcd_print_change_material()
 {
     if (!blocks_queued())
     {
-        lcd_material_change_init(false);
+        menu_extruder = active_extruder;
+        lcd_material_change_init(true);
         menu.add_menu(menu_t(lcd_change_to_menu_change_material_return), false);
         menu.add_menu(menu_t(lcd_menu_change_material_preheat));
     }

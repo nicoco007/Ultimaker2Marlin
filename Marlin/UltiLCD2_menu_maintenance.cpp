@@ -272,8 +272,8 @@ static void start_insert_material()
     // remove nozzle selection menu
     menu.return_to_previous();
 #endif // EXTRUDERS
-    menu.add_menu(menu_t(lcd_menu_maintenance_advanced_return));
-    menu.add_menu(menu_t(move_head_to_front, lcd_menu_insert_material_preheat, NULL));
+    lcd_material_change_init(false);
+    menu.add_menu(menu_t(lcd_menu_insert_material_preheat));
 }
 
 void start_move_material()
