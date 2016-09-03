@@ -1487,7 +1487,7 @@ void process_command(const char *strCmd, bool sendAck)
         {
           idle();
         }
-        plan_set_e_position(current_position[E_AXIS];
+        plan_set_e_position(current_position[E_AXIS]);
 //        serial_action_P(PSTR("resume"));
     }
     break;
