@@ -47,7 +47,7 @@ void abortPrint()
 {
     quickStop();
     clear_command_queue();
-    postMenuCheck = NULL;
+    postMenuCheck = 0;
 
     // reset defaults
     feedmultiply = 100;
@@ -56,21 +56,15 @@ void abortPrint()
         extrudemultiply[e] = 100;
     }
 
+    // get current position from planner
+    plan_get_position(current_position);
+
     if (primed)
     {
-        // retract
-        enquecommand_P(PSTR("G10"));
-
-        char cmdBuffer[16] = {0};
-        char paramBuffer[16] = {0};
-        // set up the end of print retraction
-        float_to_string1(end_of_print_retraction / volume_to_filament_length[active_extruder], paramBuffer, 0);
-        sprintf_P(cmdBuffer, PSTR("G92 E%s"), paramBuffer);
-        enquecommand(cmdBuffer);
-        // perform the retraction at the standard retract speed
-        float_to_string1(retract_feedrate, paramBuffer, 0);
-        sprintf_P(cmdBuffer, PSTR("G1 F%s E0"), paramBuffer);
-        enquecommand(cmdBuffer);
+        // perform the end-of-print retraction at the standard retract speed
+        plan_set_e_position(end_of_print_retraction / volume_to_filament_length[active_extruder]);
+        current_position[E_AXIS] = 0.0f;
+        plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], retract_feedrate/60, active_extruder);
 
         // no longer primed
         primed = false;
@@ -111,27 +105,31 @@ void abortPrint()
     {
         volume_to_filament_length[e] = 1.0;
     }
+    axis_relative_state = 0;
 }
 
 static void checkPrintFinished()
 {
-    if ((printing_state != PRINT_STATE_RECOVER) && (printing_state != PRINT_STATE_START) && (printing_state != PRINT_STATE_ABORT) && !card.sdprinting && !is_command_queued())
+    if ((printing_state != PRINT_STATE_RECOVER) && (printing_state != PRINT_STATE_START) && (printing_state != PRINT_STATE_ABORT) && !card.sdprinting && !commands_queued())
     {
-        abortPrint();
+        // normal end of gcode file
         recover_height = 0.0f;
         sleep_state |= SLEEP_COOLING;
         menu.replace_menu(menu_t(lcd_menu_print_ready, MAIN_MENU_ITEM_POS(0)));
-    }else if (position_error)
+        abortPrint();
+    }
+    else if (position_error)
     {
         quickStop();
-        abortPrint();
         sleep_state &= ~SLEEP_LED_OFF;
         menu.replace_menu(menu_t(lcd_menu_print_error_position, MAIN_MENU_ITEM_POS(0)));
-    }else if (card.errorCode())
-    {
         abortPrint();
+    }
+    else if (card.errorCode())
+    {
         sleep_state &= ~SLEEP_LED_OFF;
         menu.replace_menu(menu_t(lcd_menu_print_error_sd, MAIN_MENU_ITEM_POS(0)));
+        abortPrint();
     }
 }
 
@@ -153,7 +151,7 @@ void doStartPrint()
 	primed = false;
 	position_error = false;
 
-    for(uint8_t e = 0; e<EXTRUDERS; e++)
+    for(int8_t e = EXTRUDERS-1; e>=0; --e)
     {
         // don't prime the extruder if it isn't used in the (Ulti)gcode
         // traditional gcode files typically won't have the Material lines at start, so we won't prime for those
@@ -172,7 +170,7 @@ void doStartPrint()
         {
             // move to priming height
             current_position[Z_AXIS] = priming_z;
-            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], homing_feedrate[Z_AXIS], e);
+            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], homing_feedrate[Z_AXIS]/60, e);
             // note that we have primed, so that we know to de-prime at the end
             primed = true;
         }
@@ -188,7 +186,7 @@ void doStartPrint()
         // for extruders other than the first one, perform end of print retraction
         if (e != active_extruder)
         {
-            plan_set_e_position((volume_to_filament_length[e] + end_of_print_retraction) / volume_to_filament_length[e]);
+            plan_set_e_position(extruder_swap_retract_length / volume_to_filament_length[e]);
             plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], retract_feedrate/60, e);
         }
 #endif
@@ -501,7 +499,7 @@ void lcd_menu_print_select()
                 active_extruder = 0;
             #endif // EXTRUDERS
                 card.openFile(card.filename, true);
-                if (card.isFileOpen() && !is_command_queued())
+                if (card.isFileOpen() && !commands_queued())
                 {
                     if (led_mode == LED_MODE_WHILE_PRINTING || led_mode == LED_MODE_BLINK_ON_DONE)
                         analogWrite(LED_PIN, 255 * int(led_brightness_level) / 100);
@@ -520,14 +518,14 @@ void lcd_menu_print_select()
                     }
                     card.setIndex(0);
 
-                    fanSpeed = 0;
-                    feedmultiply = 100;
-                    current_nominal_speed = 0.0f;
-
                     lcd_clearstatus();
                     menu.return_to_main();
 
                     //reset all printing parameters to defaults
+                    axis_relative_state = 0;
+                    fanSpeed = 0;
+                    feedmultiply = 100;
+                    current_nominal_speed = 0.0f;
                     fanSpeedPercent = 100;
                     for(uint8_t e=0; e<EXTRUDERS; e++)
                     {
@@ -583,8 +581,8 @@ void lcd_menu_print_select()
                         #endif // EXTRUDERS
                             // move to heatup position
                             char buffer[32] = {0};
-                            sprintf_P(buffer, PSTR("G1 F12000 X%i Y%i"), max(int(min_pos[X_AXIS]), 0)+5, max(int(min_pos[Y_AXIS]), 0)+5);
                             homeAll();
+                            sprintf_P(buffer, PSTR("G1 F12000 X%i Y%i"), max(int(min_pos[X_AXIS]), 0)+5, max(int(min_pos[Y_AXIS]), 0)+5);
                             enquecommand(buffer);
                             printing_state = PRINT_STATE_NORMAL;
 
@@ -646,7 +644,7 @@ void lcd_menu_print_heatup()
         }
 
 #if TEMP_SENSOR_BED != 0
-        if (current_temperature_bed >= target_temperature_bed - TEMP_WINDOW * 2 && !is_command_queued())
+        if (current_temperature_bed >= target_temperature_bed - TEMP_WINDOW * 2 && !commands_queued())
         {
 #endif // TEMP_SENSOR_BED
             bool ready = true;
@@ -708,7 +706,7 @@ void lcd_menu_print_heatup()
 
 void lcd_change_to_menu_change_material_return()
 {
-    plan_set_e_position(current_position[E_AXIS]);
+    // plan_set_e_position(current_position[E_AXIS]);
     setTargetHotend(material[active_extruder].temperature[nozzleSizeToTemperatureIndex(LCD_DETAIL_CACHE_NOZZLE_DIAMETER(active_extruder))], active_extruder);
     menu.return_to_previous(false);
 }
@@ -831,12 +829,13 @@ static void lcd_menu_print_classic_warning()
 static void lcd_cancel_material_warning()
 {
     doCooldown();
-    lcd_remove_menu();
+    lcd_return_to_main_menu();
 }
 
 static void lcd_menu_print_material_warning()
 {
-    lcd_question_screen((ui_mode & UI_MODE_EXPERT) ? lcd_menu_print_heatup_tg : lcd_menu_print_heatup, NULL, PSTR("CONTINUE"), lcd_menu_print_select, lcd_cancel_material_warning, PSTR("CANCEL"));
+//    lcd_question_screen((ui_mode & UI_MODE_EXPERT) ? lcd_menu_print_heatup_tg : lcd_menu_print_heatup, NULL, PSTR("CONTINUE"), lcd_menu_print_select, lcd_cancel_material_warning, PSTR("CANCEL"));
+    lcd_question_screen(NULL, lcd_change_to_previous_menu, PSTR("CONTINUE"), NULL, lcd_cancel_material_warning, PSTR("CANCEL"));
 
     lcd_lib_draw_string_centerP(10, PSTR("This file is created"));
     lcd_lib_draw_string_centerP(20, PSTR("for a different"));
@@ -1153,7 +1152,7 @@ void lcd_menu_print_tune()
         else if (IS_SELECTED_SCROLL(index++))
             LCD_EDIT_SETTING(led_brightness_level, "Brightness", "%", 0, 100);
         else if ((ui_mode & UI_MODE_EXPERT) && card.sdprinting && card.pause && IS_SELECTED_SCROLL(index++))
-            menu.add_menu(menu_t(NULL, lcd_menu_expert_extrude, lcd_extrude_quit_menu, 0)); // Move material
+            menu.add_menu(menu_t(lcd_menu_expert_extrude, 0)); // Move material
         else if ((ui_mode & UI_MODE_EXPERT) && IS_SELECTED_SCROLL(index++))
             menu.add_menu(menu_t(lcd_menu_sleeptimer));
     }
@@ -1225,6 +1224,7 @@ void lcd_print_pause()
     if (!card.pause)
     {
         card.pause = true;
+        primed = false;
 
         // move z up according to the current height - but minimum to z=70mm (above the gantry height)
         uint16_t zdiff = 0;
@@ -1248,9 +1248,7 @@ void lcd_print_pause()
         uint8_t y = max(int(min_pos[Y_AXIS]), 0) + 5;
 
         sprintf_P(buffer, PSTR("M601 X%u Y%u Z%u L%u"), x, y, zdiff, uint8_t(end_of_print_retraction));
-        process_command(buffer);
-
-        primed = false;
+        process_command(buffer, false);
 
     }
 }
@@ -1281,7 +1279,7 @@ static void lcd_print_change_material()
 {
     if (!blocks_queued())
     {
-        lcd_material_change_init(false);
+        lcd_material_change_init(true);
         menu.add_menu(menu_t(lcd_change_to_menu_change_material_return), false);
         menu.add_menu(menu_t(lcd_menu_change_material_preheat));
     }
