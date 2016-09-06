@@ -80,10 +80,6 @@ void abortPrint()
         }
     }
 
-    // finish all moves
-    cmd_synchronize();
-    st_synchronize();
-
     doCooldown();
 
     // joris zunlimited dont home Z with z-unlimited after print
@@ -867,6 +863,11 @@ static void set_abort_state()
     printing_state = PRINT_STATE_ABORT;
     postMenuCheck = NULL;
     sleep_state &= ~SLEEP_LED_OFF;
+    // force end of print retraction
+    if (IS_SD_PRINTING && !card.pause)
+    {
+        primed = true;
+    }
     menu.return_to_main();
 }
 
