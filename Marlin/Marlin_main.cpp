@@ -1738,7 +1738,6 @@ void process_command(const char *strCmd, bool sendAck)
           }
         }
         LCD_MESSAGEPGM(MSG_HEATING_COMPLETE);
-        starttime=millis();
         previous_millis_cmd = millis();
       }
       break;
