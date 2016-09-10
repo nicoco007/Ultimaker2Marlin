@@ -241,22 +241,6 @@ static void lcd_preferences_details(uint8_t nr)
     lcd_lib_draw_string_left(BOTTOM_MENU_YPOS, buffer);
 }
 
-static void lcd_menu_maintenance_advanced_return()
-{
-    doCooldown();
-    cmd_synchronize();
-    CommandBuffer::homeHead();
-    process_command_P(PSTR("M84 X Y E"));
-    menu.return_to_previous(false);
-}
-
-static void move_head_to_front()
-{
-    CommandBuffer::homeHead();
-    cmd_synchronize();
-    CommandBuffer::move2front();
-}
-
 static void start_nozzle_heatup()
 {
 #if EXTRUDERS > 1

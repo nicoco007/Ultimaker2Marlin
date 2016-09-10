@@ -234,7 +234,8 @@ static long gcode_LastN, Stopped_gcode_LastN = 0;
 #define RELATIVE_MODE 128
 uint8_t axis_relative_state = 0;
 
-static char cmdbuffer[BUFSIZE][MAX_CMD_SIZE] = {0};
+static char cmd_line_buffer[MAX_CMD_SIZE] = {'\0'};
+static char cmdbuffer[BUFSIZE][MAX_CMD_SIZE] = {'\0'};
 #if BUFSIZE > 8
 static uint16_t bufindr = 0;
 static uint16_t bufindw = 0;
@@ -638,10 +639,10 @@ static void checkToolchange(const char *cmd)
  * Copy a command directly into the main command buffer, from RAM.
  * Returns true if successfully adds the command
  */
-static bool insertcommand(const char* cmd, bool sendAck) {
+static bool insertcommand(const char* cmd, bool isSerialCmd) {
   if (*cmd == ';' || buflen >= BUFSIZE) return false;
   strcpy(cmdbuffer[bufindw], cmd);
-  commit_command(sendAck);
+  commit_command(isSerialCmd);
 #if (EXTRUDERS > 1) && defined(FWRETRACT)
   // check, if a toolchange command appeared and set a flag for nozzle re-heating
   checkToolchange(cmdbuffer[bufindw]);
@@ -659,7 +660,6 @@ static void gcode_line_error(const char* err, bool doFlush) {
 
 inline void get_serial_commands()
 {
-  static char serial_line_buffer[MAX_CMD_SIZE];
   long gcode_N;
   while( buflen < BUFSIZE && MYSERIAL.available() > 0)
   {
@@ -672,11 +672,10 @@ inline void get_serial_commands()
       comment_mode = false; // end of line == end of comment
       if (!serial_count) continue; // skip empty lines
 
-//      cmdbuffer[bufindw][serial_count] = 0; //terminate string
-      serial_line_buffer[serial_count] = 0; // terminate string
+      cmd_line_buffer[serial_count] = 0; // terminate string
       serial_count = 0; //reset buffer
 
-      char* command = serial_line_buffer;
+      char* command = cmd_line_buffer;
       while (*command == ' ') command++; // skip any leading spaces
       char* npos = (*command == 'N') ? command : NULL; // Require the N parameter to start the line
       char* apos = strchr(command, '*');
@@ -738,11 +737,30 @@ inline void get_serial_commands()
       }
       // Add the command to the queue
 #ifdef ENABLE_ULTILCD2
-      // no printing screen for M105 command
-      insertcommand(command, !strstr_P(command, PSTR("M105")));
+      // no printing screen for unrelated commands
+      bool isSerialCmd = true;
+      char* cmdpos = strchr(command, 'M');
+      if (cmdpos)
+      {
+        if (++cmdpos)
+        {
+          int codenum = strtol(cmdpos, NULL, 10);
+          switch (codenum) {
+            case 20:
+            case 21:
+            case 22:
+            case 27:
+            case 105:
+              isSerialCmd = false;
+              break;
+          }
+        }
+      }
+      insertcommand(command, isSerialCmd);
 #else
       insertcommand(command, true);
 #endif
+      memset(cmd_line_buffer, 0, MAX_CMD_SIZE);
 
     }
     else if (serial_count >= MAX_CMD_SIZE - 1) {
@@ -753,13 +771,13 @@ inline void get_serial_commands()
       if (MYSERIAL.available() > 0) {
         // if we have one more character, copy it over
         serial_char = MYSERIAL.read();
-        if (!comment_mode) serial_line_buffer[serial_count++] = serial_char;
+        if (!comment_mode) cmd_line_buffer[serial_count++] = serial_char;
       }
       // otherwise do nothing
     }
     else { // it's not a newline, carriage return or escape char
       if (serial_char == ';') comment_mode = true;
-      if (!comment_mode) serial_line_buffer[serial_count++] = serial_char;
+      if (!comment_mode) cmd_line_buffer[serial_count++] = serial_char;
     }
   }
 }
@@ -822,16 +840,17 @@ inline void get_sdcard_commands()
 
             if (!sd_count) continue; //skip empty lines
 
-            cmdbuffer[bufindw][sd_count] = '\0'; //terminate string
+            cmd_line_buffer[sd_count] = '\0'; //terminate string
             sd_count = 0; //clear buffer
             endOfLineFilePosition = card.getFilePos();
 
-            commit_command(false);
+            insertcommand(cmd_line_buffer, false);
+            memset(cmd_line_buffer, 0, MAX_CMD_SIZE);
         }
         else if (sd_count < MAX_CMD_SIZE - 1)
         {
             if (sd_char == ';') comment_mode = true;
-            if (!comment_mode) cmdbuffer[bufindw][sd_count++] = sd_char;
+            if (!comment_mode) cmd_line_buffer[sd_count++] = sd_char;
         }
         /**
          * Keep fetching, but ignore normal characters beyond the max length
@@ -1047,10 +1066,10 @@ static void homeaxis(int axis) {
 }
 #define HOMEAXIS(LETTER) homeaxis(LETTER##_AXIS)
 
-#if (TEMP_SENSOR_0 != 0) || (TEMP_SENSOR_BED != 0) || ENABLED(HEATER_0_USES_MAX6675)
+#if (TEMP_SENSOR_0 != 0) || (TEMP_SENSOR_BED != 0) || defined(HEATER_0_USES_MAX6675)
   static void print_heaterstates()
   {
-    #if (TEMP_SENSOR_0 != 0) || ENABLED(HEATER_0_USES_MAX6675)
+    #if (TEMP_SENSOR_0 != 0) || defined(HEATER_0_USES_MAX6675)
       SERIAL_PROTOCOLPGM(" T:");
       SERIAL_PROTOCOL_F(degHotend(tmp_extruder), 1);
       SERIAL_PROTOCOLPGM(" /");
@@ -1095,8 +1114,7 @@ static void homeaxis(int axis) {
 inline void gcode_M105(const char *cmd)
 {
   if (setTargetedHotend(cmd, 105)) return;
-
-  #if (TEMP_SENSOR_0 != 0) || (TEMP_SENSOR_BED != 0) || ENABLED(HEATER_0_USES_MAX6675)
+  #if (TEMP_SENSOR_0 != 0) || (TEMP_SENSOR_BED != 0) || defined(HEATER_0_USES_MAX6675)
     SERIAL_PROTOCOLPGM(MSG_OK);
     print_heaterstates();
   #else // !HAS_TEMP_0 && !HAS_TEMP_BED
@@ -1513,19 +1531,21 @@ void process_command(const char *strCmd, bool sendAck)
       SERIAL_PROTOCOLLNPGM(MSG_BEGIN_FILE_LIST);
       card.ls();
       SERIAL_PROTOCOLLNPGM(MSG_END_FILE_LIST);
-      break;
+      ClearToSend();
+      return;
     case 21: // M21 - init SD card
       if (printing_state == PRINT_STATE_RECOVER)
         break;
 
       card.initsd();
-      break;
+      ClearToSend();
+      return;
     case 22: //M22 - release SD card
       if (printing_state == PRINT_STATE_RECOVER)
         break;
       card.release();
-
-      break;
+      ClearToSend();
+      return;
     case 23: //M23 - Select file
       if (printing_state == PRINT_STATE_RECOVER)
         break;
@@ -1553,7 +1573,8 @@ void process_command(const char *strCmd, bool sendAck)
       break;
     case 27: //M27 - Get SD status
       card.getStatus();
-      break;
+      ClearToSend();
+      return;
     case 28: //M28 - Start SD write
       strchr_pointer += 4;
       if(truncate_checksum(strchr_pointer)){
@@ -1620,7 +1641,8 @@ void process_command(const char *strCmd, bool sendAck)
         int pin_number = LED_PIN;
         if (code_seen(strCmd, 'P') && pin_status >= 0 && pin_status <= 255)
           pin_number = code_value();
-        for(uint8_t i = 0; i < (sizeof(sensitive_pins)/sizeof(sensitive_pins[0])); ++i)
+
+        for(uint8_t i = 0; i < COUNT(sensitive_pins); ++i)
         {
           if (sensitive_pins[i] == pin_number)
           {
@@ -1701,7 +1723,7 @@ void process_command(const char *strCmd, bool sendAck)
       #endif //TEMP_RESIDENCY_TIME
           if( (millis() - codenum) > 1000UL )
           { //Print Temp Reading and remaining time every 1 second while heating up/cooling down
-            #if (TEMP_SENSOR_0 != 0) || (TEMP_SENSOR_BED != 0) || ENABLED(HEATER_0_USES_MAX6675)
+            #if (TEMP_SENSOR_0 != 0) || (TEMP_SENSOR_BED != 0) || defined(HEATER_0_USES_MAX6675)
               print_heaterstates();
             #endif
             #ifdef TEMP_RESIDENCY_TIME
@@ -1766,7 +1788,7 @@ void process_command(const char *strCmd, bool sendAck)
           {
             codenum = m;
             // float tt=degHotend(active_extruder);
-          #if (TEMP_SENSOR_0 != 0) || (TEMP_SENSOR_BED != 0) || ENABLED(HEATER_0_USES_MAX6675)
+          #if (TEMP_SENSOR_0 != 0) || (TEMP_SENSOR_BED != 0) || defined(HEATER_0_USES_MAX6675)
             print_heaterstates();
             SERIAL_EOL;
           #endif

@@ -60,9 +60,6 @@ void abortPrint()
         extrudemultiply[e] = 100;
     }
 
-    // get current position from planner
-    plan_get_position(current_position);
-
     // set up the end of print retraction
     if ((primed & ENDOFPRINT_RETRACT) && (primed & (EXTRUDER_PRIMED << active_extruder)))
     {
@@ -142,7 +139,8 @@ static void checkPrintFinished()
         // normal end of gcode file
         recover_height = 0.0f;
         sleep_state |= SLEEP_COOLING;
-        menu.replace_menu(menu_t(lcd_menu_print_ready, MAIN_MENU_ITEM_POS(0)));
+        menu.return_to_main(false);
+        menu.add_menu(menu_t(lcd_menu_print_ready, MAIN_MENU_ITEM_POS(0)), false);
         abortPrint();
     }
     else if (position_error)
@@ -923,7 +921,8 @@ static void lcd_menu_doabort()
     }
     else
     {
-        menu.replace_menu(menu_t(lcd_menu_print_ready, MAIN_MENU_ITEM_POS(0)));
+        menu.return_to_main(false);
+        menu.add_menu(menu_t(lcd_menu_print_ready, MAIN_MENU_ITEM_POS(0)), false);
     }
 }
 
