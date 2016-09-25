@@ -271,8 +271,7 @@ void start_move_material()
     current_position[E_AXIS] = 0;
     plan_set_e_position(0);
     // heatup nozzle
-    target_temperature[active_extruder] = material[active_extruder].temperature[0];
-
+    target_temperature[menu_extruder] = material[menu_extruder].temperature[0];
     if (ui_mode & UI_MODE_EXPERT)
     {
         menu.add_menu(menu_t(lcd_menu_expert_extrude));

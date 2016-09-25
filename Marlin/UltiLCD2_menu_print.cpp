@@ -937,7 +937,7 @@ static void set_abort_state()
         primed |= (EXTRUDER_PRIMED << active_extruder);
         primed |= ENDOFPRINT_RETRACT;
     }
-    menu.return_to_main();
+//    menu.return_to_main();
 }
 
 void lcd_menu_print_abort()

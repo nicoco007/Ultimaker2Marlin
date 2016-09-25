@@ -278,7 +278,7 @@ void CommandBuffer::processWipe()
         process_command_P(PSTR("G0 X60 F12000"));
 
         // slow wipe move
-        sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G0 X20 F%i"), 40*60);
+        sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G0 X22.5 F%i"), 40*60);
         process_command(LCD_CACHE_FILENAME(2), false);
 
         // snip move

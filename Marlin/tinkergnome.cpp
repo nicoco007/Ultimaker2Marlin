@@ -1607,7 +1607,7 @@ static void lcd_simple_buildplate_quit()
     CommandBuffer::homeBed();
     // home head
     CommandBuffer::homeHead();
-    process_command_P(PSTR("M84 X0 Y0"));
+    enquecommand_P(PSTR("M84 X0 Y0"));
 }
 
 // create menu options for "move axes"
