@@ -1394,7 +1394,17 @@ void lcd_menu_printing_tg()
                 float speed_e = current_block->steps_e * current_block->nominal_rate / axis_steps_per_unit[E_AXIS] / current_block->step_event_count;
                 float volume = (volume_to_filament_length[current_block->active_extruder] < 0.99) ? speed_e / volume_to_filament_length[current_block->active_extruder] : speed_e*DEFAULT_FILAMENT_AREA;
 
-                e_smoothed_speed[current_block->active_extruder] = (e_smoothed_speed[current_block->active_extruder]*LOW_PASS_SMOOTHING) + ( volume *(1.0-LOW_PASS_SMOOTHING));
+                for (uint8_t e=0; e<EXTRUDERS; ++e)
+                {
+                    if (e == current_block->active_extruder)
+                    {
+                        e_smoothed_speed[e] = (e_smoothed_speed[e]*LOW_PASS_SMOOTHING) + ( volume *(1.0-LOW_PASS_SMOOTHING));
+                    }
+                    else
+                    {
+                        e_smoothed_speed[e] = 0.0f;
+                    }
+                }
                 current_nominal_speed = current_block->nominal_speed;
             }
         }
