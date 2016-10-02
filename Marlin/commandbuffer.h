@@ -16,8 +16,8 @@ class CommandBuffer
     static void move2SafeYPos();
 
 #if EXTRUDERS > 1
-    void processT0(bool bRetract);
-    void processT1(bool bRetract);
+    void processT0(bool bRetract, bool bWipe);
+    void processT1(bool bRetract, bool bWipe);
     void processWipe();
 
     // constructor

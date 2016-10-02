@@ -862,22 +862,24 @@ inline void get_sdcard_commands()
 
 static void get_command()
 {
-  get_serial_commands();
+    if (printing_state != PRINT_STATE_ABORT)
+    {
+          get_serial_commands();
 
-  // detect serial communication
-  if ((commands_queued() && serialCmd) || ((millis() - lastSerialCommandTime) < SERIAL_CONTROL_TIMEOUT))
-  {
-      sleep_state |= SLEEP_SERIAL_CMD;
-  }
-  else
-  {
-      sleep_state &= ~SLEEP_SERIAL_CMD;
-  }
+          // detect serial communication
+          if ((commands_queued() && serialCmd) || ((millis() - lastSerialCommandTime) < SERIAL_CONTROL_TIMEOUT))
+          {
+              sleep_state |= SLEEP_SERIAL_CMD;
+          }
+          else
+          {
+              sleep_state &= ~SLEEP_SERIAL_CMD;
+          }
 
-#ifdef SDSUPPORT
-  get_sdcard_commands();
-#endif //SDSUPPORT
-
+        #ifdef SDSUPPORT
+          get_sdcard_commands();
+        #endif //SDSUPPORT
+    }
 }
 
 #define DEFINE_PGM_READ_ANY(type, reader)       \
@@ -3467,6 +3469,8 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
         float old_feedrate = feedrate;
         float oldepos = current_position[E_AXIS];
 
+        memcpy(destination, current_position, sizeof(destination));
+
         // reset xy offsets
         for(uint8_t i = 0; i < 2; ++i)
         {
@@ -3500,16 +3504,18 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
         if IS_TOOLCHANGE_ENABLED
         {
             // execute toolchange script
+            current_position[Z_AXIS] = destination[Z_AXIS];
             if (nextExtruder)
             {
-                cmdBuffer.processT1(moveZ);
+                cmdBuffer.processT1(moveZ, IS_WIPE_ENABLED);
             }
             else
             {
-                cmdBuffer.processT0(moveZ);
+                cmdBuffer.processT0(moveZ, IS_WIPE_ENABLED);
             }
             // finish tool change moves
-            st_synchronize();
+            // st_synchronize();
+            memcpy(destination, current_position, sizeof(destination));
         }
 
         // set new extruder xy offsets
@@ -3537,11 +3543,12 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
 
         if (moveZ && IS_WIPE_ENABLED)
         {
-            if IS_TOOLCHANGE_ENABLED
-            {
-                // move to offset position
-                plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], 120*60, active_extruder);
-            }
+//            if IS_TOOLCHANGE_ENABLED
+//            {
+//                // move to offset position
+//                plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], 120, active_extruder);
+//                memcpy(current_position, destination, sizeof(current_position));
+//            }
 
             // move to heatup pos
             CommandBuffer::move2heatup();
@@ -3579,6 +3586,7 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
         // restore settings
         feedrate = old_feedrate;
         destination[E_AXIS] = current_position[E_AXIS] = oldepos;
+        plan_set_e_position(current_position[E_AXIS]);
 
         if (printing_state < PRINT_STATE_ABORT)
         {
