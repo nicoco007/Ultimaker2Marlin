@@ -1227,7 +1227,7 @@ void process_command(const char *strCmd, bool sendAck)
       case 10: // G10 retract
       if (printing_state == PRINT_STATE_RECOVER)
         break;
-      if(!EXTRUDER_RETRACTED(active_extruder))
+      if(!EXTRUDER_RETRACTED(active_extruder) && !TOOLCHANGE_RETRACTED(active_extruder))
       {
         float oldFeedrate = feedrate;
         float oldpos = current_position[E_AXIS];
@@ -1668,7 +1668,11 @@ void process_command(const char *strCmd, bool sendAck)
       if(setTargetedHotend(strCmd, 104)){
         break;
       }
-      if (code_seen(strCmd, 'S')) setTargetHotend(code_value(), tmp_extruder);
+      if (code_seen(strCmd, 'S'))
+      {
+          setTargetHotend(code_value(), tmp_extruder);
+          extruder_lastused[tmp_extruder] = millis();
+      }
       if (printing_state != PRINT_STATE_RECOVER)
       {
         setWatch();
@@ -1691,7 +1695,11 @@ void process_command(const char *strCmd, bool sendAck)
       #ifdef AUTOTEMP
         autotemp_enabled=false;
       #endif
-      if (code_seen(strCmd, 'S')) setTargetHotend(code_value(), tmp_extruder);
+      if (code_seen(strCmd, 'S'))
+      {
+          setTargetHotend(code_value(), tmp_extruder);
+          extruder_lastused[tmp_extruder] = millis();
+      }
       #ifdef AUTOTEMP
         if (code_seen(strCmd, 'S')) autotemp_min=code_value();
         if (code_seen(strCmd, 'B')) autotemp_max=code_value();
