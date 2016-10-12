@@ -1712,14 +1712,20 @@ void process_command(const char *strCmd, bool sendAck)
       if (printing_state == PRINT_STATE_RECOVER)
           break;
 
+      /* See if we are heating up or cooling down */
+      bool target_direction = isHeatingHotend(tmp_extruder); // true if heating, false if cooling
+
+      // don't wait to cool down after a tool change
+      if ((printing_state == PRINT_STATE_TOOLREADY) && IS_WIPE_ENABLED && !target_direction)
+      {
+          break;
+      }
+
       printing_state = PRINT_STATE_HEATING;
       LCD_MESSAGEPGM(MSG_HEATING);
 
       setWatch();
       codenum = millis();
-
-      /* See if we are heating up or cooling down */
-      bool target_direction = isHeatingHotend(tmp_extruder); // true if heating, false if cooling
 
       #ifdef TEMP_RESIDENCY_TIME
         long residencyStart;
@@ -3037,7 +3043,7 @@ static void get_coordinates(const char *cmd)
     }
 #endif //FWRETRACT
 
-    // Mark2-Dual: toolchange moves are complete: back to normal
+    // Mark2-Dual: tool change moves are complete: back to normal
     if (printing_state == PRINT_STATE_TOOLREADY)
     {
         printing_state = PRINT_STATE_NORMAL;
