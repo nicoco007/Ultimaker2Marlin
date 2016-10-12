@@ -197,7 +197,7 @@
 // PID settings:
 // Comment the following line to disable PID and enable bang-bang.
 #define PIDTEMP
-#if TEMP_SENSOR_BED != 0
+#if (TEMP_SENSOR_BED != 0) || (EXTRUDERS > 1)
   #define BANG_MAX 220 // limit current to nozzle if the HBK is used
 #else
   #define BANG_MAX 255 // limits current to nozzle while in bang-bang mode; 255=full current

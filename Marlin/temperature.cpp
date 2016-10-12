@@ -38,7 +38,9 @@
 #include "preferences.h"
 #include "tinkergnome.h"
 
+#ifndef MAX_HEATERS
 #define MAX_HEATERS  1     // activate max. one heater at the same time
+#endif
 
 //===========================================================================
 //=============================public variables============================
