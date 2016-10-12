@@ -218,10 +218,10 @@
     //#define  DEFAULT_Ki 1.08
     //#define  DEFAULT_Kd 114
 
-// Ultimaker2
-    #define  DEFAULT_Kp 10.0
-    #define  DEFAULT_Ki 1.5
-    #define  DEFAULT_Kd 70.0
+// Ultimaker2+
+    #define  DEFAULT_Kp 12.0
+    #define  DEFAULT_Ki 0.75
+    #define  DEFAULT_Kd 55.0
 
 // Makergear
 //    #define  DEFAULT_Kp 7.0
