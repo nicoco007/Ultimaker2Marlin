@@ -1437,7 +1437,7 @@ void lcd_menu_printing_tg()
                     {
                         // time left
                         unsigned long timeLeftSec = predictTimeLeft();
-                        if (timeLeftSec > 0)
+                        if (timeLeftSec > 1)
                         {
                             lcd_lib_draw_gfx(54, 15, clockInverseGfx);
                             int_to_time_min(timeLeftSec, buffer);

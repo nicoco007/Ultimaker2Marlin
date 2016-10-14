@@ -200,6 +200,8 @@ void doStartPrint()
         // clear reheat flag
         retract_state &= ~(EXTRUDER_PREHEAT << e);
 #endif
+        SET_TOOLCHANGE_RETRACT(e);
+        retract_recover_length[e] = toolchange_retractlen[e] / volume_to_filament_length[e];
         if (!LCD_DETAIL_CACHE_MATERIAL(e))
         {
             // don't prime the extruder if it isn't used in the (Ulti)gcode

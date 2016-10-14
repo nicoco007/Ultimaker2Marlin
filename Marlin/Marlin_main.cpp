@@ -3599,9 +3599,7 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
         feedrate = old_feedrate;
 		max_xy_jerk = oldjerk;
         acceleration = oldaccel;
-
-        destination[E_AXIS] = current_position[E_AXIS] = oldepos;
-        plan_set_e_position(current_position[E_AXIS]);
+        current_position[E_AXIS] = oldepos;
 
         if (printing_state < PRINT_STATE_ABORT)
         {
@@ -3620,6 +3618,10 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
         // Set the new active extruder and position
         active_extruder = nextExtruder;
 
+		SERIAL_ECHO_START;
+        SERIAL_ECHOPGM(MSG_ACTIVE_EXTRUDER);
+        SERIAL_PROTOCOLLN((int)active_extruder);
+
 #ifdef FWRETRACT
         // clear reheat flag
         retract_state &= ~(EXTRUDER_PREHEAT << active_extruder);
@@ -3627,6 +3629,7 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
 
     }
     // restore position
+    memcpy(destination, current_position, sizeof(destination));
     plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
     return true;
 }
