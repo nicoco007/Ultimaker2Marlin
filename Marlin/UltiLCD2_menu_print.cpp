@@ -56,9 +56,6 @@ void abortPrint()
         extrudemultiply[e] = 100;
     }
 
-    // get current position from planner
-    plan_get_position(current_position);
-
     if (primed)
     {
         // perform the end-of-print retraction at the standard retract speed
@@ -111,7 +108,8 @@ static void checkPrintFinished()
         // normal end of gcode file
         recover_height = 0.0f;
         sleep_state |= SLEEP_COOLING;
-        menu.replace_menu(menu_t(lcd_menu_print_ready, MAIN_MENU_ITEM_POS(0)));
+        menu.return_to_main(false);
+        menu.add_menu(menu_t(lcd_menu_print_ready, MAIN_MENU_ITEM_POS(0)), false);
         abortPrint();
     }
     else if (position_error)
@@ -640,9 +638,11 @@ void lcd_menu_print_heatup()
         }
 
 #if TEMP_SENSOR_BED != 0
-        if (current_temperature_bed >= target_temperature_bed - TEMP_WINDOW * 2 && !commands_queued())
-        {
+        if (current_temperature_bed >= target_temperature_bed - TEMP_WINDOW * 2 && !commands_queued() && !blocks_queued())
+#else
+        if (!commands_queued() && !blocks_queued())
 #endif // TEMP_SENSOR_BED
+        {
             bool ready = true;
             for(uint8_t e=0; e<EXTRUDERS; e++)
                 if (current_temperature[e] < target_temperature[e] - TEMP_WINDOW)
@@ -658,8 +658,8 @@ void lcd_menu_print_heatup()
                     menu.replace_menu(menu_t(lcd_menu_print_printing), false);
                 }
             }
-#if TEMP_SENSOR_BED != 0
         }
+#if TEMP_SENSOR_BED != 0
     }
 #endif // TEMP_SENSOR_BED
 
@@ -854,7 +854,8 @@ static void lcd_menu_doabort()
     }
     else
     {
-        menu.replace_menu(menu_t(lcd_menu_print_ready, MAIN_MENU_ITEM_POS(0)));
+        menu.return_to_main(false);
+        menu.add_menu(menu_t(lcd_menu_print_ready, MAIN_MENU_ITEM_POS(0)), false);
     }
 }
 
