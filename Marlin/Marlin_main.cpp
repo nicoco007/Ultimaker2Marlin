@@ -1719,7 +1719,7 @@ void process_command(const char *strCmd, bool sendAck)
       bool target_direction = isHeatingHotend(tmp_extruder); // true if heating, false if cooling
 
       // don't wait to cool down after a tool change
-      if ((printing_state == PRINT_STATE_TOOLREADY) && IS_WIPE_ENABLED && !target_direction)
+      if ((printing_state == PRINT_STATE_TOOLREADY) && IS_WIPE_ENABLED && (!target_direction || (degHotend(tmp_extruder) >= (degTargetHotend(tmp_extruder)-TEMP_WINDOW))))
       {
           break;
       }
