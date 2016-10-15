@@ -720,9 +720,11 @@ void lcd_menu_print_heatup()
                 break;
         }
 #if TEMP_SENSOR_BED != 0
-        if (current_temperature_bed >= target_temperature_bed - TEMP_WINDOW * 2 && !commands_queued())
-        {
+        if (current_temperature_bed >= target_temperature_bed - TEMP_WINDOW * 2 && !commands_queued() && !blocks_queued())
+#else
+        if (!commands_queued() && !blocks_queued())
 #endif // TEMP_SENSOR_BED
+        {
             bool ready = false;
             for(int8_t e=EXTRUDERS-1; e>=0; --e)
             {
@@ -750,8 +752,8 @@ void lcd_menu_print_heatup()
                 }
                 doStartPrint();
             }
-#if TEMP_SENSOR_BED != 0
         }
+#if TEMP_SENSOR_BED != 0
     }
 #endif // TEMP_SENSOR_BED
 

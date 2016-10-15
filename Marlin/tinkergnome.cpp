@@ -132,18 +132,13 @@ void tinkergnome_init()
 
         SET_HEATER_CHECK_TEMP(heater_check_temp);
         SET_HEATER_CHECK_TIME(heater_check_time);
-#if EXTRUDERS > 1
-        pid2[0] = Kp;
-        pid2[1] = Ki;
-        pid2[2] = Kd;
-        eeprom_write_block(pid2, (uint8_t*)EEPROM_PID_2, sizeof(pid2));
-#else
+#if EXTRUDERS < 2
         float pid2[3];
+#endif // EXTRUDERS
         pid2[0] = Kp;
         pid2[1] = Ki;
         pid2[2] = Kd;
         eeprom_write_block(pid2, (uint8_t*)EEPROM_PID_2, sizeof(pid2));
-#endif // EXTRUDERS
 
 #if EXTRUDERS > 1 && defined(MOTOR_CURRENT_PWM_E_PIN) && MOTOR_CURRENT_PWM_E_PIN > -1
         motor_current_e2 = motor_current_setting[2];
@@ -1220,9 +1215,11 @@ void lcd_menu_print_heatup_tg()
                 break;
         }
 #if TEMP_SENSOR_BED != 0
-        if (current_temperature_bed >= target_temperature_bed - TEMP_WINDOW * 2 && !commands_queued())
-        {
+        if (current_temperature_bed >= target_temperature_bed - TEMP_WINDOW * 2 && !commands_queued() && !blocks_queued())
+#else
+        if (!commands_queued() && !blocks_queued())
 #endif // TEMP_SENSOR_BED
+        {
             bool ready = false;
             for(int8_t e=EXTRUDERS-1; e>=0; --e)
             {
@@ -1247,8 +1244,8 @@ void lcd_menu_print_heatup_tg()
                 menu.replace_menu(menu_t(lcd_menu_printing_tg, MAIN_MENU_ITEM_POS(1)), false);
                 doStartPrint();
             }
-#if TEMP_SENSOR_BED != 0
         }
+#if TEMP_SENSOR_BED != 0
     }
 #endif
 

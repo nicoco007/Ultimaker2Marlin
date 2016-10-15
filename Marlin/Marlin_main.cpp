@@ -1672,6 +1672,8 @@ void process_command(const char *strCmd, bool sendAck)
       {
           setTargetHotend(code_value(), tmp_extruder);
           extruder_lastused[tmp_extruder] = millis();
+          // set reheat flag
+          retract_state |= (EXTRUDER_PREHEAT << tmp_extruder);
       }
       if (printing_state != PRINT_STATE_RECOVER)
       {
@@ -1699,6 +1701,7 @@ void process_command(const char *strCmd, bool sendAck)
       {
           setTargetHotend(code_value(), tmp_extruder);
           extruder_lastused[tmp_extruder] = millis();
+          retract_state |= (EXTRUDER_PREHEAT << tmp_extruder);
       }
       #ifdef AUTOTEMP
         if (code_seen(strCmd, 'S')) autotemp_min=code_value();
@@ -3501,7 +3504,7 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
 
         #define MIN_TOOLCHANGE_ZHOP  2.0f
         #define MAX_TOOLCHANGE_ZHOP 14.0f
-        float maxDiffZ = Z_HOME_POS + add_homeing[Z_AXIS] - current_position[Z_AXIS];
+        float maxDiffZ = max_pos[Z_AXIS] + add_homeing[Z_AXIS] - current_position[Z_AXIS];
         maxDiffZ = constrain(maxDiffZ, 0.0f, MAX_TOOLCHANGE_ZHOP);
 
         float wipeOffset = min(maxDiffZ, max(MIN_TOOLCHANGE_ZHOP, MAX_TOOLCHANGE_ZHOP - current_position[Z_AXIS]));
