@@ -74,7 +74,7 @@ float current_temperature_bed = 0.0;
   unsigned char fanSpeedSoftPwm;
 #endif
 
-#if ENABLED(BABYSTEPPING)
+#if defined(BABYSTEPPING)
   volatile int babystepsTodo[3]={0,0,0};
 #endif
 
@@ -584,7 +584,7 @@ void manage_heater()
             max_heating_start_millis[e] = millis();
             max_heating_start_temperature[e] = current_temperature[e];
         }
-        if (millis() > max_heating_start_millis[e] + heater_check_time*1000)
+        if (millis() > max_heating_start_millis[e] + heater_check_time*1000UL)
         {
             //Did not heat up MAX_HEATING_TEMPERATURE_INCREASE in MAX_HEATING_CHECK_MILLIS while the PID was at the maximum.
             //Potential problems could be that the heater is not working, or the temperature sensor is not measuring what the heater is heating.
@@ -1434,7 +1434,7 @@ ISR(TIMER0_COMPB_vect)
     }
 #endif
   }
-#if ENABLED(BABYSTEPPING)
+#if defined(BABYSTEPPING)
   for(uint8_t axis=0; axis<3; ++axis)
   {
     int curTodo=babystepsTodo[axis]; //get rid of volatile for performance
