@@ -3484,7 +3484,6 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
     {
         printing_state = PRINT_STATE_TOOLCHANGE;
         float old_feedrate = feedrate;
-        float oldepos = current_position[E_AXIS];
         float oldjerk = max_xy_jerk;
         float oldaccel = acceleration;
 
@@ -3535,9 +3534,6 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
             {
                 cmdBuffer.processT0(moveZ, IS_WIPE_ENABLED);
             }
-            // finish tool change moves
-            // st_synchronize();
-            memcpy(destination, current_position, sizeof(destination));
         }
 
         // set new extruder xy offsets
@@ -3602,7 +3598,10 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
         feedrate = old_feedrate;
 		max_xy_jerk = oldjerk;
         acceleration = oldaccel;
-        current_position[E_AXIS] = oldepos;
+
+        current_position[E_AXIS] = destination[E_AXIS];
+        destination[X_AXIS] = current_position[X_AXIS];
+        destination[Y_AXIS] = current_position[Y_AXIS];
 
         if (printing_state < PRINT_STATE_ABORT)
         {
@@ -3632,7 +3631,6 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
 
     }
     // restore position
-    memcpy(destination, current_position, sizeof(destination));
     plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
     return true;
 }
