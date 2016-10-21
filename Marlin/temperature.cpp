@@ -49,10 +49,12 @@
 //=============================public variables============================
 //===========================================================================
 int target_temperature[EXTRUDERS] = { 0 };
+int8_t target_temperature_diff[EXTRUDERS] = { 0 };
 int current_temperature_raw[EXTRUDERS] = { 0 };
 float current_temperature[EXTRUDERS] = { 0.0 };
 #if TEMP_SENSOR_BED != 0
 int target_temperature_bed = 0;
+int8_t target_temperature_bed_diff = 0;
 int current_temperature_bed_raw = 0;
 float current_temperature_bed = 0.0;
 #endif // TEMP_SENSOR_BED
@@ -480,7 +482,7 @@ void manage_heater()
 
   for(int e = 0; e < EXTRUDERS; ++e)
   {
-    target_temp = (printing_state == PRINT_STATE_RECOVER) ? recover_temperature[e] : target_temperature[e];
+    target_temp = (printing_state == PRINT_STATE_RECOVER) ? recover_temperature[e] : target_temperature[e]>0 ? int(degTargetHotend(e)) : 0;
     if ((printing_state != PRINT_STATE_HEATING) && !(retract_state & (EXTRUDER_PREHEAT << e)) && (IS_SD_PRINTING || serialCmd))
     {
         // reduce target temp of inactive nozzle during printing
@@ -668,7 +670,7 @@ void manage_heater()
     pid_input = current_temperature_bed;
 
     #ifndef PID_OPENLOOP
-		  pid_error_bed = target_temperature_bed - pid_input;
+		  pid_error_bed = int(degTargetBed()) - pid_input;
 		  pTerm_bed = bedKp * pid_error_bed;
 		  temp_iState_bed += pid_error_bed;
 		  temp_iState_bed = constrain(temp_iState_bed, temp_iState_min_bed, temp_iState_max_bed);
@@ -682,7 +684,7 @@ void manage_heater()
 		  pid_output = constrain(pTerm_bed + iTerm_bed - dTerm_bed, 0, MAX_BED_POWER);
 
     #else
-      pid_output = constrain(target_temperature_bed, 0, MAX_BED_POWER);
+      pid_output = constrain(int(degTargetBed()), 0, MAX_BED_POWER);
     #endif //PID_OPENLOOP
 
 	  if((current_temperature_bed > BED_MINTEMP) && (current_temperature_bed < BED_MAXTEMP))
@@ -700,7 +702,7 @@ void manage_heater()
       // Check if temperature is within the correct range
       if((current_temperature_bed > BED_MINTEMP) && (current_temperature_bed < BED_MAXTEMP))
       {
-        if(current_temperature_bed >= target_temperature_bed)
+        if(current_temperature_bed >= degTargetBed())
         {
           soft_pwm_bed = 0;
         }
@@ -718,11 +720,11 @@ void manage_heater()
       // Check if temperature is within the correct band
       if((current_temperature_bed > BED_MINTEMP) && (current_temperature_bed < BED_MAXTEMP))
       {
-        if(current_temperature_bed > target_temperature_bed + BED_HYSTERESIS)
+        if(current_temperature_bed > degTargetBed() + BED_HYSTERESIS)
         {
           soft_pwm_bed = 0;
         }
-        else if(current_temperature_bed <= target_temperature_bed - BED_HYSTERESIS)
+        else if(current_temperature_bed <= degTargetBed() - BED_HYSTERESIS)
         {
           soft_pwm_bed = MAX_BED_POWER>>1;
         }
@@ -1055,6 +1057,7 @@ void disable_heater()
   #endif
   #if defined(TEMP_0_PIN) && TEMP_0_PIN > -1
   target_temperature[0]=0;
+  target_temperature_diff[0]=0;
   soft_pwm[0]=0;
    #if defined(HEATER_0_PIN) && HEATER_0_PIN > -1
      WRITE(HEATER_0_PIN,LOW);
@@ -1063,6 +1066,7 @@ void disable_heater()
 
   #if defined(TEMP_1_PIN) && TEMP_1_PIN > -1 && EXTRUDERS > 1
     target_temperature[1]=0;
+    target_temperature_diff[1]=0;
     soft_pwm[1]=0;
     #if defined(HEATER_1_PIN) && HEATER_1_PIN > -1
       WRITE(HEATER_1_PIN,LOW);
@@ -1071,6 +1075,7 @@ void disable_heater()
 
   #if defined(TEMP_2_PIN) && TEMP_2_PIN > -1 && EXTRUDERS > 2
     target_temperature[2]=0;
+    target_temperature_diff[2]=0;
     soft_pwm[2]=0;
     #if defined(HEATER_2_PIN) && HEATER_2_PIN > -1
       WRITE(HEATER_2_PIN,LOW);
@@ -1079,6 +1084,7 @@ void disable_heater()
 
   #if defined(TEMP_BED_PIN) && (TEMP_BED_PIN > -1) && (TEMP_SENSOR_BED != 0)
     target_temperature_bed=0;
+    target_temperature_bed_diff=0;
     soft_pwm_bed=0;
     #ifdef PIDTEMPBED
     pTerm_bed = 0;
@@ -1457,6 +1463,7 @@ ISR(TIMER0_COMPB_vect)
     if(current_temperature_bed_raw >= bed_maxttemp_raw) {
 #endif
        target_temperature_bed = 0;
+       target_temperature_bed_diff = 0;
        bed_max_temp_error();
     }
 #endif

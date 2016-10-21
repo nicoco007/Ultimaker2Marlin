@@ -250,6 +250,7 @@ static void lcd_preheat_tune_nozzle1()
 #if TEMP_SENSOR_BED != 0
 static void lcd_toggle_preheat_bed()
 {
+    target_temperature_bed_diff = 0;
     PREHEAT_FLAG(0) = !PREHEAT_FLAG(0);
     if (PREHEAT_FLAG(0))
     {
@@ -512,11 +513,11 @@ static void drawPreheatSubmenu (uint8_t nr, uint8_t &flags)
 #else
             strcpy_P(buffer, PSTR("Nozzle(1) "));
 #endif
-            int_to_string(target_temperature[0], int_to_string(dsp_temperature[0], buffer+strlen(buffer), PSTR(DEGREE_SLASH)), PSTR(DEGREE_SYMBOL));
+            int_to_string(int(degTargetHotend(0)), int_to_string(dsp_temperature[0], buffer+strlen(buffer), PSTR(DEGREE_SLASH)), PSTR(DEGREE_SYMBOL));
             lcd_lib_draw_string_left(5, buffer);
             flags |= MENU_STATUSLINE;
         }
-        int_to_string(target_temperature[0], buffer, PSTR(DEGREE_SYMBOL));
+        int_to_string(int(degTargetHotend(0)), buffer, PSTR(DEGREE_SYMBOL));
         LCDMenu::drawMenuString(LCD_GFX_WIDTH-LCD_CHAR_MARGIN_RIGHT-4*LCD_CHAR_SPACING
                           , 47-(EXTRUDERS*LCD_LINE_HEIGHT)-(BED_MENU_OFFSET*LCD_LINE_HEIGHT)
                           , 24
@@ -532,11 +533,11 @@ static void drawPreheatSubmenu (uint8_t nr, uint8_t &flags)
         if (flags & (MENU_SELECTED | MENU_ACTIVE))
         {
             strcpy_P(buffer, PSTR("Nozzle(2) "));
-            int_to_string(target_temperature[1], int_to_string(dsp_temperature[1], buffer+strlen(buffer), PSTR(DEGREE_SLASH)), PSTR(DEGREE_SYMBOL));
+            int_to_string(int(degTargetHotend(1)), int_to_string(dsp_temperature[1], buffer+strlen(buffer), PSTR(DEGREE_SLASH)), PSTR(DEGREE_SYMBOL));
             lcd_lib_draw_string_left(5, buffer);
             flags |= MENU_STATUSLINE;
         }
-        int_to_string(target_temperature[1], buffer, PSTR(DEGREE_SYMBOL));
+        int_to_string(int(degTargetHotend(1)), buffer, PSTR(DEGREE_SYMBOL));
         LCDMenu::drawMenuString(LCD_GFX_WIDTH-LCD_CHAR_MARGIN_RIGHT-4*LCD_CHAR_SPACING
                               , 39-(BED_MENU_OFFSET*LCD_LINE_HEIGHT)
                               , 24
@@ -553,11 +554,11 @@ static void drawPreheatSubmenu (uint8_t nr, uint8_t &flags)
         if (flags & (MENU_SELECTED | MENU_ACTIVE))
         {
             strcpy_P(buffer, PSTR("Buildplate "));
-            int_to_string(target_temperature_bed, int_to_string(dsp_temperature_bed, buffer+strlen(buffer), PSTR(DEGREE_SLASH)), PSTR(DEGREE_SYMBOL));
+            int_to_string(int(degTargetBed()), int_to_string(dsp_temperature_bed, buffer+strlen(buffer), PSTR(DEGREE_SLASH)), PSTR(DEGREE_SYMBOL));
             lcd_lib_draw_string_left(5, buffer);
             flags |= MENU_STATUSLINE;
         }
-        int_to_string(target_temperature_bed, buffer, PSTR(DEGREE_SYMBOL));
+        int_to_string(int(degTargetBed()), buffer, PSTR(DEGREE_SYMBOL));
         LCDMenu::drawMenuString(LCD_GFX_WIDTH-LCD_CHAR_MARGIN_RIGHT-4*LCD_CHAR_SPACING
                               , 40
                               , 24
@@ -576,7 +577,7 @@ static void lcd_main_preheat()
 
     char buffer[32] = {0};
 #if TEMP_SENSOR_BED != 0
-    if ((!PREHEAT_FLAG(0)) | (current_temperature_bed > target_temperature_bed - 10))
+    if ((!PREHEAT_FLAG(0)) | (current_temperature_bed > degTargetBed() - 10))
     {
 #endif
         // set preheat nozzle temperature

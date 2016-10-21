@@ -507,6 +507,17 @@ bool lcd_tune_value(uint8_t &value, uint8_t _min, uint8_t _max)
     return false;
 }
 
+bool lcd_tune_value(int8_t &value, int8_t _min, int8_t _max)
+{
+    int iValue = value;
+    if (lcd_tune_value(iValue, _min, _max))
+    {
+        value = iValue;
+        return true;
+    }
+    return false;
+}
+
 bool lcd_tune_value(float &value, float _min, float _max, float _step)
 {
     if (lcd_lib_encoder_pos != 0)

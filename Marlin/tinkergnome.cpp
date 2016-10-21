@@ -241,20 +241,20 @@ static const menu_t & get_heatup_menuoption(uint8_t nr, menu_t &opt)
     else if (nr == menu_index++)
     {
         // temp nozzle 1
-        opt.setData(MENU_INPLACE_EDIT, lcd_print_tune_nozzle0);
+        opt.setData(MENU_INPLACE_EDIT, lcd_print_tune_nozzle0_diff);
     }
 #if EXTRUDERS > 1
     else if (nr == menu_index++)
     {
         // temp nozzle 2
-        opt.setData(MENU_INPLACE_EDIT, lcd_print_tune_nozzle1);
+        opt.setData(MENU_INPLACE_EDIT, lcd_print_tune_nozzle1_diff);
     }
 #endif
 #if TEMP_SENSOR_BED != 0
     else if (nr == menu_index++)
     {
         // temp buildplate
-        opt.setData(MENU_INPLACE_EDIT, lcd_print_tune_bed);
+        opt.setData(MENU_INPLACE_EDIT, lcd_print_tune_bed_diff);
     }
 #endif
     return opt;
@@ -377,13 +377,13 @@ static const menu_t & get_print_menuoption(uint8_t nr, menu_t &opt)
         else if (nr == menu_index++)
         {
             // temp nozzle 1
-            opt.setData(MENU_INPLACE_EDIT, lcd_print_tune_nozzle0);
+            opt.setData(MENU_INPLACE_EDIT, lcd_print_tune_nozzle0_diff);
         }
     #if EXTRUDERS > 1
         else if (nr == menu_index++)
         {
             // temp nozzle 2
-            opt.setData(MENU_INPLACE_EDIT, lcd_print_tune_nozzle1);
+            opt.setData(MENU_INPLACE_EDIT, lcd_print_tune_nozzle1_diff);
         }
     #endif
         else if (nr == menu_index++)
@@ -395,7 +395,7 @@ static const menu_t & get_print_menuoption(uint8_t nr, menu_t &opt)
         else if (nr == menu_index++)
         {
             // temp buildplate
-            opt.setData(MENU_INPLACE_EDIT, lcd_print_tune_bed);
+            opt.setData(MENU_INPLACE_EDIT, lcd_print_tune_bed_diff);
         }
     #endif
     }
@@ -661,6 +661,60 @@ static void lcd_menu_babystepping()
 
 #endif // BABYSTEPPING
 
+static void drawStatusNozzle(uint8_t e, uint8_t &flags)
+{
+    if (flags & (MENU_SELECTED | MENU_ACTIVE))
+    {
+        char buffer[24] = {0};
+#if EXTRUDERS < 2
+        strcpy_P(buffer, PSTR("Nozzle "));
+        char *c = buffer+7;
+#else
+        char *c = int_to_string(e, buffer, PSTR(") "), PSTR("Nozzle("), false);
+#endif
+        if (flags & MENU_ACTIVE)
+        {
+            if (target_temperature_diff[e])
+            {
+                int_to_string(target_temperature_diff[e], c, PSTR(")"), PSTR("("), true);
+                lcd_lib_draw_string_right(5, c);
+            }
+            int_to_string(int(degTargetHotend(e)), c, PSTR(DEGREE_SYMBOL));
+        }
+        else
+        {
+            int_to_string(int(degTargetHotend(e)), int_to_string(dsp_temperature[e], c, PSTR(DEGREE_SLASH)), PSTR(DEGREE_SYMBOL));
+        }
+        lcd_lib_draw_string_left(5, buffer);
+        flags |= MENU_STATUSLINE;
+    }
+}
+
+static void drawStatusBuildplate(uint8_t &flags)
+{
+    if (flags & (MENU_SELECTED | MENU_ACTIVE))
+    {
+        char buffer[24] = {0};
+        strcpy_P(buffer, PSTR("Buildplate "));
+        if (flags & MENU_ACTIVE)
+        {
+            if (target_temperature_bed_diff)
+            {
+                char *c = buffer+11;
+                int_to_string(target_temperature_bed_diff, c, PSTR(")"), PSTR("("), true);
+                lcd_lib_draw_string_right(5, c);
+            }
+            int_to_string(int(degTargetBed()), buffer+11, PSTR(DEGREE_SYMBOL));
+        }
+        else
+        {
+            int_to_string(int(degTargetBed()), int_to_string(dsp_temperature_bed, buffer+11, PSTR(DEGREE_SLASH)), PSTR(DEGREE_SYMBOL));
+        }
+        lcd_lib_draw_string_left(5, buffer);
+        flags |= MENU_STATUSLINE;
+    }
+}
+
 static void drawHeatupSubmenu (uint8_t nr, uint8_t &flags)
 {
     uint8_t index(0);
@@ -713,19 +767,8 @@ static void drawHeatupSubmenu (uint8_t nr, uint8_t &flags)
     else if (nr == index++)
     {
         // temp nozzle 1
-        if (flags & (MENU_SELECTED | MENU_ACTIVE))
-        {
-#if EXTRUDERS < 2
-            strcpy_P(buffer, PSTR("Nozzle "));
-            int_to_string(target_temperature[0], int_to_string(dsp_temperature[0], buffer+7, PSTR(DEGREE_SLASH)), PSTR(DEGREE_SYMBOL));
-#else
-            strcpy_P(buffer, PSTR("Nozzle(1) "));
-            int_to_string(target_temperature[0], int_to_string(dsp_temperature[0], buffer+10, PSTR(DEGREE_SLASH)), PSTR(DEGREE_SYMBOL));
-#endif
-            lcd_lib_draw_string_left(5, buffer);
-            flags |= MENU_STATUSLINE;
-        }
-        int_to_string(target_temperature[0], buffer, PSTR(DEGREE_SYMBOL));
+        drawStatusNozzle(0, flags);
+        int_to_string(int(degTargetHotend(0)), buffer, PSTR(DEGREE_SYMBOL));
         LCDMenu::drawMenuString(LCD_GFX_WIDTH-LCD_CHAR_MARGIN_RIGHT-4*LCD_CHAR_SPACING
                           , 51-(EXTRUDERS*LCD_LINE_HEIGHT)-(BED_MENU_OFFSET*LCD_LINE_HEIGHT)
                           , 24
@@ -738,14 +781,8 @@ static void drawHeatupSubmenu (uint8_t nr, uint8_t &flags)
     else if (nr == index++)
     {
         // temp nozzle 2
-        if (flags & (MENU_SELECTED | MENU_ACTIVE))
-        {
-            strcpy_P(buffer, PSTR("Nozzle(2) "));
-            int_to_string(target_temperature[1], int_to_string(dsp_temperature[1], buffer+10, PSTR(DEGREE_SLASH)), PSTR(DEGREE_SYMBOL));
-            lcd_lib_draw_string_left(5, buffer);
-            flags |= MENU_STATUSLINE;
-        }
-        int_to_string(target_temperature[1], buffer, PSTR(DEGREE_SYMBOL));
+        drawStatusNozzle(1, flags);
+        int_to_string(int(degTargetHotend(1)), buffer, PSTR(DEGREE_SYMBOL));
         LCDMenu::drawMenuString(LCD_GFX_WIDTH-LCD_CHAR_MARGIN_RIGHT-4*LCD_CHAR_SPACING
                               , 42-(BED_MENU_OFFSET*LCD_LINE_HEIGHT)
                               , 24
@@ -759,14 +796,8 @@ static void drawHeatupSubmenu (uint8_t nr, uint8_t &flags)
     else if (nr == index++)
     {
         // temp buildplate
-        if (flags & (MENU_SELECTED | MENU_ACTIVE))
-        {
-            strcpy_P(buffer, PSTR("Buildplate "));
-            int_to_string(target_temperature_bed, int_to_string(dsp_temperature_bed, buffer+11, PSTR(DEGREE_SLASH)), PSTR(DEGREE_SYMBOL));
-            lcd_lib_draw_string_left(5, buffer);
-            flags |= MENU_STATUSLINE;
-        }
-        int_to_string(target_temperature_bed, buffer, PSTR(DEGREE_SYMBOL));
+        drawStatusBuildplate(flags);
+        int_to_string(int(degTargetBed()), buffer, PSTR(DEGREE_SYMBOL));
         LCDMenu::drawMenuString(LCD_GFX_WIDTH-LCD_CHAR_MARGIN_RIGHT-4*LCD_CHAR_SPACING
                               , 42
                               , 24
@@ -1082,20 +1113,9 @@ static void drawPrintSubmenu (uint8_t nr, uint8_t &flags)
         else if (nr == index++)
         {
             // temp nozzle 1
-            if (flags & (MENU_SELECTED | MENU_ACTIVE))
-            {
-    #if EXTRUDERS < 2
-                strcpy_P(buffer, PSTR("Nozzle "));
-                int_to_string(target_temperature[0], int_to_string(dsp_temperature[0], buffer+7, PSTR(DEGREE_SLASH)), PSTR(DEGREE_SYMBOL));
-    #else
-                strcpy_P(buffer, PSTR("Nozzle(1) "));
-                int_to_string(target_temperature[0], int_to_string(dsp_temperature[0], buffer+10, PSTR(DEGREE_SLASH)), PSTR(DEGREE_SYMBOL));
-    #endif
-                lcd_lib_draw_string_left(5, buffer);
-                flags |= MENU_STATUSLINE;
-            }
+            drawStatusNozzle(0, flags);
             lcd_lib_draw_gfx(LCD_CHAR_MARGIN_LEFT, 42, thermometerGfx);
-            int_to_string((flags & MENU_ACTIVE) ? target_temperature[0] : dsp_temperature[0], buffer, PSTR(DEGREE_SYMBOL));
+            int_to_string((flags & MENU_ACTIVE) ? int(degTargetHotend(0)) : dsp_temperature[0], buffer, PSTR(DEGREE_SYMBOL));
             LCDMenu::drawMenuString(LCD_CHAR_MARGIN_LEFT+12
                                   , 42
                                   , 24
@@ -1108,14 +1128,8 @@ static void drawPrintSubmenu (uint8_t nr, uint8_t &flags)
         else if (nr == index++)
         {
             // temp nozzle 2
-            if (flags & (MENU_SELECTED | MENU_ACTIVE))
-            {
-                strcpy_P(buffer, PSTR("Nozzle(2) "));
-                int_to_string(target_temperature[1], int_to_string(dsp_temperature[1], buffer+10, PSTR(DEGREE_SLASH)), PSTR(DEGREE_SYMBOL));
-                lcd_lib_draw_string_left(5, buffer);
-                flags |= MENU_STATUSLINE;
-            }
-            int_to_string((flags & MENU_ACTIVE) ? target_temperature[1] : dsp_temperature[1], buffer, PSTR(DEGREE_SYMBOL));
+            drawStatusNozzle(1, flags);
+            int_to_string((flags & MENU_ACTIVE) ? int(degTargetHotend(1)) : dsp_temperature[1], buffer, PSTR(DEGREE_SYMBOL));
             LCDMenu::drawMenuString(LCD_CHAR_MARGIN_LEFT+42
                                   , 42
                                   , 24
@@ -1173,15 +1187,9 @@ static void drawPrintSubmenu (uint8_t nr, uint8_t &flags)
         else if (nr == index++)
         {
             // temp buildplate
-            if (flags & (MENU_SELECTED | MENU_ACTIVE))
-            {
-                strcpy_P(buffer, PSTR("Buildplate "));
-                int_to_string(target_temperature_bed, int_to_string(dsp_temperature_bed, buffer+11, PSTR(DEGREE_SLASH)), PSTR(DEGREE_SYMBOL));
-                lcd_lib_draw_string_left(5, buffer);
-                flags |= MENU_STATUSLINE;
-            }
+            drawStatusBuildplate(flags);
             lcd_lib_draw_gfx(LCD_GFX_WIDTH-LCD_CHAR_MARGIN_RIGHT-4*LCD_CHAR_SPACING-12, 42, bedTempGfx);
-            int_to_string((flags & MENU_ACTIVE) ? target_temperature_bed : dsp_temperature_bed, buffer, PSTR(DEGREE_SYMBOL));
+            int_to_string((flags & MENU_ACTIVE) ? degTargetBed() : dsp_temperature_bed, buffer, PSTR(DEGREE_SYMBOL));
             LCDMenu::drawMenuString(LCD_GFX_WIDTH-LCD_CHAR_MARGIN_RIGHT-4*LCD_CHAR_SPACING
                                   , 42
                                   , 24
@@ -1201,7 +1209,7 @@ void lcd_menu_print_heatup_tg()
 
     char buffer[32] = {0};
 #if TEMP_SENSOR_BED != 0
-    if (current_temperature_bed >= target_temperature_bed - TEMP_WINDOW * 2)
+    if (current_temperature_bed >= degTargetBed() - TEMP_WINDOW * 2)
     {
 #endif
         for(int8_t e=EXTRUDERS-1; e>=0; --e)
@@ -1215,7 +1223,7 @@ void lcd_menu_print_heatup_tg()
                 break;
         }
 #if TEMP_SENSOR_BED != 0
-        if (current_temperature_bed >= target_temperature_bed - TEMP_WINDOW * 2 && !commands_queued() && !blocks_queued())
+        if (current_temperature_bed >= degTargetBed() - TEMP_WINDOW * 2 && !commands_queued() && !blocks_queued())
 #else
         if (!commands_queued() && !blocks_queued())
 #endif // TEMP_SENSOR_BED
@@ -1223,7 +1231,7 @@ void lcd_menu_print_heatup_tg()
             bool ready = false;
             for(int8_t e=EXTRUDERS-1; e>=0; --e)
             {
-                if ((target_temperature[e] > 0) && (current_temperature[e] >= target_temperature[e] - TEMP_WINDOW))
+                if ((target_temperature[e] > 0) && (current_temperature[e] >= degTargetHotend(e) - TEMP_WINDOW))
                 {
                     // set target temperature for other used nozzles
                     for(int8_t e2=EXTRUDERS-1; e2>=0; --e2)
@@ -1255,14 +1263,14 @@ void lcd_menu_print_heatup_tg()
         if (target_temperature[e] < 1)
             continue;
         if (current_temperature[e] > 20)
-            progress = min(progress, (current_temperature[e] - 20) * 125 / (target_temperature[e] - 20 - TEMP_WINDOW));
+            progress = min(progress, (current_temperature[e] - 20) * 125 / (degTargetHotend(e) - 20 - TEMP_WINDOW));
         else
             progress = 0;
     }
 #if TEMP_SENSOR_BED != 0
-    if ((current_temperature_bed > 20) && (target_temperature_bed > 20+TEMP_WINDOW))
-        progress = min(progress, (current_temperature_bed - 20) * 125 / (target_temperature_bed - 20 - TEMP_WINDOW));
-    else if (target_temperature_bed > current_temperature_bed - 20)
+    if ((current_temperature_bed > 20) && (degTargetBed() > 20+TEMP_WINDOW))
+        progress = min(progress, (current_temperature_bed - 20) * 125 / (degTargetBed() - 20 - TEMP_WINDOW));
+    else if (degTargetBed() > current_temperature_bed - 20)
         progress = 0;
 #endif
 
@@ -2097,12 +2105,17 @@ static void plan_move(AxisEnum axis)
         // enque next move
         if ((abs(TARGET_POS(axis) - current_position[axis])>0.005) && !endstop_reached(axis, (TARGET_POS(axis)>current_position[axis]) ? 1 : -1))
         {
+            float oldjerk = max_xy_jerk;
+            float oldaccel = acceleration;
+
+            max_xy_jerk  = 4;
+            acceleration = 200;
+
             current_position[axis] = TARGET_POS(axis);
-#if (EXTRUDERS > 1)
             plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], homing_feedrate[axis]/800, menu_extruder);
-#else
-            plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], homing_feedrate[axis]/800, active_extruder);
-#endif
+
+            max_xy_jerk  = oldjerk;
+            acceleration = oldaccel;
         }
     }
 }
@@ -2154,6 +2167,12 @@ static void lcd_move_axis(AxisEnum axis, float diff)
                 movingSpeed = 6*((movingSpeed > 0) - (movingSpeed < 0));
             }
 
+            float oldjerk = max_xy_jerk;
+            float oldaccel = acceleration;
+
+            max_xy_jerk  = 4;
+            acceleration = 200;
+
             uint8_t steps = min(abs(movingSpeed)*2, (BLOCK_BUFFER_SIZE - movesplanned()) >> 1);
             for (uint8_t i = 0; i < steps; ++i)
             {
@@ -2176,6 +2195,8 @@ static void lcd_move_axis(AxisEnum axis, float diff)
                     break;
                 }
             }
+            max_xy_jerk  = oldjerk;
+            acceleration = oldaccel;
         }
     }
 }
@@ -2764,6 +2785,7 @@ static void lcd_extrude_return()
     if (!card.sdprinting)
     {
         target_temperature[menu_extruder] = 0;
+        target_temperature_diff[menu_extruder] = 0;
     }
 }
 
@@ -2950,7 +2972,7 @@ static void drawExtrudeSubmenu (uint8_t nr, uint8_t &flags)
             strcpy_P(c, PSTR("("));
             c=int_to_string(menu_extruder+1, c+1, PSTR(") "));
 #endif
-            int_to_string(target_temperature[menu_extruder], int_to_string(dsp_temperature[menu_extruder], c, PSTR(DEGREE_SLASH)), PSTR(DEGREE_SYMBOL));
+            int_to_string(int(degTargetHotend(menu_extruder)), int_to_string(dsp_temperature[menu_extruder], c, PSTR(DEGREE_SLASH)), PSTR(DEGREE_SYMBOL));
             lcd_lib_draw_string_left(5, buffer);
             flags |= MENU_STATUSLINE;
         }
@@ -2958,7 +2980,7 @@ static void drawExtrudeSubmenu (uint8_t nr, uint8_t &flags)
         lcd_lib_draw_heater(LCD_GFX_WIDTH-LCD_CHAR_MARGIN_RIGHT-13*LCD_CHAR_SPACING, 20, getHeaterPower(menu_extruder));
         int_to_string(dsp_temperature[menu_extruder], buffer, PSTR(DEGREE_SLASH));
         lcd_lib_draw_string_right(LCD_GFX_WIDTH-2*LCD_CHAR_MARGIN_RIGHT-4*LCD_CHAR_SPACING, 20, buffer);
-        int_to_string(target_temperature[menu_extruder], buffer, PSTR(DEGREE_SYMBOL));
+        int_to_string(int(degTargetHotend(menu_extruder)), buffer, PSTR(DEGREE_SYMBOL));
         LCDMenu::drawMenuString(LCD_GFX_WIDTH-LCD_CHAR_MARGIN_RIGHT-4*LCD_CHAR_SPACING
                           , 20
                           , 24
@@ -3038,7 +3060,7 @@ static void drawExtrudeSubmenu (uint8_t nr, uint8_t &flags)
 void lcd_menu_expert_extrude()
 {
     // reset heater timeout until target temperature is reached
-    if ((target_temperature[menu_extruder]) && ((current_temperature[menu_extruder] < 100) || (current_temperature[menu_extruder] < (target_temperature[menu_extruder] - 20))))
+    if ((target_temperature[menu_extruder]) && ((current_temperature[menu_extruder] < 100) || (current_temperature[menu_extruder] < (degTargetHotend(menu_extruder) - 20))))
     {
         last_user_interaction = millis();
     }

@@ -33,10 +33,6 @@ void lcd_print_abort();
 void lcd_menu_print_abort();
 void lcd_menu_print_tune();
 void lcd_menu_print_ready();
-void lcd_menu_print_tune_heatup_nozzle0();
-#if EXTRUDERS > 1
-void lcd_menu_print_tune_heatup_nozzle1();
-#endif
 void doStartPrint();
 void lcd_change_to_menu_change_material_return();
 void lcd_menu_print_pause();
