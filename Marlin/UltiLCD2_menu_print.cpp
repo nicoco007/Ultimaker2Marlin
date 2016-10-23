@@ -256,6 +256,15 @@ void doStartPrint()
             // perform additional priming
             plan_set_e_position(-PRIMING_MM3);
             plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], (PRIMING_MM3_PER_SEC * volume_to_filament_length[e]), e);
+
+            CLEAR_TOOLCHANGE_RETRACT(e);
+            CLEAR_EXTRUDER_RETRACT(e);
+
+            // retract
+            current_position[E_AXIS] = 0.0;
+            plan_set_e_position(0);
+            enquecommand_P(PSTR("G1 E0"));
+            enquecommand_P(PSTR("G10"));
         }
 	#else
 		// undo the end-of-print retraction
@@ -282,7 +291,7 @@ void doStartPrint()
 		current_position[E_AXIS] = 0.0;
 		plan_set_e_position(0);
 		enquecommand_P(PSTR("G1 E0"));
-		enquecommand_P(PSTR("G11"));
+		// enquecommand_P(PSTR("G11"));
 	}
 #endif
 
