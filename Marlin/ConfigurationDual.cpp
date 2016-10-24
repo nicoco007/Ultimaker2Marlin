@@ -16,11 +16,14 @@
 // wrong data being written to the variables.
 #define STORE_DUAL_VERSION 3
 
-#define DOCK_X_POSITION    220.0
-#define DOCK_Y_POSITION     41.0
+#define DOCK_X_POSITION    223
+#define DOCK_Y_POSITION     35
 
-#define WIPE_X_POSITION    102.0
-#define WIPE_Y_POSITION     23.0
+#define WIPE_X_POSITION    105
+#define WIPE_Y_POSITION     17
+
+#define TOOLCHANGE_RETRACT_LENGTH  16
+#define TOOLCHANGE_RETRACT_SPEED   20
 
 uint8_t dual_state = DUAL_ENABLED | DUAL_TOOLCHANGE | DUAL_WIPE;
 float add_homeing_z2;
@@ -85,8 +88,8 @@ void Dual_RetrieveSettings()
 
         for (uint8_t e=0; e<EXTRUDERS; ++e)
         {
-            toolchange_retractlen[e]      = 16.0f;
-            toolchange_retractfeedrate[e] = retract_feedrate;
+            toolchange_retractlen[e]      = TOOLCHANGE_RETRACT_LENGTH;
+            toolchange_retractfeedrate[e] = TOOLCHANGE_RETRACT_SPEED;
         }
     }
     else
@@ -100,7 +103,7 @@ void Dual_RetrieveSettings()
     {
         for (uint8_t e=0; e<EXTRUDERS; ++e)
         {
-            toolchange_prime[e] = toolchange_retractlen[e] * 0.15;
+            toolchange_prime[e] = toolchange_retractlen[e] * 0.0625;
         }
         Dual_StoreRetract();
 

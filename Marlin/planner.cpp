@@ -469,6 +469,13 @@ void check_axes_activity()
       block_index = (block_index+1) & (BLOCK_BUFFER_SIZE - 1);
     }
   }
+
+  // limit fan speed during nozzle priming
+  if (printing_state == PRINT_STATE_PRIMING)
+  {
+      tail_fan_speed = min(PRIMING_MAX_FAN, tail_fan_speed);
+  }
+
   if ((printing_state != PRINT_STATE_RECOVER) && (printing_state != PRINT_STATE_START))
   {
     if((DISABLE_X) && (x_active == 0)) disable_x();
@@ -501,7 +508,7 @@ void check_axes_activity()
   #ifdef FAN_SOFT_PWM
   fanSpeedSoftPwm = tail_fan_speed;
   #else
-  analogWrite(FAN_PIN,tail_fan_speed);
+  analogWrite(FAN_PIN, tail_fan_speed);
  #ifdef DUAL_FAN
   analogWrite(LED_PIN, (active_extruder>0) ? tail_fan_speed : 0);
  #endif
@@ -512,7 +519,10 @@ void check_axes_activity()
     #ifdef FAN_SOFT_PWM
     fanSpeedSoftPwm = 0;
     #else
-    analogWrite(FAN_PIN,0);
+    analogWrite(FAN_PIN, 0);
+    #ifdef DUAL_FAN
+    analogWrite(LED_PIN, 0);
+    #endif
     #endif//!FAN_SOFT_PWM
   }
 #endif//FAN_PIN > -1

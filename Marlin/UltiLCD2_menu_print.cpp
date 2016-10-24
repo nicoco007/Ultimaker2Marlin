@@ -244,7 +244,7 @@ void doStartPrint()
             if (IS_WIPE_ENABLED)
             {
                 // execute prime and wipe script
-                cmdBuffer.processWipe();
+                cmdBuffer.processWipe(printing_state);
             }
             printing_state = old_printstate;
         }

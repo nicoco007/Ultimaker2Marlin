@@ -632,6 +632,7 @@ const bool Z_ENDSTOPS_INVERTING = true; // set to true to invert the logic of th
 #define PRIMING_MM3_PER_SEC 4			// Rate at which to prime head (in mm^3/s)
 										// (Ultimaker 2 upper limit is 8-10)
 #define PRIMING_HEIGHT 30				// Height at which to perform the priming extrusions
+#define PRIMING_MAX_FAN 50              // maximum fan speed (0-255) during priming
 
 #define HEATUP_POSITION_COMMAND "G1 F12000 X%u Y%u"
 

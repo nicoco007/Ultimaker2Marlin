@@ -1233,7 +1233,7 @@ void process_command(const char *strCmd, bool sendAck)
         float oldpos = current_position[E_AXIS];
         memcpy(destination, current_position, sizeof(destination));
         #if EXTRUDERS > 1
-        if (code_seen(strCmd, 'S') && code_value_long() == 1)
+        if (!IS_DUAL_ENABLED && code_seen(strCmd, 'S') && code_value_long() == 1)
         {
             destination[E_AXIS]-=toolchange_retractlen[active_extruder]/volume_to_filament_length[active_extruder];
             feedrate=toolchange_retractfeedrate[active_extruder];
@@ -3527,6 +3527,12 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
 
         if IS_TOOLCHANGE_ENABLED
         {
+            if (IS_WIPE_ENABLED)
+            {
+                // limit fan speed during priming
+                printing_state = PRINT_STATE_PRIMING;
+                check_axes_activity();
+            }
             // execute toolchange script
             current_position[Z_AXIS] = destination[Z_AXIS];
             if (nextExtruder)
@@ -3582,7 +3588,7 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
         #endif
                     {
                         // execute wipe script
-                        cmdBuffer.processWipe();
+                        cmdBuffer.processWipe(PRINT_STATE_TOOLCHANGE);
                     }
 
                     // finish wipe moves

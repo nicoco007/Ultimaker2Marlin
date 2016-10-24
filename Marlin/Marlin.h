@@ -275,6 +275,7 @@ extern uint8_t printing_state;
 #define PRINT_STATE_START       7
 #define PRINT_STATE_TOOLCHANGE  240
 #define PRINT_STATE_TOOLREADY   241
+#define PRINT_STATE_PRIMING     242
 #define PRINT_STATE_ABORT       255
 
 // Handling multiple extruders pins
