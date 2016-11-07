@@ -281,7 +281,7 @@ void lcd_menu_insert_material_preheat()
     int16_t temp = degHotend(menu_extruder) - 20;
     int16_t target = degTargetHotend(menu_extruder) - 20 - 10;
     if (temp < 0) temp = 0;
-    if (temp > target && temp < target + 20 && (card.pause || !commands_queued()))
+    if (temp > target && temp < target + 20 && (card.pause() || !commands_queued()))
     {
         set_extrude_min_temp(0);
         menu.replace_menu(menu_t(lcd_menu_change_material_insert_wait_user, MAIN_MENU_ITEM_POS(0)));
@@ -442,7 +442,7 @@ static void materialInsertReady()
     }
     plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], retract_feedrate/60, menu_extruder);
 
-    if (!card.sdprinting)
+    if (!card.sdprinting())
     {
         // cool down nozzle
         for(uint8_t n=0; n<EXTRUDERS; n++)
@@ -546,7 +546,7 @@ static void lcd_menu_material_export_done()
 
 static void lcd_menu_material_export()
 {
-    if (!card.sdInserted)
+    if (!card.sdInserted())
     {
         LED_GLOW
         lcd_lib_encoder_pos = MAIN_MENU_ITEM_POS(0);
@@ -644,7 +644,7 @@ static void lcd_menu_material_import_done()
 
 static void lcd_menu_material_import()
 {
-    if (!card.sdInserted)
+    if (!card.sdInserted())
     {
         LED_GLOW
         lcd_lib_encoder_pos = MAIN_MENU_ITEM_POS(0);
