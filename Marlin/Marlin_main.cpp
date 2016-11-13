@@ -3254,7 +3254,9 @@ void idle()
 static void manage_inactivity()
 {
   checkFilamentSensor();
+#ifndef DUAL_FAN
   manage_led_timeout();
+#endif
 
   if(printing_state == PRINT_STATE_RECOVER)
     previous_millis_cmd=millis();

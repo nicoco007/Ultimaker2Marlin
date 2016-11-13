@@ -272,17 +272,17 @@ static void lcd_start_babystepping()
 }
 #endif // ENABLED
 
+#ifndef DUAL_FAN
 static void lcd_toggle_led()
 {
     // toggle led status
     sleep_state ^= SLEEP_LED_OFF;
 
-#ifndef DUAL_FAN
     analogWrite(LED_PIN, (sleep_state & SLEEP_LED_OFF) ? 0 : 255 * int(led_brightness_level) / 100);
-#endif
     LED_NORMAL
     menu.reset_submenu();
 }
+#endif
 
 // return print menu option
 static const menu_t & get_print_menuoption(uint8_t nr, menu_t &opt)
@@ -307,10 +307,12 @@ static const menu_t & get_print_menuoption(uint8_t nr, menu_t &opt)
 
             }
         }
+#ifndef DUAL_FAN
         else if (nr == menu_index++)
         {
             opt.setData(MENU_NORMAL, lcd_toggle_led);
         }
+#endif
         else if (nr == menu_index++)
         {
             opt.setData(MENU_INPLACE_EDIT, lcd_tune_retract_length, 2);
@@ -331,12 +333,13 @@ static const menu_t & get_print_menuoption(uint8_t nr, menu_t &opt)
     else
     {
         if (nr == menu_index++)
+#ifndef DUAL_FAN
         {
             opt.setData(MENU_NORMAL, lcd_toggle_led);
         }
         else if (nr == menu_index++)
+#endif
         {
-//            opt.setData(MENU_NORMAL, lcd_print_ask_pause);
             if (IS_SD_PRINTING)
             {
                 opt.setData(MENU_NORMAL, lcd_print_ask_pause);
@@ -670,7 +673,7 @@ static void drawStatusNozzle(uint8_t e, uint8_t &flags)
         strcpy_P(buffer, PSTR("Nozzle "));
         char *c = buffer+7;
 #else
-        char *c = int_to_string(e, buffer, PSTR(") "), PSTR("Nozzle("), false);
+        char *c = int_to_string(e+1, buffer, PSTR(") "), PSTR("Nozzle("), false);
 #endif
         if (flags & MENU_ACTIVE)
         {
@@ -858,6 +861,7 @@ static void drawPrintSubmenu (uint8_t nr, uint8_t &flags)
                 lcd_lib_draw_gfx(LCD_GFX_WIDTH/2 - 4, BOTTOM_MENU_YPOS, toolGfx);
             }
         }
+#ifndef DUAL_FAN
         else if (nr == index++)
         {
             if (flags & MENU_SELECTED)
@@ -879,6 +883,7 @@ static void drawPrintSubmenu (uint8_t nr, uint8_t &flags)
                 lcd_lib_draw_gfx(LCD_GFX_WIDTH - LCD_CHAR_MARGIN_RIGHT - LCD_CHAR_SPACING - 5, BOTTOM_MENU_YPOS-1, ledswitchGfx);
             }
         }
+#endif
         else if (nr == index++)
         {
             // retract length
@@ -959,6 +964,7 @@ static void drawPrintSubmenu (uint8_t nr, uint8_t &flags)
     else // first page
     {
         if (nr == index++)
+#ifndef DUAL_FAN
         {
             if (flags & MENU_SELECTED)
             {
@@ -980,6 +986,7 @@ static void drawPrintSubmenu (uint8_t nr, uint8_t &flags)
             }
         }
         else if (nr == index++)
+#endif
         {
             if (flags & MENU_SELECTED)
             {
@@ -1489,11 +1496,19 @@ void lcd_menu_printing_tg()
         }
 
         uint8_t index = 0;
+
 #ifdef BABYSTEPPING
-        uint8_t len = (printing_page == 1) ? 7 : EXTRUDERS*2 + BED_MENU_OFFSET + 6;
+  #define BABYSTEPPING_MENU_OFFSET 1
 #else
-        uint8_t len = (printing_page == 1) ? 7 : EXTRUDERS*2 + BED_MENU_OFFSET + 5;
-#endif // BABYSTEPPING
+  #define BABYSTEPPING_MENU_OFFSET 0
+#endif
+#ifdef DUAL_FAN
+  #define LED_MENU_OFFSET 0
+#else
+  #define LED_MENU_OFFSET 1
+#endif
+
+        uint8_t len = (printing_page == 1) ? 6 + LED_MENU_OFFSET : EXTRUDERS*2 + BED_MENU_OFFSET + BABYSTEPPING_MENU_OFFSET + LED_MENU_OFFSET + 4;
 
         menu.process_submenu(get_print_menuoption, len);
         const char *message = lcd_getstatus();
@@ -1502,21 +1517,17 @@ void lcd_menu_printing_tg()
             if (message && *message)
             {
                 lcd_lib_draw_string_left(BOTTOM_MENU_YPOS, message);
-                index += 3;
+                index += 2+LED_MENU_OFFSET;
             }
             else if (printing_state == PRINT_STATE_HEATING)
             {
                 lcd_lib_draw_string_leftP(BOTTOM_MENU_YPOS, PSTR("Heating nozzle"));
-//#if EXTRUDERS > 1
-//                int_to_string(menu_extruder+1, buffer, NULL);
-//                lcd_lib_draw_string(LCD_CHAR_MARGIN_LEFT + 15*LCD_CHAR_SPACING, BOTTOM_MENU_YPOS, buffer);
-//#endif // EXTRUDERS
-                index += 3;
+                index += 2+LED_MENU_OFFSET;
             }
             else if (printing_state == PRINT_STATE_HEATING_BED)
             {
                 lcd_lib_draw_string_leftP(BOTTOM_MENU_YPOS, PSTR("Heating buildplate"));
-                index += 3;
+                index += 2+LED_MENU_OFFSET;
             }
         }
 
@@ -2563,6 +2574,7 @@ void lcd_menu_move_axes()
     lcd_lib_update_screen();
 }
 
+#ifndef DUAL_FAN
 void manage_led_timeout()
 {
     if ((led_timeout > 0) && !(sleep_state & SLEEP_LED_OFF))
@@ -2578,13 +2590,12 @@ void manage_led_timeout()
         }
         else if (sleep_state & SLEEP_LED_DIMMED)
         {
-#ifndef DUAL_FAN
             analogWrite(LED_PIN, 255 * int(led_brightness_level) / 100);
-#endif
             sleep_state ^= SLEEP_LED_DIMMED;
         }
     }
 }
+#endif
 
 void manage_encoder_position(int8_t encoder_pos_interrupt)
 {
