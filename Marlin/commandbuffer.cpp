@@ -280,7 +280,9 @@ void CommandBuffer::processWipe(const uint8_t printState)
         check_axes_activity();
 
         // snip move
-        CommandBuffer::moveHead(current_position[X_AXIS], current_position[Y_AXIS]+WIPE_DISTANCEY, 125);
+        CommandBuffer::moveHead(current_position[X_AXIS], current_position[Y_AXIS]+(WIPE_DISTANCEY*2), 125);
+        // diagonal move
+        CommandBuffer::moveHead(current_position[X_AXIS]+WIPE_DISTANCEY, current_position[Y_AXIS]-WIPE_DISTANCEY, 125);
 
         // back to start pos
         CommandBuffer::moveHead(wipe_position[X_AXIS]+extruder_offset[X_AXIS][active_extruder], current_position[Y_AXIS], 125);
