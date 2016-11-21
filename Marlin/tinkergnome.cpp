@@ -1219,6 +1219,7 @@ void lcd_menu_print_heatup_tg()
     if (current_temperature_bed >= degTargetBed() - TEMP_WINDOW * 2)
     {
 #endif
+        printing_state = PRINT_STATE_HEATING;
         for(int8_t e=EXTRUDERS-1; e>=0; --e)
         {
             if (LCD_DETAIL_CACHE_MATERIAL(e) < 1)

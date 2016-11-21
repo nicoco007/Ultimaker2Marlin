@@ -690,7 +690,13 @@ void lcd_menu_print_select()
 #if EXTRUDERS < 2
                             CommandBuffer::move2heatup();
 #endif
-                            printing_state = PRINT_STATE_NORMAL;
+                            // printing_state = PRINT_STATE_NORMAL;
+#if TEMP_SENSOR_BED != 0
+                            if (target_temperature_bed > 0)
+                                printing_state = PRINT_STATE_HEATING_BED;
+                            else
+#endif
+                                printing_state = PRINT_STATE_HEATING;
                         }
                     }
                     else
@@ -722,6 +728,7 @@ void lcd_menu_print_heatup()
     if (current_temperature_bed > degTargetBed() - TEMP_WINDOW*2)
     {
 #endif
+        printing_state = PRINT_STATE_HEATING;
         for(int8_t e=EXTRUDERS-1; e>=0; --e)
         {
             if (LCD_DETAIL_CACHE_MATERIAL(e) < 1)
@@ -1311,7 +1318,7 @@ void lcd_menu_print_tune()
             menu.add_menu(menu_t(lcd_menu_tune_tcretract, MAIN_MENU_ITEM_POS(1)));
         }
         else if (IS_SELECTED_SCROLL(index++))
-            menu.add_menu(menu_t(lcd_menu_extruderoffset, MAIN_MENU_ITEM_POS(1)));
+            menu.add_menu(menu_t(lcd_init_extruderoffset, lcd_menu_extruderoffset, lcd_calc_extruderoffset, MAIN_MENU_ITEM_POS(1)));
 #endif
 #ifndef DUAL_FAN
         else if (IS_SELECTED_SCROLL(index++))
