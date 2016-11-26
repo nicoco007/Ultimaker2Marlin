@@ -32,14 +32,6 @@
 
 #define MOVE_DELAY 500  // 500ms
 
-// Use the lcd_cache memory to store manual moving positions
-#define TARGET_POS(n)   (*(float*)&lcd_cache[(n) * sizeof(float)])
-#define TARGET_MIN(n)   (*(float*)&lcd_cache[(n) * sizeof(float)])
-#define TARGET_MAX(n)   (*(float*)&lcd_cache[sizeof(min_pos) + (n) * sizeof(float)])
-#define OLD_FEEDRATE    (*(float*)&lcd_cache[NUM_AXIS * sizeof(float)])
-#define OLD_ACCEL       (*(float*)&lcd_cache[(NUM_AXIS+1) * sizeof(float)])
-#define OLD_JERK        (*(float*)&lcd_cache[(NUM_AXIS+2) * sizeof(float)])
-
 uint8_t sleep_state = 0x0;
 
 float recover_height = 0.0f;

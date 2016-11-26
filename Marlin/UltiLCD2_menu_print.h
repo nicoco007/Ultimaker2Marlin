@@ -15,6 +15,14 @@
 #define LCD_DETAIL_CACHE_MATERIAL_TYPE(n) ((char*)&lcd_cache[LCD_DETAIL_CACHE_START+5+8*EXTRUDERS+8*n])
 extern uint8_t lcd_cache[LCD_CACHE_SIZE];
 
+// Use the lcd_cache memory to store manual moving positions
+#define TARGET_POS(n)   (*(float*)&lcd_cache[(n) * sizeof(float)])
+#define TARGET_MIN(n)   (*(float*)&lcd_cache[(n) * sizeof(float)])
+#define TARGET_MAX(n)   (*(float*)&lcd_cache[sizeof(min_pos) + (n) * sizeof(float)])
+#define OLD_FEEDRATE    (*(float*)&lcd_cache[NUM_AXIS * sizeof(float)])
+#define OLD_ACCEL       (*(float*)&lcd_cache[(NUM_AXIS+1) * sizeof(float)])
+#define OLD_JERK        (*(float*)&lcd_cache[(NUM_AXIS+2) * sizeof(float)])
+
 extern unsigned long predictedTime;
 
 extern uint8_t primed;
