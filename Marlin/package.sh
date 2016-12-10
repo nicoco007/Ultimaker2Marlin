@@ -8,7 +8,7 @@
 #############################
 
 ##Which version name are we appending to the final archive
-export BUILD_NAME=16.12.1
+export BUILD_NAME=16.12.3
 
 #############################
 # Actual build script
@@ -60,6 +60,10 @@ fi
 # cd _Ultimaker2Marlin/Marlin
 
 # USE_CHANGE_TEMPERATURE
+
+# read optional tool change scripts from sd card
+#define TCSDSCRIPT
+
 $MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Mark2Dual clean
 sleep 2
 mkdir _Mark2Dual

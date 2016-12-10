@@ -8,6 +8,10 @@
 
 #ifdef SDSUPPORT
 
+#if (EXTRUDERS > 1)
+#include "commandbuffer.h"
+#endif
+
 CardReader::CardReader() :
    state(SD_CHECKAUTOSTART)
  , workDirDepth(0)
@@ -438,6 +442,14 @@ void CardReader::checkautostart(bool force)
     if(!cardOK()) //fail
       return;
   }
+
+#if (EXTRUDERS > 1) && defined(TCSDSCRIPT)
+  if(!force)
+  {
+    // load command scripts
+    cmdBuffer.initScripts();
+  }
+#endif
 
   char autoname[30];
   sprintf_P(autoname, PSTR("auto%i.g"), lastnr);

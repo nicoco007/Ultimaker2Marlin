@@ -22,6 +22,129 @@ CommandBuffer cmdBuffer;
 
 #if (EXTRUDERS > 1)
 
+#if defined(TCSDSCRIPT)
+CommandBuffer::~CommandBuffer()
+{
+    deleteScript(t0);
+    deleteScript(t1);
+    deleteScript(wipe);
+}
+
+void CommandBuffer::initScripts()
+{
+    // clear all
+    deleteScript(t0);
+    deleteScript(t1);
+    deleteScript(wipe);
+    t0=0;
+    t1=0;
+    wipe=0;
+
+    if(!card.isOk())
+    {
+        card.initsd();
+        if (!card.isOk())
+        {
+            return;
+        }
+    }
+
+    card.setroot();
+    {
+        // change to config dir
+        char filename[16];
+        strcpy_P(filename, PSTR(CONFIG_DIR));
+        card.chdir(filename);
+        // read scripts from sd card
+        strcpy_P(filename, PSTR(FILENAME_T0));
+        if ((t0 = readScript(filename)));
+        strcpy_P(filename, PSTR(FILENAME_T1));
+        if ((t1 = readScript(filename)));
+        strcpy_P(filename, PSTR(FILENAME_WIPE));
+        if ((wipe = readScript(filename)));
+    }
+    card.setroot();
+}
+
+struct CommandBuffer::t_cmdline* CommandBuffer::readScript(const char *filename)
+{
+    struct t_cmdline* script(0);
+
+    card.openFile(filename, true);
+    if (card.isFileOpen())
+    {
+        struct t_cmdline* cmd = script = createScript();
+        char buffer[MAX_CMD_SIZE] = {0};
+
+        while( !card.eof() )
+        {
+            // read next line from file
+            int16_t len = card.fgets(buffer, sizeof(buffer)-1);
+            if (len <= 0) break;
+            SERIAL_ECHO_START;
+            SERIAL_ECHOLN(buffer);
+            // remove trailing spaces
+            while (len > 0 && buffer[len-1] <= ' ') buffer[--len] = '\0';
+            if (len > 0)
+            {
+                if (cmd->str)
+                {
+                    // append line
+                    cmd->next = createScript();
+                    cmd = cmd->next;
+                }
+                cmd->str = new char[len+1];
+                strncpy(cmd->str, buffer, len);
+                cmd->str[len] = '\0';
+            }
+        }
+        card.closefile();
+    }
+    if (script && !script->str && !script->next)
+    {
+        // no need to buffer empty files
+        delete script;
+        script = 0;
+    }
+    return script;
+}
+
+struct CommandBuffer::t_cmdline* CommandBuffer::createScript()
+{
+    struct t_cmdline* script = new t_cmdline;
+    script->str = 0;
+    script->next = 0;
+    return script;
+}
+
+void CommandBuffer::deleteScript(struct t_cmdline *script)
+{
+    struct t_cmdline *cmd(script);
+    while (cmd)
+    {
+        script = cmd->next;
+        delete cmd->str;
+        delete cmd;
+        cmd = script;
+    }
+}
+
+uint8_t CommandBuffer::processScript(struct t_cmdline *script)
+{
+    uint8_t cmdCount(0);
+    while (script)
+    {
+        process_command(script->str, false);
+        script = script->next;
+        ++cmdCount;
+        // update loop
+        idle();
+        checkHitEndstops();
+    }
+    return cmdCount;
+}
+#endif //TCSDSCRIPT
+
 FORCE_INLINE void relative_e_move(const float eDiff, const float feedrate, uint8_t e)
 {
     current_position[E_AXIS] += eDiff;
@@ -52,33 +175,51 @@ static void toolchange_retract(float x, float y, int feedrate, uint8_t e)
 
 void CommandBuffer::processT0(bool bRetract, bool bWipe)
 {
-    float ypos = (current_position[Y_AXIS] > TOOLCHANGE_STARTY) ? TOOLCHANGE_STARTY : current_position[Y_AXIS];
-    if (bRetract)
+#if defined(SDSUPPORT) && defined(TCSDSCRIPT)
+    if (t0)
     {
-        toolchange_retract(TOOLCHANGE_STARTX, ypos, 200, 1);
+        processScript(t0);
     }
     else
+#endif // SDSUPPORT
     {
-        CommandBuffer::moveHead(TOOLCHANGE_STARTX, ypos, 200);
-    }
-    CommandBuffer::moveHead(current_position[X_AXIS], dock_position[Y_AXIS], 100);
-    idle();
-    CommandBuffer::moveHead(dock_position[X_AXIS], current_position[Y_AXIS], 50);
-    CommandBuffer::moveHead(dock_position[X_AXIS], TOOLCHANGE_STARTY, 100);
-    CommandBuffer::moveHead(TOOLCHANGE_STARTX, TOOLCHANGE_STARTY, 200);
-    idle();
+        float ypos = (current_position[Y_AXIS] > TOOLCHANGE_STARTY) ? TOOLCHANGE_STARTY : current_position[Y_AXIS];
+        if (bRetract)
+        {
+            toolchange_retract(TOOLCHANGE_STARTX, ypos, 200, 1);
+        }
+        else
+        {
+            CommandBuffer::moveHead(TOOLCHANGE_STARTX, ypos, 200);
+        }
+        CommandBuffer::moveHead(current_position[X_AXIS], dock_position[Y_AXIS], 100);
+        idle();
+        CommandBuffer::moveHead(dock_position[X_AXIS], current_position[Y_AXIS], 50);
+        CommandBuffer::moveHead(dock_position[X_AXIS], TOOLCHANGE_STARTY, 100);
+        CommandBuffer::moveHead(TOOLCHANGE_STARTX, TOOLCHANGE_STARTY, 200);
+        idle();
+	}
 }
 
 void CommandBuffer::processT1(bool bRetract, bool bWipe)
 {
-    CommandBuffer::move2dock(bRetract);
-    CommandBuffer::moveHead(TOOLCHANGE_STARTX, dock_position[Y_AXIS], 50);
-
-    if (!bWipe | !bRetract)
+#if defined(SDSUPPORT) && defined(TCSDSCRIPT)
+    if (t1)
     {
-        CommandBuffer::moveHead(TOOLCHANGE_STARTX, TOOLCHANGE_STARTY, 200);
+        processScript(t1);
     }
-    idle();
+    else
+#endif // SDSUPPORT
+    {
+        CommandBuffer::move2dock(bRetract);
+        CommandBuffer::moveHead(TOOLCHANGE_STARTX, dock_position[Y_AXIS], 50);
+
+        if (!bWipe | !bRetract)
+        {
+            CommandBuffer::moveHead(TOOLCHANGE_STARTX, TOOLCHANGE_STARTY, 200);
+        }
+        idle();
+	}
 }
 
 void CommandBuffer::processWipe(const uint8_t printState)
@@ -107,25 +248,36 @@ void CommandBuffer::processWipe(const uint8_t printState)
     sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G4 P%i"), 750);
     process_command(LCD_CACHE_FILENAME(2), false);
 
-    // wipe start position
-    CommandBuffer::moveHead(WIPE_STARTX, current_position[Y_AXIS], 200);
+#if defined(SDSUPPORT) && defined(TCSDSCRIPT)
+    if (wipe)
+    {
+        processScript(wipe);
+        // switch fan speed back to normal
+        printing_state = printState;
+        check_axes_activity();
+    }
+    else
+#endif // SDSUPPORT
+    {
+        // wipe start position
+        CommandBuffer::moveHead(WIPE_STARTX, current_position[Y_AXIS], 200);
 
-    // slow wipe move
-    CommandBuffer::moveHead(WIPE_STARTX-WIPE_DISTANCEX, current_position[Y_AXIS], 40);
+        // slow wipe move
+        CommandBuffer::moveHead(WIPE_STARTX-WIPE_DISTANCEX, current_position[Y_AXIS], 40);
 
-    // switch fan speed back to normal
-    printing_state = printState;
-    check_axes_activity();
+        // switch fan speed back to normal
+        printing_state = printState;
+        check_axes_activity();
 
-    // snip move
-    CommandBuffer::moveHead(current_position[X_AXIS], current_position[Y_AXIS]+(WIPE_DISTANCEY*2), 125);
-    // diagonal move
-    CommandBuffer::moveHead(current_position[X_AXIS]+WIPE_DISTANCEY, current_position[Y_AXIS]-WIPE_DISTANCEY, 125);
+        // snip move
+        CommandBuffer::moveHead(current_position[X_AXIS], current_position[Y_AXIS]+(WIPE_DISTANCEY*2), 125);
+        // diagonal move
+        CommandBuffer::moveHead(current_position[X_AXIS]+WIPE_DISTANCEY, current_position[Y_AXIS]-WIPE_DISTANCEY, 125);
 
-    // back to start pos
-    CommandBuffer::moveHead(wipe_position[X_AXIS]+extruder_offset[X_AXIS][active_extruder], current_position[Y_AXIS], 125);
-    CommandBuffer::moveHead(current_position[X_AXIS], TOOLCHANGE_STARTY, 200);
-
+        // back to start pos
+        CommandBuffer::moveHead(wipe_position[X_AXIS]+extruder_offset[X_AXIS][active_extruder], current_position[Y_AXIS], 125);
+        CommandBuffer::moveHead(current_position[X_AXIS], TOOLCHANGE_STARTY, 200);
+	}
     // small retract after wipe
     relative_e_move(length*-0.1, toolchange_retractfeedrate[active_extruder]/60, active_extruder);
 #ifdef FWRETRACT
