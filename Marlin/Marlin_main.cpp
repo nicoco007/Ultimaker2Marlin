@@ -2968,7 +2968,7 @@ static void get_coordinates(const char *cmd)
             // accumulate retract length during tool change
             if (printing_state >= PRINT_STATE_TOOLCHANGE)
             {
-                if (TOOLCHANGE_RETRACTED(active_extruder))
+                if(EXTRUDER_RETRACTED(active_extruder) || TOOLCHANGE_RETRACTED(active_extruder))
                 {
                     if (printing_state == PRINT_STATE_TOOLCHANGE)
                     {
@@ -2984,7 +2984,7 @@ static void get_coordinates(const char *cmd)
                 else
                 {
                     retract_recover_length[active_extruder] = -echange;
-                    SET_TOOLCHANGE_RETRACT(active_extruder);
+                    SET_EXTRUDER_RETRACT(active_extruder);
                 }
             }
             else if (AUTORETRACT_ENABLED && !EXTRUDER_RETRACTED(active_extruder))
@@ -3013,15 +3013,12 @@ static void get_coordinates(const char *cmd)
         }
         else if (echange>MIN_RETRACT) //retract_recover
         {
-            if (TOOLCHANGE_RETRACTED(active_extruder))
+            if(EXTRUDER_RETRACTED(active_extruder) || TOOLCHANGE_RETRACTED(active_extruder))
             {
                 // retraction recover after tool change
                 float correctede=-echange+retract_recover_length[active_extruder]; //total unretract=retract_length+retract_recover_length[surplus]
                 current_position[E_AXIS]-=correctede; //to generate the additional steps, not the destination is changed, but inversely the current position
                 plan_set_e_position(current_position[E_AXIS]);
-
-//                destination[E_AXIS] = current_position[E_AXIS] + retract_recover_length[active_extruder];
-//                //feedrate=retract_recover_feedrate[active_extruder];
             }
             else if (AUTORETRACT_ENABLED && EXTRUDER_RETRACTED(active_extruder))
             {
