@@ -396,7 +396,7 @@ ISR(TIMER1_COMPA_vect)
       counter_e = counter_x;
       step_events_completed = 0;
 
-      // Set directions TO DO This should be done once during init of trapezoid. Endstops -> interrupt
+      // Set directions, This should be done once during init of trapezoid. Endstops -> interrupt
       out_bits = current_block->direction_bits;
 
       // Set the direction bits (X_AXIS=A_AXIS and Y_AXIS=B_AXIS for COREXY)
@@ -418,19 +418,23 @@ ISR(TIMER1_COMPA_vect)
       }
       if ((out_bits & (1<<Z_AXIS)) != 0) {   // -direction
         WRITE(Z_DIR_PIN, INVERT_Z_DIR);
-#ifdef Z_DUAL_STEPPER_DRIVERS
-        WRITE(Z2_DIR_PIN, INVERT_Z_DIR);
-#endif
+
+	    #ifdef Z_DUAL_STEPPER_DRIVERS
+          WRITE(Z2_DIR_PIN, INVERT_Z_DIR);
+        #endif
+
         count_direction[Z_AXIS]=-1;
       }
-      else { // +direction
-        WRITE(Z_DIR_PIN,!INVERT_Z_DIR);
-#ifdef Z_DUAL_STEPPER_DRIVERS
-        WRITE(Z2_DIR_PIN,!INVERT_Z_DIR);
-#endif
-      count_direction[Z_AXIS]=1;
+      else {
+        WRITE(Z_DIR_PIN, !INVERT_Z_DIR);
+
+	    #ifdef Z_DUAL_STEPPER_DRIVERS
+          WRITE(Z2_DIR_PIN, !INVERT_Z_DIR);
+        #endif
+
+        count_direction[Z_AXIS]=1;
       }
-#ifndef ADVANCE
+    #ifndef ADVANCE
       if ((out_bits & (1<<E_AXIS)) != 0) {  // -direction
         REV_E_DIR();
         count_direction[E_AXIS]=-1;
@@ -439,15 +443,15 @@ ISR(TIMER1_COMPA_vect)
         NORM_E_DIR();
         count_direction[E_AXIS]=1;
       }
-#endif //!ADVANCE
+    #endif //!ADVANCE
 
-#ifdef Z_LATE_ENABLE
-      if(current_block->steps_z > 0) {
-        enable_z();
-        OCR1A = 2000; //1ms wait
-        return;
-      }
-#endif
+      #ifdef Z_LATE_ENABLE
+        if(current_block->steps_z > 0) {
+          enable_z();
+          OCR1A = 2000; //1ms wait
+          return;
+        }
+      #endif
 
 //      #ifdef ADVANCE
 //      e_steps[current_block->active_extruder] = 0;
@@ -982,11 +986,11 @@ void quickStop()
     plan_discard_current_block();
   current_block = NULL;
   ENABLE_STEPPER_DRIVER_INTERRUPT();
-  for (uint8_t i=0; i<NUM_AXIS; ++i)
+  for (uint8_t i=0; i<NUM_AXIS-1; ++i)
   {
     current_position[i] = float(st_get_position(i))/axis_steps_per_unit[i];
   }
-  current_position[E_AXIS] /= volume_to_filament_length[active_extruder];
+  current_position[E_AXIS] = (float(st_get_position(E_AXIS))/e_steps_per_unit(active_extruder))/volume_to_filament_length[active_extruder];
   plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
 }
 
@@ -1003,10 +1007,11 @@ void babystep(const uint8_t axis, const bool direction)
     enable_x();
     uint8_t old_x_dir_pin= READ(X_DIR_PIN);  //if dualzstepper, both point to same direction.
 
+
     //setup new step
-    WRITE(X_DIR_PIN,(INVERT_X_DIR)^direction);
+    WRITE(X_DIR_PIN,((axis_direction & 1) ? 0x1 : 0x0)^direction);
     #ifdef DUAL_X_CARRIAGE
-      WRITE(X2_DIR_PIN,(INVERT_X_DIR)^direction);
+      WRITE(X2_DIR_PIN,((axis_direction & 1) ? 0x1 : 0x0)^direction);
     #endif
 
     //perform step
@@ -1034,9 +1039,9 @@ void babystep(const uint8_t axis, const bool direction)
     uint8_t old_y_dir_pin= READ(Y_DIR_PIN);  //if dualzstepper, both point to same direction.
 
     //setup new step
-    WRITE(Y_DIR_PIN,(INVERT_Y_DIR)^direction);
+    WRITE(Y_DIR_PIN,((axis_direction & 2) ? 0x1 : 0x0)^direction);
     #ifdef DUAL_Y_CARRIAGE
-      WRITE(Y2_DIR_PIN,(INVERT_Y_DIR)^direction);
+      WRITE(Y2_DIR_PIN,((axis_direction & 2) ? 0x1 : 0x0)^direction);
     #endif
 
     //perform step
@@ -1065,9 +1070,9 @@ void babystep(const uint8_t axis, const bool direction)
     enable_z();
     uint8_t old_z_dir_pin= READ(Z_DIR_PIN);  //if dualzstepper, both point to same direction.
     //setup new step
-    WRITE(Z_DIR_PIN,(INVERT_Z_DIR)^direction^BABYSTEP_INVERT_Z);
+    WRITE(Z_DIR_PIN,((axis_direction & 4) ? 0x1 : 0x0)^direction^BABYSTEP_INVERT_Z);
     #ifdef Z_DUAL_STEPPER_DRIVERS
-      WRITE(Z2_DIR_PIN,(INVERT_Z_DIR)^direction^BABYSTEP_INVERT_Z);
+      WRITE(Z2_DIR_PIN,((axis_direction & 4) ? 0x1 : 0x0)^direction^BABYSTEP_INVERT_Z);
     #endif
     //perform step
     WRITE(Z_STEP_PIN, !INVERT_Z_STEP_PIN);
@@ -1098,9 +1103,9 @@ void babystep(const uint8_t axis, const bool direction)
     uint8_t old_y_dir_pin= READ(Y_DIR_PIN);
     uint8_t old_z_dir_pin= READ(Z_DIR_PIN);
     //setup new step
-    WRITE(X_DIR_PIN,(INVERT_X_DIR)^direction^BABYSTEP_INVERT_Z);
-    WRITE(Y_DIR_PIN,(INVERT_Y_DIR)^direction^BABYSTEP_INVERT_Z);
-    WRITE(Z_DIR_PIN,(INVERT_Z_DIR)^direction^BABYSTEP_INVERT_Z);
+    WRITE(X_DIR_PIN,((axis_direction & 1) ? 0x1 : 0x0)^direction^BABYSTEP_INVERT_Z);
+    WRITE(Y_DIR_PIN,((axis_direction & 2) ? 0x1 : 0x0)^direction^BABYSTEP_INVERT_Z);
+    WRITE(Z_DIR_PIN,((axis_direction & 4) ? 0x1 : 0x0)^direction^BABYSTEP_INVERT_Z);
 
     //perform step
     WRITE(X_STEP_PIN, !INVERT_X_STEP_PIN);

@@ -167,8 +167,8 @@ void lcd_menu_change_material_preheat()
             float old_retract_acceleration = retract_acceleration;
             float old_max_e_jerk = max_e_jerk;
 
-            max_feedrate[E_AXIS] = float(FILAMENT_FAST_STEPS) / axis_steps_per_unit[E_AXIS];
-            retract_acceleration = float(FILAMENT_LONG_ACCELERATION_STEPS) / axis_steps_per_unit[E_AXIS];
+            max_feedrate[E_AXIS] = float(FILAMENT_FAST_STEPS) / e_steps_per_unit(active_extruder);
+            retract_acceleration = float(FILAMENT_LONG_ACCELERATION_STEPS) / e_steps_per_unit(active_extruder);
             max_e_jerk = FILAMENT_LONG_MOVE_JERK;
 
 #if (EXTRUDERS > 1)
@@ -240,7 +240,7 @@ static void lcd_menu_change_material_remove()
     lcd_lib_draw_stringP(3, 20, PSTR("Reversing material"));
 
     long pos = -st_get_position(E_AXIS);
-    long targetPos = lround(FILAMENT_REVERSAL_LENGTH * axis_steps_per_unit[E_AXIS]);
+    long targetPos = lround(FILAMENT_REVERSAL_LENGTH * e_steps_per_unit(active_extruder));
     uint8_t progress = (pos * 125 / targetPos);
     lcd_progressbar(progress);
 
@@ -362,8 +362,8 @@ static void lcd_menu_change_material_insert_wait_user_ready()
     float old_retract_acceleration = retract_acceleration;
     float old_max_e_jerk = max_e_jerk;
 
-    max_feedrate[E_AXIS] = float(FILAMENT_FAST_STEPS) / axis_steps_per_unit[E_AXIS];
-    retract_acceleration = float(FILAMENT_LONG_ACCELERATION_STEPS) / axis_steps_per_unit[E_AXIS];
+    max_feedrate[E_AXIS] = float(FILAMENT_FAST_STEPS) / e_steps_per_unit(active_extruder);
+    retract_acceleration = float(FILAMENT_LONG_ACCELERATION_STEPS) / e_steps_per_unit(active_extruder);
     max_e_jerk = FILAMENT_LONG_MOVE_JERK;
 
     quickStop();
@@ -411,7 +411,7 @@ static void lcd_menu_change_material_insert_forward()
     lcd_lib_draw_stringP(3, 20, PSTR("Forwarding material"));
 
     long pos = st_get_position(E_AXIS);
-    long targetPos = lround(FILAMENT_FORWARD_LENGTH*axis_steps_per_unit[E_AXIS]);
+    long targetPos = lround(FILAMENT_FORWARD_LENGTH*e_steps_per_unit(active_extruder));
     uint8_t progress = (pos * 125 / targetPos);
     lcd_progressbar(progress);
 

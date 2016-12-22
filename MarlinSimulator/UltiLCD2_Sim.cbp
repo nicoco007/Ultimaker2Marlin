@@ -68,7 +68,7 @@
 		<Unit filename="../Marlin/Sd2PinMap.h" />
 		<Unit filename="../Marlin/SdBaseFile.cpp" />
 		<Unit filename="../Marlin/SdBaseFile.h" />
-		<Unit filename="../Marlin/SdFat.h" />
+		<Unit filename="../Marlin/SdFatConfig.h" />
 		<Unit filename="../Marlin/SdFatStructs.h" />
 		<Unit filename="../Marlin/SdFile.cpp" />
 		<Unit filename="../Marlin/SdFile.h" />
