@@ -351,12 +351,12 @@ void clear_command_queue()
 static void next_command()
 {
   #ifdef SDSUPPORT
-    if(card.saving)
+    if(card.saving())
     {
         if(strstr_P(cmdbuffer[bufindr], PSTR("M29")) == NULL)
         {
           card.write_command(cmdbuffer[bufindr]);
-          if(card.logging)
+          if(card.logging())
           {
             process_command(cmdbuffer[bufindr], serialCmd & (1 << bufindr));
           }
@@ -745,7 +745,7 @@ inline void get_serial_commands()
 #ifdef SDSUPPORT
 inline void get_sdcard_commands()
 {
-    if (!card.sdprinting || card.pause || (printing_state == PRINT_STATE_ABORT)) return;
+    if (!card.sdprinting() || card.pause() || (printing_state == PRINT_STATE_ABORT)) return;
 
     uint16_t sd_count = 0;
     static uint32_t endOfLineFilePosition = 0;
@@ -756,7 +756,7 @@ inline void get_sdcard_commands()
         int16_t n = card.get();
         if (card.errorCode())
         {
-            if (!card.sdInserted)
+            if (!card.sdInserted())
             {
                 card.release();
                 return;
@@ -766,7 +766,7 @@ inline void get_sdcard_commands()
             card.clearError();
             //Screw it, if we are near the end of a file with an error, act if the file is finished. Hopefully preventing the hang at the end.
             if (endOfLineFilePosition > card.getFileSize() - 512)
-                card.sdprinting = false;
+                card.stopPrinting();
             else
                 card.setIndex(endOfLineFilePosition);
 
@@ -1450,8 +1450,8 @@ void process_command(const char *strCmd, bool sendAck)
           break;
 
 //        serial_action_P(PSTR("pause"));
-        card.pause = true;
-        while(card.pause)
+        card.pauseSDPrint();
+        while(card.pause())
         {
           idle();
         }
@@ -1882,12 +1882,24 @@ void process_command(const char *strCmd, bool sendAck)
           if(i == 3) { // E
             float value = code_value();
             if(value < 20.0) {
-              float factor = axis_steps_per_unit[i] / value; // increase e constants if M92 E14 is given for netfab.
+              float factor = e_steps_per_unit(active_extruder) / value; // increase e constants if M92 E14 is given for netfab.
               max_e_jerk *= factor;
               max_feedrate[i] *= factor;
               axis_steps_per_sqr_second[i] *= factor;
+#if EXTRUDERS > 1
+              axis_steps_per_sqr_second[i+1] *= factor;
+#endif // EXTRUDERS
             }
+#if EXTRUDERS > 1
+            if (active_extruder) {
+                e2_steps_per_unit = value;
+            }
+            else{
+                axis_steps_per_unit[i] = value;
+            }
+#else
             axis_steps_per_unit[i] = value;
+#endif // EXTRUDERS
           }
           else {
             axis_steps_per_unit[i] = code_value();
@@ -1927,7 +1939,7 @@ void process_command(const char *strCmd, bool sendAck)
       SERIAL_PROTOCOLPGM("Z:");
       SERIAL_PROTOCOL(float(st_get_position(Z_AXIS))/axis_steps_per_unit[Z_AXIS]);
       SERIAL_PROTOCOLPGM("E:");
-      SERIAL_PROTOCOL(float(st_get_position(E_AXIS))/axis_steps_per_unit[E_AXIS]);
+      SERIAL_PROTOCOL(float(st_get_position(E_AXIS))/e_steps_per_unit(active_extruder));
 
       SERIAL_EOL;
       break;
@@ -2530,7 +2542,7 @@ void process_command(const char *strCmd, bool sendAck)
     #if EXTRUDERS > 1
         last_extruder = 0xFF;
     #endif
-        while(card.pause){
+        while(card.pause()){
           idle();
           if (printing_state == PRINT_STATE_ABORT)
           {
@@ -2541,7 +2553,7 @@ void process_command(const char *strCmd, bool sendAck)
         st_synchronize();
         plan_set_e_position(target[E_AXIS]);
 
-        if ((printing_state != PRINT_STATE_ABORT) && (card.sdprinting))
+        if ((printing_state != PRINT_STATE_ABORT) && (card.sdprinting()))
         {
             //return to normal
             if(bAddRetract)
@@ -3032,7 +3044,7 @@ static void prepare_move(const char *cmd)
     }
   }
 #else
-  if (card.sdprinting && (printing_state == PRINT_STATE_RECOVER) && (destination[Z_AXIS] >= recover_height-0.01f))
+  if (card.sdprinting() && (printing_state == PRINT_STATE_RECOVER) && (destination[Z_AXIS] >= recover_height-0.01f))
   {
     if (current_position[E_AXIS] != destination[E_AXIS])
     {
