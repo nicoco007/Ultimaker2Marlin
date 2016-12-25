@@ -2556,6 +2556,9 @@ void process_command(const char *strCmd, bool sendAck)
         if (printing_state == PRINT_STATE_RECOVER)
           break;
 
+//        serial_action_P(PSTR("pause"));
+        card.pauseSDPrint();
+
         st_synchronize();
         float target[NUM_AXIS];
         float lastpos[NUM_AXIS];
@@ -2625,7 +2628,7 @@ void process_command(const char *strCmd, bool sendAck)
         st_synchronize();
         plan_set_e_position(target[E_AXIS]);
 
-        if ((printing_state != PRINT_STATE_ABORT) && (card.sdprinting()))
+        if ((printing_state != PRINT_STATE_ABORT) && (card.sdprinting() || HAS_SERIAL_CMD))
         {
             //return to normal
             if(bAddRetract)
