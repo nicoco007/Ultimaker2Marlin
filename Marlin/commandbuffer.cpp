@@ -183,7 +183,11 @@ void CommandBuffer::processT0(bool bRetract, bool bWipe)
     else
 #endif // SDSUPPORT
     {
-        float ypos = (current_position[Y_AXIS] > TOOLCHANGE_STARTY) ? TOOLCHANGE_STARTY : current_position[Y_AXIS];
+        float ypos = min(current_position[Y_AXIS], TOOLCHANGE_STARTY);
+        if ((IS_WIPE_ENABLED && current_position[X_AXIS] < wipe_position[X_AXIS]))
+        {
+            ypos = TOOLCHANGE_STARTY - extruder_offset[Y_AXIS][active_extruder];
+        }
         if (bRetract)
         {
             toolchange_retract(TOOLCHANGE_STARTX, ypos, 200, 1);
@@ -246,8 +250,7 @@ void CommandBuffer::processWipe(const uint8_t printState)
 
     // wait a short moment
     st_synchronize();
-    sprintf_P(LCD_CACHE_FILENAME(2), PSTR("G4 P%i"), 750);
-    process_command(LCD_CACHE_FILENAME(2), false);
+    dwell(750);
 
 #if defined(SDSUPPORT) && defined(TCSDSCRIPT)
     if (wipe)
@@ -269,6 +272,9 @@ void CommandBuffer::processWipe(const uint8_t printState)
         // switch fan speed back to normal
         printing_state = printState;
         check_axes_activity();
+
+//        // snip move
+//        CommandBuffer::moveHead(current_position[X_AXIS], TOOLCHANGE_STARTY, 125);
 
         // snip move
         CommandBuffer::moveHead(current_position[X_AXIS], current_position[Y_AXIS]+(WIPE_DISTANCEY*2), 125);
@@ -373,4 +379,13 @@ void CommandBuffer::homeBed()
 void CommandBuffer::homeAll()
 {
     enquecommand_P(PSTR("G28"));
+}
+
+void CommandBuffer::dwell(const unsigned long m)
+{
+    unsigned long target_millis = millis() + m;
+    while(millis() < target_millis )
+    {
+        idle();
+    }
 }
