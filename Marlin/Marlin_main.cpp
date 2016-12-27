@@ -549,13 +549,11 @@ void setup()
 
   // loads data from EEPROM if available else uses defaults (and resets step acceleration rate)
   Config_RetrieveSettings();
-  for (uint8_t e=0; e<EXTRUDERS; ++e)
-  {
-      retract_recover_feedrate[e] = retract_feedrate;
-  }
+
 #if (EXTRUDERS > 1)
   Dual_RetrieveSettings();
 #endif
+
   lifetime_stats_init();
   tp_init();    // Initialize temperature loop
   plan_init();  // Initialize planner;
@@ -566,6 +564,18 @@ void setup()
   servo_init();
 
   lcd_init();
+
+  for (uint8_t e=0; e<EXTRUDERS; ++e)
+  {
+      SET_TOOLCHANGE_RETRACT(e);
+      SET_EXTRUDER_RETRACT(e);
+      retract_recover_feedrate[e] = retract_feedrate;
+#if (EXTRUDERS > 1)
+      retract_recover_length[e] = toolchange_retractlen[e] / volume_to_filament_length[e];
+#else
+      retract_recover_length[e] = end_of_print_retraction / volume_to_filament_length[e];
+#endif
+  }
 
   #if defined(CONTROLLERFAN_PIN) && CONTROLLERFAN_PIN > -1
     SET_OUTPUT(CONTROLLERFAN_PIN); //Set pin used for driver cooling fan
@@ -970,6 +980,7 @@ static void homeaxis(int axis) {
     #endif
 
     // Do a fast run to the home position.
+    st_synchronize();
     current_position[axis] = 0;
     plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
     destination[axis] = 1.5 * (max_pos[axis]-min_pos[axis]) * home_dir(axis);
@@ -1276,6 +1287,7 @@ void process_command(const char *strCmd, bool sendAck)
       if ((printing_state != PRINT_STATE_START) && (printing_state != PRINT_STATE_ABORT))
         printing_state = PRINT_STATE_HOMING;
 
+      st_synchronize();
       saved_feedrate = feedrate;
       saved_feedmultiply = feedmultiply;
       feedmultiply = 100;
@@ -1283,10 +1295,8 @@ void process_command(const char *strCmd, bool sendAck)
 
       enable_endstops(true);
 
-      for(int8_t i=0; i < NUM_AXIS; i++) {
-        destination[i] = current_position[i];
-      }
-          feedrate = 0.0;
+      memcpy(destination, current_position, sizeof(destination));
+      feedrate = 0.0;
 
 #ifdef DELTA
           // A delta can only safely home all axis at the same time
@@ -1936,6 +1946,7 @@ void process_command(const char *strCmd, bool sendAck)
       if (code_seen(strCmd, 'S')) max_inactive_time = code_value() * 1000;
       break;
     case 92: // M92
+      st_synchronize();
       for(int8_t i=0; i < NUM_AXIS; i++)
       {
         if(code_seen(strCmd, axis_codes[i]))
@@ -2972,49 +2983,30 @@ static void get_coordinates(const char *cmd)
         // e axis only
         if (echange<-MIN_RETRACT)
         {
-            // accumulate retract length during tool change
-            if (printing_state >= PRINT_STATE_TOOLCHANGE)
-            {
-                if(EXTRUDER_RETRACTED(active_extruder) || TOOLCHANGE_RETRACTED(active_extruder))
-                {
-                    if (printing_state == PRINT_STATE_TOOLCHANGE)
-                    {
-                        // additional toolchange retract
-                        retract_recover_length[active_extruder] -= echange;
-                    }
-                    else
-                    {
-                        // ignore additional retracts
-                        current_position[E_AXIS] = destination[E_AXIS];
-                        plan_set_e_position(current_position[E_AXIS]);
-                    }
-                }
-                else
-                {
-                    retract_recover_length[active_extruder] = -echange;
-                    SET_EXTRUDER_RETRACT(active_extruder);
-                }
-            }
-            else if (AUTORETRACT_ENABLED && !EXTRUDER_RETRACTED(active_extruder))
+            if (AUTORETRACT_ENABLED && !EXTRUDER_RETRACTED(active_extruder))
             {
                 destination[Z_AXIS]+=retract_zlift; //not sure why chaninging current_position negatively does not work.
                 //if slicer retracted by echange=-1mm and you want to retract 3mm, corrrectede=-2mm additionally
                 float correctede=-echange-retract_length;
                     //to generate the additional steps, not the destination is changed, but inversely the current position
                 current_position[E_AXIS]-=correctede;
+                st_synchronize();
                 plan_set_e_position(current_position[E_AXIS]);
                 retract_recover_length[active_extruder] -= correctede;
                 feedrate=retract_feedrate;
             }
             else
             {
-                // keep last retraction in mind
-                if (EXTRUDER_RETRACTED(active_extruder))
+                if(EXTRUDER_RETRACTED(active_extruder) || TOOLCHANGE_RETRACTED(active_extruder))
                 {
-                    retract_recover_length[active_extruder] -= echange;
+                    // ignore additional retracts
+                    st_synchronize();
+                    current_position[E_AXIS] = destination[E_AXIS];
+                    plan_set_e_position(current_position[E_AXIS]);
                 }
                 else
                 {
+                    // keep last retraction in mind
                     retract_recover_length[active_extruder] = -echange;
                 }
             }
@@ -3024,9 +3016,10 @@ static void get_coordinates(const char *cmd)
         {
             if(EXTRUDER_RETRACTED(active_extruder) || TOOLCHANGE_RETRACTED(active_extruder))
             {
-                // retraction recover after tool change
+                // retraction recover
                 float correctede=-echange+retract_recover_length[active_extruder]; //total unretract=retract_length+retract_recover_length[surplus]
                 current_position[E_AXIS]-=correctede; //to generate the additional steps, not the destination is changed, but inversely the current position
+                st_synchronize();
                 plan_set_e_position(current_position[E_AXIS]);
             }
             else if (AUTORETRACT_ENABLED && EXTRUDER_RETRACTED(active_extruder))
@@ -3035,6 +3028,7 @@ static void get_coordinates(const char *cmd)
                 //if slicer retracted_recovered by echange=+1mm and you want to retract_recover 3mm, corrrectede=2mm additionally
                 float correctede=-echange+1*retract_length+retract_recover_length[active_extruder]; //total unretract=retract_length+retract_recover_length[surplus]
                 current_position[E_AXIS]+=correctede; //to generate the additional steps, not the destination is changed, but inversely the current position
+                st_synchronize();
                 plan_set_e_position(current_position[E_AXIS]);
                 feedrate=retract_recover_feedrate[active_extruder];
             }
@@ -3046,17 +3040,12 @@ static void get_coordinates(const char *cmd)
     else if ((seen & (1 << E_AXIS)) && (EXTRUDER_RETRACTED(active_extruder) || TOOLCHANGE_RETRACTED(active_extruder)) && (echange>0.0f))
     {
         // first e-move after toolchange -> recover retraction
+        st_synchronize();
         plan_set_e_position(current_position[E_AXIS]-retract_recover_length[active_extruder]);
         plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], retract_recover_feedrate[active_extruder]/60, active_extruder);
         CLEAR_EXTRUDER_RETRACT(active_extruder);
         CLEAR_TOOLCHANGE_RETRACT(active_extruder);
 		retract_recover_length[active_extruder] = 0.0f;
-
-//        float olddest[NUM_AXIS];
-//        memcpy(olddest, destination, sizeof(olddest));
-//        process_command_P(PSTR("G11"));
-//        memcpy(destination, olddest, sizeof(destination));
-
     }
 #endif //FWRETRACT
 
