@@ -15,8 +15,8 @@
 #define TOOLCHANGE_STARTX 171
 #define TOOLCHANGE_STARTY DUAL_Y_MIN_POS
 #define WIPE_STARTX 60
-#define WIPE_DISTANCEX 37
-#define WIPE_DISTANCEY 2
+#define WIPE_DISTANCEX 35
+#define WIPE_DISTANCEY 4
 
 CommandBuffer cmdBuffer;
 
@@ -273,17 +273,10 @@ void CommandBuffer::processWipe(const uint8_t printState)
         printing_state = printState;
         check_axes_activity();
 
-//        // snip move
-//        CommandBuffer::moveHead(current_position[X_AXIS], TOOLCHANGE_STARTY, 125);
-
         // snip move
-        CommandBuffer::moveHead(current_position[X_AXIS], current_position[Y_AXIS]+(WIPE_DISTANCEY*2), 125);
+        CommandBuffer::moveHead(current_position[X_AXIS], current_position[Y_AXIS]+WIPE_DISTANCEY, 150);
         // diagonal move
-        CommandBuffer::moveHead(current_position[X_AXIS]+WIPE_DISTANCEY, current_position[Y_AXIS]-WIPE_DISTANCEY, 125);
-
-        // back to start pos
-        CommandBuffer::moveHead(wipe_position[X_AXIS]+extruder_offset[X_AXIS][active_extruder], current_position[Y_AXIS], 125);
-        CommandBuffer::moveHead(current_position[X_AXIS], TOOLCHANGE_STARTY, 200);
+        CommandBuffer::moveHead(current_position[X_AXIS]+WIPE_DISTANCEY, TOOLCHANGE_STARTY, 125);
 	}
     // small retract after wipe
     relative_e_move(length*-0.1, toolchange_retractfeedrate[active_extruder]/60, active_extruder);
