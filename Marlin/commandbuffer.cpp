@@ -218,7 +218,7 @@ void CommandBuffer::processT1(bool bRetract, bool bWipe)
         CommandBuffer::move2dock(bRetract);
         CommandBuffer::moveHead(TOOLCHANGE_STARTX, dock_position[Y_AXIS], 50);
 
-        if (!bWipe | !bRetract)
+        if (!bWipe || !bRetract)
         {
             CommandBuffer::moveHead(TOOLCHANGE_STARTX, TOOLCHANGE_STARTY, 200);
         }

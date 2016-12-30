@@ -39,7 +39,8 @@
 			<Add option="-DTEMP_SENSOR_1=20" />
 			<Add option="-DFILAMENT_SENSOR_PIN=-1" />
 			<Add option="-DBABYSTEPPING" />
-			<Add option="-DDUAL_FAN" />
+			<Add option="-DFAN2_PIN=6" />
+			<Add option="-DHOTEND_FAN2_PIN=14" />
 			<Add option="-DTEMP_SENSOR_BED=20" />
 			<Add option="-DHEATER_0_MAXTEMP=325" />
 			<Add option="-DHEATER_1_MAXTEMP=325" />

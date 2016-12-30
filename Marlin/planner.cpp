@@ -505,25 +505,32 @@ void check_axes_activity()
       fan_kick_end = 0;
     }
   #endif//FAN_KICKSTART_TIME
-  #ifdef FAN_SOFT_PWM
+#if defined(FAN_SOFT_PWM) || defined(FAN2_SOFT_PWM)
   fanSpeedSoftPwm = tail_fan_speed;
-  #else
+#endif
+#ifndef FAN_SOFT_PWM
   analogWrite(FAN_PIN, tail_fan_speed);
- #ifdef DUAL_FAN
-  analogWrite(LED_PIN, (active_extruder>0) ? tail_fan_speed : 0);
+#endif//!FAN_SOFT_PWM
+
+ #if defined(FAN2_PIN) && FAN2_PIN > -1
+  #ifndef FAN2_SOFT_PWM
+  analogWrite(FAN2_PIN, (active_extruder>0) ? tail_fan_speed : 0);
+  #endif
  #endif
-  #endif//!FAN_SOFT_PWM
   }
   else
   {
-    #ifdef FAN_SOFT_PWM
+  #if defined(FAN_SOFT_PWM) || defined(FAN2_SOFT_PWM)
     fanSpeedSoftPwm = 0;
-    #else
+  #endif
+  #ifndef FAN_SOFT_PWM
     analogWrite(FAN_PIN, 0);
-    #ifdef DUAL_FAN
-    analogWrite(LED_PIN, 0);
-    #endif
-    #endif//!FAN_SOFT_PWM
+  #endif
+  #if defined(FAN2_PIN) && FAN2_PIN > -1
+   #ifndef FAN2_SOFT_PWM
+    analogWrite(FAN2_PIN, 0);
+   #endif
+  #endif
   }
 #endif//FAN_PIN > -1
 #ifdef AUTOTEMP

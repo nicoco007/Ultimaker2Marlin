@@ -77,7 +77,7 @@ float current_temperature_bed = 0.0;
   float bedKd=(DEFAULT_bedKd/PID_dT);
 #endif //PIDTEMPBED
 
-#ifdef FAN_SOFT_PWM
+#if defined(FAN_SOFT_PWM) || defined(FAN2_SOFT_PWM)
   unsigned char fanSpeedSoftPwm;
 #endif
 
@@ -125,7 +125,7 @@ static volatile bool temp_meas_ready = false;
 #endif
   static unsigned char soft_pwm_bed;
   static unsigned char soft_pwm[EXTRUDERS];
-#ifdef FAN_SOFT_PWM
+#if defined(FAN_SOFT_PWM) || defined(FAN2_SOFT_PWM)
   static unsigned char soft_pwm_fan;
 #endif
 #if (defined(EXTRUDER_0_AUTO_FAN_PIN) && EXTRUDER_0_AUTO_FAN_PIN > -1) || \
@@ -635,14 +635,29 @@ void manage_heater()
   }
   #endif
 
+  // separate fan controls for the second printhead?
+  #if (EXTRUDERS > 1) && defined(HOTEND_FAN2_PIN) && (HOTEND_FAN2_PIN > -1)
+    if (current_temperature[1] > EXTRUDER_AUTO_FAN_TEMPERATURE
+#if (EXTRUDERS > 2)
+        || current_temperature[2] > EXTRUDER_AUTO_FAN_TEMPERATURE
+#endif
+       )
+    {
+        WRITE(HOTEND_FAN2_PIN, 1);
+    }
+    else
+    {
+        WRITE(HOTEND_FAN2_PIN, 0);
+    }
+  #endif
   {
     //For the UM2 the head fan is connected to PJ6, which does not have an Arduino PIN definition. So use direct register access.
     DDRJ |= _BV(6);
     if (current_temperature[0] > EXTRUDER_AUTO_FAN_TEMPERATURE
-#if EXTRUDERS > 1
+#if (EXTRUDERS > 1) && (!defined(HOTEND_FAN2_PIN) || (HOTEND_FAN2_PIN < 0))
         || current_temperature[1] > EXTRUDER_AUTO_FAN_TEMPERATURE
 #endif
-#if EXTRUDERS > 2
+#if (EXTRUDERS > 2) && (!defined(HOTEND_FAN2_PIN) || (HOTEND_FAN2_PIN < 0))
         || current_temperature[2] > EXTRUDER_AUTO_FAN_TEMPERATURE
 #endif
         )
@@ -652,6 +667,7 @@ void manage_heater()
         PORTJ &=~_BV(6);
     }
   }
+
 
   #if TEMP_SENSOR_BED != 0
 
@@ -885,8 +901,22 @@ void tp_init()
     setPwmFrequency(FAN_PIN, 1); // No prescaling. Pwm frequency = F_CPU/256/8
     #endif
     #ifdef FAN_SOFT_PWM
-    soft_pwm_fan = fanSpeedSoftPwm / 2;
+      soft_pwm_fan = fanSpeedSoftPwm / 2;
     #endif
+  #endif
+  #if defined(FAN2_PIN) && (FAN2_PIN > -1)
+    SET_OUTPUT(FAN2_PIN);
+    WRITE(FAN2_PIN, 0);
+    #ifdef FAST_PWM_FAN
+    setPwmFrequency(FAN2_PIN, 1); // No prescaling. Pwm frequency = F_CPU/256/8
+    #endif
+    #ifdef FAN2_SOFT_PWM
+        soft_pwm_fan = fanSpeedSoftPwm / 2;
+    #endif
+  #endif
+  #if defined(HOTEND_FAN2_PIN) && (HOTEND_FAN2_PIN > -1)
+    SET_OUTPUT(HOTEND_FAN2_PIN);
+    WRITE(HOTEND_FAN2_PIN, 0);
   #endif
 
   #ifdef HEATER_0_USES_MAX6675
@@ -1246,10 +1276,17 @@ ISR(TIMER0_COMPB_vect)
     #if defined(HEATER_BED_PIN) && HEATER_BED_PIN > -1
     soft_pwm_b = soft_pwm_bed;
     #endif
-    #ifdef FAN_SOFT_PWM
+    #if defined(FAN_SOFT_PWM) || defined(FAN2_SOFT_PWM)
     soft_pwm_fan = fanSpeedSoftPwm / 2;
+    #endif
+    #ifdef FAN_SOFT_PWM
     if(soft_pwm_fan > 0) WRITE(FAN_PIN,1);
     #endif
+  #if defined(FAN2_PIN) && FAN2_PIN > -1
+    #ifdef FAN2_SOFT_PWM
+      if (active_extruder && (soft_pwm_fan > 0)) WRITE(FAN2_PIN,1);
+    #endif
+  #endif
   }
   if(soft_pwm_0 <= pwm_count) WRITE(HEATER_0_PIN,0);
   #if EXTRUDERS > 1
@@ -1286,7 +1323,11 @@ ISR(TIMER0_COMPB_vect)
   #ifdef FAN_SOFT_PWM
   if(soft_pwm_fan <= pwm_count) WRITE(FAN_PIN,0);
   #endif
-
+  #if defined(FAN2_PIN) && FAN2_PIN > -1
+    #ifdef FAN2_SOFT_PWM
+      if (!active_extruder || (soft_pwm_fan <= pwm_count)) WRITE(FAN2_PIN,0);
+    #endif
+  #endif
   pwm_count += (1 << SOFT_PWM_SCALE);
   pwm_count &= 0x7f;
 

@@ -131,7 +131,7 @@ static void lcd_preferences_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
         strcpy_P(buffer, PSTR("< RETURN"));
     else if (nr == index++)
         strcpy_P(buffer, PSTR("User interface"));
-#ifndef DUAL_FAN
+#if FAN2_PIN != LED_PIN
     else if (nr == index++)
         strcpy_P(buffer, PSTR("LED settings"));
 #endif
@@ -170,7 +170,7 @@ static void lcd_preferences_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
 static void lcd_preferences_details(uint8_t nr)
 {
     char buffer[32] = {0};
-#ifdef DUAL_FAN
+#if FAN2_PIN == LED_PIN
     if (nr > 1) ++nr;
 #endif
     if (nr == 1)
@@ -184,7 +184,7 @@ static void lcd_preferences_details(uint8_t nr)
             strcpy_P(buffer, PSTR("Standard Mode"));
         }
     }
-#ifndef DUAL_FAN
+#if FAN2_PIN != LED_PIN
     else if (nr == 2)
     {
         int_to_string(led_brightness_level, buffer, PSTR("%"));
@@ -590,7 +590,7 @@ static void lcd_menu_maintenance_motion()
     lcd_lib_update_screen();
 }
 
-#ifndef DUAL_FAN
+#if FAN2_PIN != LED_PIN
 static void lcd_led_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
 {
     char buffer[32] = {0};
@@ -674,7 +674,7 @@ static void lcd_menu_maintenance_led()
     }
     lcd_lib_update_screen();
 }
-#endif // DUAL_FAN
+#endif
 
 static void lcd_uimode_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
 {
@@ -827,7 +827,7 @@ static void lcd_menu_screen_contrast()
 
 static void lcd_menu_preferences()
 {
-#ifndef DUAL_FAN
+#if FAN2_PIN != LED_PIN
     lcd_scroll_menu(PSTR("PREFERENCES"), BED_MENU_OFFSET + 13, lcd_preferences_item, lcd_preferences_details);
 #else
     lcd_scroll_menu(PSTR("PREFERENCES"), BED_MENU_OFFSET + 12, lcd_preferences_item, lcd_preferences_details);
@@ -839,7 +839,7 @@ static void lcd_menu_preferences()
             menu.return_to_previous();
         else if (IS_SELECTED_SCROLL(index++))
             menu.add_menu(menu_t(lcd_menu_uimode));
-#ifndef DUAL_FAN
+#if FAN2_PIN != LED_PIN
         else if (IS_SELECTED_SCROLL(index++))
             menu.add_menu(menu_t(init_maintenance_led, lcd_menu_maintenance_led, NULL));
 #endif

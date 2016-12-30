@@ -218,7 +218,7 @@ extern int EtoPPressure;
 #endif
 extern bool position_error;
 
-#ifdef FAN_SOFT_PWM
+#if defined(FAN_SOFT_PWM) || defined(FAN2_SOFT_PWM)
 extern unsigned char fanSpeedSoftPwm;
 #endif
 

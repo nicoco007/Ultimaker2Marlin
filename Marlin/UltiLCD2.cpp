@@ -58,7 +58,7 @@ void lcd_init()
     lcd_clearstatus();
     menu.init_menu(menu_t(lcd_menu_main, MAIN_MENU_ITEM_POS(0)), false);
     menu.add_menu(menu_t(lcd_menu_startup), false);
-#ifndef DUAL_FAN
+#if FAN2_PIN != LED_PIN
     analogWrite(LED_PIN, 0);
 #endif
     lastSerialCommandTime = millis() - SERIAL_CONTROL_TIMEOUT;
@@ -203,13 +203,13 @@ void lcd_menu_startup()
     }
     lcd_lib_update_screen();
 
-#ifndef DUAL_FAN
+#if FAN2_PIN != LED_PIN
     if (led_mode == LED_MODE_ALWAYS_ON)
         analogWrite(LED_PIN, int(led_glow << 1) * led_brightness_level / 100);
 #endif
     if (led_glow_dir || lcd_lib_button_pressed)
     {
-#ifndef DUAL_FAN
+#if FAN2_PIN != LED_PIN
         if (led_mode == LED_MODE_ALWAYS_ON)
             analogWrite(LED_PIN, 255 * led_brightness_level / 100);
 #endif

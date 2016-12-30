@@ -3257,7 +3257,7 @@ void idle()
 static void manage_inactivity()
 {
   checkFilamentSensor();
-#ifndef DUAL_FAN
+#if FAN2_PIN != LED_PIN
   manage_led_timeout();
 #endif
 

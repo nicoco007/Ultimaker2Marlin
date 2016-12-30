@@ -1258,6 +1258,29 @@
 #endif
 //@NEB
 
+//fan connectors of the second printhead (Mark2)
+#ifndef FAN2_PIN
+#define FAN2_PIN                    -1
+#endif
+#ifndef HOTEND_FAN2_PIN
+#define HOTEND_FAN2_PIN             -1
+#endif
+
+// undefine lcd pins, if they are used elsewhere...
+#if LCD_PINS_ENABLE == FAN2_PIN || LCD_PINS_ENABLE == HOTEND_FAN2_PIN
+  #undef LCD_PINS_ENABLE
+  #define LCD_PINS_ENABLE            -1
+#endif
+#if LCD_PINS_D4 == FAN2_PIN || LCD_PINS_D4 == HOTEND_FAN2_PIN
+  #undef LCD_PINS_D4
+  #define LCD_PINS_D4            -1
+#endif
+#if LCD_PINS_D7 == FAN2_PIN || LCD_PINS_D7 == HOTEND_FAN2_PIN
+  #undef LCD_PINS_D7
+  #define LCD_PINS_D7            -1
+#endif
+
+
 #endif//MOTHERBOARD == 72
 
 /****************************************************************************************

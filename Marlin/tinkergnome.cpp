@@ -274,7 +274,7 @@ static void lcd_start_babystepping()
 }
 #endif // ENABLED
 
-#ifndef DUAL_FAN
+#if FAN2_PIN != LED_PIN
 static void lcd_toggle_led()
 {
     // toggle led status
@@ -309,7 +309,7 @@ static const menu_t & get_print_menuoption(uint8_t nr, menu_t &opt)
 
             }
         }
-#ifndef DUAL_FAN
+#if FAN2_PIN != LED_PIN
         else if (nr == menu_index++)
         {
             opt.setData(MENU_NORMAL, lcd_toggle_led);
@@ -335,7 +335,7 @@ static const menu_t & get_print_menuoption(uint8_t nr, menu_t &opt)
     else
     {
         if (nr == menu_index++)
-#ifndef DUAL_FAN
+#if FAN2_PIN != LED_PIN
         {
             opt.setData(MENU_NORMAL, lcd_toggle_led);
         }
@@ -863,7 +863,7 @@ static void drawPrintSubmenu (uint8_t nr, uint8_t &flags)
                 lcd_lib_draw_gfx(LCD_GFX_WIDTH/2 - 4, BOTTOM_MENU_YPOS, toolGfx);
             }
         }
-#ifndef DUAL_FAN
+#if FAN2_PIN != LED_PIN
         else if (nr == index++)
         {
             if (flags & MENU_SELECTED)
@@ -966,7 +966,7 @@ static void drawPrintSubmenu (uint8_t nr, uint8_t &flags)
     else // first page
     {
         if (nr == index++)
-#ifndef DUAL_FAN
+#if FAN2_PIN != LED_PIN
         {
             if (flags & MENU_SELECTED)
             {
@@ -1505,7 +1505,7 @@ void lcd_menu_printing_tg()
 #else
   #define BABYSTEPPING_MENU_OFFSET 0
 #endif
-#ifdef DUAL_FAN
+#if FAN2_PIN == LED_PIN
   #define LED_MENU_OFFSET 0
 #else
   #define LED_MENU_OFFSET 1
@@ -2577,7 +2577,7 @@ void lcd_menu_move_axes()
     lcd_lib_update_screen();
 }
 
-#ifndef DUAL_FAN
+#if FAN2_PIN != LED_PIN
 void manage_led_timeout()
 {
     if ((led_timeout > 0) && !(sleep_state & SLEEP_LED_OFF))

@@ -135,7 +135,7 @@ void abortPrint()
     //If we where paused, make sure we abort that pause. Else strange things happen: https://github.com/Ultimaker/Ultimaker2Marlin/issues/32
     card.stopPrinting();
     printing_state = PRINT_STATE_NORMAL;
-#ifndef DUAL_FAN
+#if FAN2_PIN != LED_PIN
     if (led_mode == LED_MODE_WHILE_PRINTING)
         analogWrite(LED_PIN, 0);
 #endif
@@ -602,7 +602,7 @@ void lcd_menu_print_select()
                 card.openFile(card.currentFileName(), true);
                 if (card.isFileOpen() && !commands_queued())
                 {
-#ifndef DUAL_FAN
+#if FAN2_PIN != LED_PIN
                     if (led_mode == LED_MODE_WHILE_PRINTING || led_mode == LED_MODE_BLINK_ON_DONE)
                         analogWrite(LED_PIN, 255 * int(led_brightness_level) / 100);
 #endif
@@ -1002,7 +1002,7 @@ void lcd_menu_print_abort()
 static void postPrintReady()
 {
     sleep_state &= ~SLEEP_LED_OFF;
-#ifndef DUAL_FAN
+#if FAN2_PIN != LED_PIN
     if (led_mode == LED_MODE_BLINK_ON_DONE)
         analogWrite(LED_PIN, 0);
 #endif
@@ -1011,7 +1011,7 @@ static void postPrintReady()
 
 void lcd_menu_print_ready()
 {
-#ifndef DUAL_FAN
+#if FAN2_PIN != LED_PIN
     if ((led_mode == LED_MODE_BLINK_ON_DONE) && !(sleep_state & SLEEP_LED_OFF))
         analogWrite(LED_PIN, (led_glow << 1) * int(led_brightness_level) / 100);
 #endif
@@ -1127,7 +1127,7 @@ static void tune_item_callback(uint8_t nr, uint8_t offsetY, uint8_t flags)
     else if (index++ == nr)
         strcpy_P(buffer, PSTR("Extruder offset"));
 #endif
-#ifndef DUAL_FAN
+#if FAN2_PIN != LED_PIN
     else if (index++ == nr)
         strcpy_P(buffer, PSTR("LED Brightness"));
 #endif
@@ -1170,7 +1170,7 @@ static void tune_item_details_callback(uint8_t nr)
     else if (nr == 4 + BED_MENU_OFFSET + EXTRUDERS)
         int_to_string(extrudemultiply[1], buffer, PSTR("%"));
 #endif
-#ifndef DUAL_FAN
+#if FAN2_PIN != LED_PIN
     else if (nr == 1 + BED_MENU_OFFSET + 5*EXTRUDERS)
     {
         int_to_string(led_brightness_level, buffer, PSTR("%"));
@@ -1265,7 +1265,7 @@ void lcd_menu_print_tune_heatup_nozzle1()
 
 void lcd_menu_print_tune()
 {
-#ifndef DUAL_FAN
+#if FAN2_PIN != LED_PIN
     uint8_t len = 2 + BED_MENU_OFFSET + EXTRUDERS * 5;
 #else
     uint8_t len = 1 + BED_MENU_OFFSET + EXTRUDERS * 5;
@@ -1324,7 +1324,7 @@ void lcd_menu_print_tune()
         else if (IS_SELECTED_SCROLL(index++))
             menu.add_menu(menu_t(lcd_init_extruderoffset, lcd_menu_extruderoffset, lcd_calc_extruderoffset, MAIN_MENU_ITEM_POS(1)));
 #endif
-#ifndef DUAL_FAN
+#if FAN2_PIN != LED_PIN
         else if (IS_SELECTED_SCROLL(index++))
             LCD_EDIT_SETTING(led_brightness_level, "Brightness", "%", 0, 100);
 #endif
