@@ -1,0 +1,24 @@
+#ifndef WATTAGEDIST_H
+#define WATTAGEDIST_H
+
+// default values for wattage distribution
+#define DEFAULT_WATTAGE_BUDGET     160
+#define DEFAULT_WATTAGE_EXTRUDER    35
+#define DEFAULT_WATTAGE_BUILDPLATE 120
+
+// min/max allowed input value
+#define WATTAGE_MINVALUE             0
+#define WATTAGE_MAXVALUE           999
+
+extern uint16_t wattage_budget;
+extern uint16_t wattage_buildplate;
+extern uint16_t wattage_extruder[EXTRUDERS];
+
+void Wattage_RetrieveSettings();
+
+#ifdef ENABLE_ULTILCD2
+// menu function
+void lcd_menu_wattage();
+#endif
+
+#endif //ULTILCD2_MENU_PREFS_H

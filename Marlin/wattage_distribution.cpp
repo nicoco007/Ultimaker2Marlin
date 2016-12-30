@@ -1,0 +1,355 @@
+#include "Configuration.h"
+#include "Marlin.h"
+#include "wattage_distribution.h"
+
+#ifdef ENABLE_ULTILCD2
+#include "UltiLCD2_hi_lib.h"
+#include "UltiLCD2_menu_utils.h"
+#endif
+
+uint16_t wattage_budget=DEFAULT_WATTAGE_BUDGET;
+uint16_t wattage_buildplate=DEFAULT_WATTAGE_BUILDPLATE;
+uint16_t wattage_extruder[EXTRUDERS]=ARRAY_BY_EXTRUDERS(DEFAULT_WATTAGE_EXTRUDER, DEFAULT_WATTAGE_EXTRUDER, DEFAULT_WATTAGE_EXTRUDER);
+
+
+/////
+
+#ifdef EEPROM_SETTINGS
+
+//Random number to verify that the settings are already written to the EEPROM
+#define EEPROM_WATTAGE_MAGIC 0x1E23D465
+
+#define WATTAGE_PREFIX              'g'
+#define WATTAGE_POSTFIX             'r'
+
+#define EEPROM_WATTAGE_START        0x03FC  //  4 Byte Magic number
+#define EEPROM_WATTAGE_VERSION      0x03FA  //  2 Byte Version
+#define EEPROM_WATTAGE_PREFIX       0x03F9  //  1 Byte "g"
+#define EEPROM_WATTAGE_BUDGET       0x03F7  //  2 Byte budget
+#define EEPROM_WATTAGE_BUILDPATE    0x03F5  //  2 Byte buildplate
+#define EEPROM_WATTAGE_EXTRUDER     0x03F1  //  4 Byte 2x extruder
+#define EEPROM_WATTAGE_POSTFIX      0x03F0  //  1 Byte "r"
+
+// IMPORTANT:  Whenever there are changes made to the variables stored in EEPROM
+// in the functions below, also increment the version number. This makes sure that
+// the default values are used whenever there is a change to the data, to prevent
+// wrong data being written to the variables.
+#define STORE_WATTAGE_VERSION 0
+
+
+static bool Wattage_RetrieveVersion(uint16_t &version)
+{
+    uint32_t magic = eeprom_read_dword((uint32_t*)(EEPROM_WATTAGE_START));
+    char prefix = eeprom_read_byte((const uint8_t*)EEPROM_WATTAGE_PREFIX);
+    char postfix = eeprom_read_byte((const uint8_t*)EEPROM_WATTAGE_POSTFIX);
+    if ((magic == EEPROM_WATTAGE_MAGIC) && (prefix == WATTAGE_PREFIX) && (postfix == WATTAGE_POSTFIX))
+    {
+        version = eeprom_read_word((const uint16_t*)EEPROM_WATTAGE_VERSION);
+        return true;
+    }
+    return false;
+}
+
+//void Wattage_ClearStorage()
+//{
+//    // invalidate data
+//    eeprom_write_dword((uint32_t*)(EEPROM_WATTAGE_START), 0);
+//}
+
+void Wattage_RetrieveSettings()
+{
+    uint16_t version;
+    // check storage
+    bool bValid = Wattage_RetrieveVersion(version);
+    if (bValid)
+    {
+        wattage_budget     = eeprom_read_word((const uint16_t*)EEPROM_WATTAGE_BUDGET);
+        wattage_buildplate = eeprom_read_word((const uint16_t*)EEPROM_WATTAGE_BUILDPATE);
+
+        // read extruder wattage
+        uint16_t tmp_array[2];
+        eeprom_read_block(tmp_array, (uint8_t*)EEPROM_WATTAGE_EXTRUDER, sizeof(tmp_array));
+        wattage_extruder[0] = tmp_array[0];
+      #if EXTRUDERS > 1
+        for (uint8_t e=1; e<EXTRUDERS; ++e)
+        {
+            wattage_extruder[e] = tmp_array[1];
+        }
+      #endif
+    }
+}
+
+static void Wattage_SaveSettings()
+{
+    uint16_t version;
+    // check storage
+    bool bValid = Wattage_RetrieveVersion(version);
+
+    // write values to EEPROM
+    eeprom_write_word((uint16_t*)EEPROM_WATTAGE_BUDGET, wattage_budget);
+    eeprom_write_word((uint16_t*)EEPROM_WATTAGE_BUILDPATE, wattage_buildplate);
+
+    uint16_t tmp_array[2];
+    tmp_array[0] = wattage_extruder[0];
+  #if EXTRUDERS > 1
+    tmp_array[1] = wattage_extruder[1];
+  #else
+    tmp_array[1] = wattage_extruder[0];
+  #endif
+    eeprom_write_block(tmp_array, (uint8_t*)EEPROM_WATTAGE_EXTRUDER, sizeof(tmp_array));
+
+    if (!bValid)
+    {
+        // validate stored data
+        // version = STORE_WATTAGE_VERSION;
+        eeprom_write_word((uint16_t*)EEPROM_WATTAGE_VERSION, STORE_WATTAGE_VERSION);
+        eeprom_write_dword((uint32_t*)(EEPROM_WATTAGE_START), EEPROM_WATTAGE_MAGIC);
+        eeprom_write_byte((uint8_t*)EEPROM_WATTAGE_PREFIX, WATTAGE_PREFIX);
+        eeprom_write_byte((uint8_t*)EEPROM_WATTAGE_POSTFIX, WATTAGE_POSTFIX);
+    }
+
+}
+
+  #define STORE_MENU_OFFSET   1
+#else
+  void Wattage_RetrieveSettings() {}
+  #define STORE_MENU_OFFSET   0
+#endif // EEPROM_SETTINGS
+
+
+#ifdef ENABLE_ULTILCD2
+
+#define WATTAGE_MENU_LEN   STORE_MENU_OFFSET+BED_MENU_OFFSET+EXTRUDERS+2
+
+
+static void lcd_wattage_store()
+{
+    Wattage_SaveSettings();
+    menu.return_to_previous();
+}
+
+static void lcd_wattage_budget()
+{
+    lcd_tune_value(wattage_budget, WATTAGE_MINVALUE, WATTAGE_MAXVALUE);
+}
+
+#if (TEMP_SENSOR_BED != 0)
+static void lcd_wattage_buildplate()
+{
+    lcd_tune_value(wattage_buildplate, WATTAGE_MINVALUE, WATTAGE_MAXVALUE);
+}
+#endif
+
+static void lcd_wattage_extruder0()
+{
+    lcd_tune_value(wattage_extruder[0], WATTAGE_MINVALUE, WATTAGE_MAXVALUE);
+}
+
+#if (EXTRUDERS > 1)
+static void lcd_wattage_extruder1()
+{
+    lcd_tune_value(wattage_extruder[1], WATTAGE_MINVALUE, WATTAGE_MAXVALUE);
+}
+#endif
+
+static const menu_t & get_wattage_menuoption(uint8_t nr, menu_t &opt)
+{
+    uint8_t menu_index = 0;
+
+#if STORE_MENU_OFFSET > 0
+    if (nr == menu_index++)
+    {
+        opt.setData(MENU_NORMAL, lcd_wattage_store);
+    }
+    else if (nr == menu_index++)
+#else
+    if (nr == menu_index++)
+#endif // STORE_MENU_OFFSET
+    {
+        opt.setData(MENU_NORMAL, lcd_change_to_previous_menu);
+    }
+    else if (nr == menu_index++)
+    {
+        opt.setData(MENU_INPLACE_EDIT, lcd_wattage_budget, 4);
+    }
+#if (TEMP_SENSOR_BED != 0)
+    else if (nr == menu_index++)
+    {
+        opt.setData(MENU_INPLACE_EDIT, lcd_wattage_buildplate, 4);
+    }
+#endif
+    else if (nr == menu_index++)
+    {
+        opt.setData(MENU_INPLACE_EDIT, lcd_wattage_extruder0, 4);
+    }
+#if (EXTRUDERS > 1)
+    else if (nr == menu_index++)
+    {
+        opt.setData(MENU_INPLACE_EDIT, lcd_wattage_extruder1, 4);
+    }
+#endif
+    return opt;
+}
+
+static void drawWattageSubmenu (uint8_t nr, uint8_t &flags)
+{
+    uint8_t index(0);
+    char buffer[32] = {0};
+
+    const uint8_t ylineoffset = 15 - (2*BED_MENU_OFFSET) - (2*EXTRUDERS);
+
+#if STORE_MENU_OFFSET > 0
+    if (nr == index++)
+    {
+        if (flags & MENU_SELECTED)
+        {
+            lcd_lib_draw_string_leftP(4, PSTR("Store options"));
+            flags |= MENU_STATUSLINE;
+        }
+        LCDMenu::drawMenuString_P(LCD_CHAR_MARGIN_LEFT + 1
+                          , BOTTOM_MENU_YPOS
+                          , 52
+                          , LCD_CHAR_HEIGHT
+                          , PSTR("STORE")
+                          , ALIGN_CENTER
+                          , flags);
+    }
+    else if (nr == index++)
+#else
+    if (nr == index++)
+#endif
+    {
+        LCDMenu::drawMenuBox(LCD_GFX_WIDTH/2 + 2*LCD_CHAR_MARGIN_LEFT
+                           , BOTTOM_MENU_YPOS
+                           , 52
+                           , LCD_CHAR_HEIGHT
+                           , flags);
+        if (flags & MENU_SELECTED)
+        {
+            lcd_lib_draw_string_leftP(4, PSTR("Click to return"));
+            flags |= MENU_STATUSLINE;
+            lcd_lib_clear_stringP(LCD_GFX_WIDTH/2 + LCD_CHAR_MARGIN_LEFT + 4*LCD_CHAR_SPACING, BOTTOM_MENU_YPOS, PSTR("BACK"));
+            lcd_lib_clear_gfx(LCD_GFX_WIDTH/2 + LCD_CHAR_MARGIN_LEFT + 2*LCD_CHAR_SPACING, BOTTOM_MENU_YPOS, backGfx);
+        }
+        else
+        {
+            lcd_lib_draw_stringP(LCD_GFX_WIDTH/2 + LCD_CHAR_MARGIN_LEFT + 4*LCD_CHAR_SPACING, BOTTOM_MENU_YPOS, PSTR("BACK"));
+            lcd_lib_draw_gfx(LCD_GFX_WIDTH/2 + LCD_CHAR_MARGIN_LEFT + 2*LCD_CHAR_SPACING, BOTTOM_MENU_YPOS, backGfx);
+        }
+    }
+    else if (nr == index++)
+    {
+        // Wattage Budget
+        if (flags & (MENU_SELECTED | MENU_ACTIVE))
+        {
+            lcd_lib_draw_string_leftP(4, PSTR("Total Wattage Budget"));
+            flags |= MENU_STATUSLINE;
+        }
+
+        uint8_t ypos = (18 - BED_MENU_OFFSET - EXTRUDERS) + ((nr-2)*ylineoffset);
+        lcd_lib_draw_string_leftP(ypos, PSTR("Total"));
+        int_to_string(wattage_budget, buffer, PSTR("W"));
+        LCDMenu::drawMenuString(LCD_CHAR_MARGIN_LEFT+11*LCD_CHAR_SPACING
+                          , ypos
+                          , 4*LCD_CHAR_SPACING
+                          , LCD_CHAR_HEIGHT
+                          , buffer
+                          , ALIGN_RIGHT | ALIGN_VCENTER
+                          , flags);
+    }
+#if (TEMP_SENSOR_BED != 0)
+    else if (nr == index++)
+    {
+        // Wattage Buildplate
+        if (flags & (MENU_SELECTED | MENU_ACTIVE))
+        {
+            lcd_lib_draw_string_leftP(4, PSTR("Wattage Buildplate"));
+            flags |= MENU_STATUSLINE;
+        }
+
+        uint8_t ypos = (18 - BED_MENU_OFFSET - EXTRUDERS) + ((nr-2)*ylineoffset);
+        lcd_lib_draw_string_leftP(ypos, PSTR("Buildplate"));
+        int_to_string(wattage_buildplate, buffer, PSTR("W"));
+        LCDMenu::drawMenuString(LCD_CHAR_MARGIN_LEFT+11*LCD_CHAR_SPACING
+                          , ypos
+                          , 4*LCD_CHAR_SPACING
+                          , LCD_CHAR_HEIGHT
+                          , buffer
+                          , ALIGN_RIGHT | ALIGN_VCENTER
+                          , flags);
+    }
+#endif
+    else if (nr == index++)
+    {
+        // Wattage Extruder 0
+        if (flags & (MENU_SELECTED | MENU_ACTIVE))
+        {
+            lcd_lib_draw_string_leftP(4, PSTR("Wattage Extruder"));
+          #if EXTRUDERS > 1
+            lcd_lib_draw_stringP(LCD_CHAR_MARGIN_LEFT+17*LCD_CHAR_SPACING, 4, PSTR("1"));
+          #endif
+            flags |= MENU_STATUSLINE;
+        }
+
+        uint8_t ypos = (18 - BED_MENU_OFFSET - EXTRUDERS) + ((nr-2)*ylineoffset);
+        lcd_lib_draw_string_leftP(ypos, PSTR("Extruder"));
+      #if EXTRUDERS > 1
+        lcd_lib_draw_stringP(LCD_CHAR_MARGIN_LEFT+9*LCD_CHAR_SPACING, ypos, PSTR("1"));
+      #endif
+        int_to_string(wattage_extruder[0], buffer, PSTR("W"));
+        LCDMenu::drawMenuString(LCD_CHAR_MARGIN_LEFT+11*LCD_CHAR_SPACING
+                          , ypos
+                          , 4*LCD_CHAR_SPACING
+                          , LCD_CHAR_HEIGHT
+                          , buffer
+                          , ALIGN_RIGHT | ALIGN_VCENTER
+                          , flags);
+    }
+#if EXTRUDERS > 1
+    else if (nr == index++)
+    {
+        // Wattage Extruder 1
+        if (flags & (MENU_SELECTED | MENU_ACTIVE))
+        {
+            lcd_lib_draw_string_leftP(4, PSTR("Wattage Extruder 2"));
+          #if EXCTRUDERS > 1
+            lcd_lib_draw_stringP(LCD_CHAR_MARGIN_LEFT+17*LCD_CHAR_SPACING, 5, PSTR("1"));
+          #endif
+            flags |= MENU_STATUSLINE;
+        }
+
+        uint8_t ypos = (18 - BED_MENU_OFFSET - EXTRUDERS) + ((nr-2)*ylineoffset);
+        lcd_lib_draw_string_leftP(ypos, PSTR("Extruder 2"));
+        int_to_string(wattage_extruder[1], buffer, PSTR("W"));
+        LCDMenu::drawMenuString(LCD_CHAR_MARGIN_LEFT+11*LCD_CHAR_SPACING
+                          , ypos
+                          , 4*LCD_CHAR_SPACING
+                          , LCD_CHAR_HEIGHT
+                          , buffer
+                          , ALIGN_RIGHT | ALIGN_VCENTER
+                          , flags);
+    }
+#endif
+}
+
+void lcd_menu_wattage()
+{
+    lcd_basic_screen();
+    lcd_lib_draw_hline(3, 124, 12);
+
+    menu.process_submenu(get_wattage_menuoption, WATTAGE_MENU_LEN);
+
+    uint8_t flags = 0;
+    for (uint8_t index=0; index<WATTAGE_MENU_LEN; ++index) {
+        menu.drawSubMenu(drawWattageSubmenu, index, flags);
+    }
+
+    if (!(flags & MENU_STATUSLINE))
+    {
+        lcd_lib_draw_string_leftP(4, PSTR("Wattage Distribution"));
+    }
+
+    lcd_lib_update_screen();
+}
+
+#endif // ENABLE_ULTILCD2

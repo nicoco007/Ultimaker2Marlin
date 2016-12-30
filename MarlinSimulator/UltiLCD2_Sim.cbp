@@ -124,6 +124,8 @@
 		<Unit filename="../Marlin/tinkergnome.h" />
 		<Unit filename="../Marlin/watchdog.cpp" />
 		<Unit filename="../Marlin/watchdog.h" />
+		<Unit filename="../Marlin/wattage_distribution.cpp" />
+		<Unit filename="../Marlin/wattage_distribution.h" />
 		<Unit filename="arduino_sim/Arduino.h" />
 		<Unit filename="arduino_sim/HardwareSerial.cpp" />
 		<Unit filename="arduino_sim/HardwareSerial.h" />

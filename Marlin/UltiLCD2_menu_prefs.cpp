@@ -1458,7 +1458,7 @@ static void lcd_preset_current_z()
     }
 }
 
-static void lcd_preset_current_e()
+static void lcd_preset_current_e0()
 {
     if (lcd_tune_value(motor_current_setting[2], 0, 1500))
     {
@@ -1470,7 +1470,7 @@ static void lcd_preset_current_e()
 }
 
 #if (EXTRUDERS > 1) && defined(MOTOR_CURRENT_PWM_E_PIN) && (MOTOR_CURRENT_PWM_E_PIN > -1)
-static void lcd_preset_current_e2()
+static void lcd_preset_current_e1()
 {
     if (lcd_tune_value(motor_current_e2, 0, 1500))
     {
@@ -1509,13 +1509,13 @@ static const menu_t & get_current_menuoption(uint8_t nr, menu_t &opt)
     else if (nr == index++)
     {
         // motor current extruder 1
-        opt.setData(MENU_INPLACE_EDIT, lcd_preset_current_e, 2);
+        opt.setData(MENU_INPLACE_EDIT, lcd_preset_current_e0, 2);
     }
 #if (EXTRUDERS > 1) && defined(MOTOR_CURRENT_PWM_E_PIN) && (MOTOR_CURRENT_PWM_E_PIN > -1)
     else if (nr == index++)
     {
         // motor current extruder 2
-        opt.setData(MENU_INPLACE_EDIT, lcd_preset_current_e2, 2);
+        opt.setData(MENU_INPLACE_EDIT, lcd_preset_current_e1, 2);
     }
 #endif
     return opt;

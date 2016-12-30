@@ -46,6 +46,7 @@
 #include "machinesettings.h"
 #include "filament_sensor.h"
 #include "preferences.h"
+#include "wattage_distribution.h"
 
 #if NUM_SERVOS > 0
 #include "Servo.h"
@@ -542,6 +543,7 @@ void setup()
 
   // loads data from EEPROM if available else uses defaults (and resets step acceleration rate)
   Config_RetrieveSettings();
+  Wattage_RetrieveSettings();
   lifetime_stats_init();
   tp_init();    // Initialize temperature loop
   plan_init();  // Initialize planner;
