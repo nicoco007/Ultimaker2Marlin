@@ -2,9 +2,9 @@
 #define WATTAGEDIST_H
 
 // default values for wattage distribution
-#define DEFAULT_WATTAGE_BUDGET     160
+#define DEFAULT_WATTAGE_BUDGET     190
 #define DEFAULT_WATTAGE_EXTRUDER    35
-#define DEFAULT_WATTAGE_BUILDPLATE 120
+#define DEFAULT_WATTAGE_BUILDPLATE 150
 
 // min/max allowed input value
 #define WATTAGE_MINVALUE             0

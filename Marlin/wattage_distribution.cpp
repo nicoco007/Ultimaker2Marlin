@@ -1,3 +1,5 @@
+// power limiter feature
+
 #include "Configuration.h"
 #include "Marlin.h"
 #include "wattage_distribution.h"
@@ -19,16 +21,14 @@ uint16_t wattage_extruder[EXTRUDERS]=ARRAY_BY_EXTRUDERS(DEFAULT_WATTAGE_EXTRUDER
 //Random number to verify that the settings are already written to the EEPROM
 #define EEPROM_WATTAGE_MAGIC 0x1E23D465
 
-#define WATTAGE_PREFIX              'g'
 #define WATTAGE_POSTFIX             'r'
 
 #define EEPROM_WATTAGE_START        0x03FC  //  4 Byte Magic number
 #define EEPROM_WATTAGE_VERSION      0x03FA  //  2 Byte Version
-#define EEPROM_WATTAGE_PREFIX       0x03F9  //  1 Byte "g"
-#define EEPROM_WATTAGE_BUDGET       0x03F7  //  2 Byte budget
-#define EEPROM_WATTAGE_BUILDPATE    0x03F5  //  2 Byte buildplate
-#define EEPROM_WATTAGE_EXTRUDER     0x03F1  //  4 Byte 2x extruder
-#define EEPROM_WATTAGE_POSTFIX      0x03F0  //  1 Byte "r"
+#define EEPROM_WATTAGE_BUDGET       0x03F8  //  2 Byte budget
+#define EEPROM_WATTAGE_BUILDPATE    0x03F6  //  2 Byte buildplate
+#define EEPROM_WATTAGE_EXTRUDER     0x03F2  //  4 Byte 2x extruder
+#define EEPROM_WATTAGE_POSTFIX      0x03F1  //  1 Byte "r"
 
 // IMPORTANT:  Whenever there are changes made to the variables stored in EEPROM
 // in the functions below, also increment the version number. This makes sure that
@@ -40,9 +40,8 @@ uint16_t wattage_extruder[EXTRUDERS]=ARRAY_BY_EXTRUDERS(DEFAULT_WATTAGE_EXTRUDER
 static bool Wattage_RetrieveVersion(uint16_t &version)
 {
     uint32_t magic = eeprom_read_dword((uint32_t*)(EEPROM_WATTAGE_START));
-    char prefix = eeprom_read_byte((const uint8_t*)EEPROM_WATTAGE_PREFIX);
     char postfix = eeprom_read_byte((const uint8_t*)EEPROM_WATTAGE_POSTFIX);
-    if ((magic == EEPROM_WATTAGE_MAGIC) && (prefix == WATTAGE_PREFIX) && (postfix == WATTAGE_POSTFIX))
+    if ((magic == EEPROM_WATTAGE_MAGIC) && (postfix == WATTAGE_POSTFIX))
     {
         version = eeprom_read_word((const uint16_t*)EEPROM_WATTAGE_VERSION);
         return true;
@@ -77,6 +76,13 @@ void Wattage_RetrieveSettings()
         }
       #endif
     }
+    // don't let any of these variables equal zero or we will get divide by zero errors
+    if (wattage_budget==0)wattage_budget=140;
+    if (wattage_extruder[0]==0)wattage_extruder[0]=1;
+  #if EXTRUDERS > 1
+    if (wattage_extruder[1]==0)wattage_extruder[1]=1;
+  #endif
+    
 }
 
 static void Wattage_SaveSettings()
@@ -104,7 +110,6 @@ static void Wattage_SaveSettings()
         // version = STORE_WATTAGE_VERSION;
         eeprom_write_word((uint16_t*)EEPROM_WATTAGE_VERSION, STORE_WATTAGE_VERSION);
         eeprom_write_dword((uint32_t*)(EEPROM_WATTAGE_START), EEPROM_WATTAGE_MAGIC);
-        eeprom_write_byte((uint8_t*)EEPROM_WATTAGE_PREFIX, WATTAGE_PREFIX);
         eeprom_write_byte((uint8_t*)EEPROM_WATTAGE_POSTFIX, WATTAGE_POSTFIX);
     }
 
@@ -242,7 +247,7 @@ static void drawWattageSubmenu (uint8_t nr, uint8_t &flags)
         // Wattage Budget
         if (flags & (MENU_SELECTED | MENU_ACTIVE))
         {
-            lcd_lib_draw_string_leftP(4, PSTR("Total Wattage Budget"));
+            lcd_lib_draw_string_leftP(4, PSTR("Total Power Budget"));
             flags |= MENU_STATUSLINE;
         }
 
@@ -312,9 +317,6 @@ static void drawWattageSubmenu (uint8_t nr, uint8_t &flags)
         if (flags & (MENU_SELECTED | MENU_ACTIVE))
         {
             lcd_lib_draw_string_leftP(4, PSTR("Wattage Extruder 2"));
-          #if EXCTRUDERS > 1
-            lcd_lib_draw_stringP(LCD_CHAR_MARGIN_LEFT+17*LCD_CHAR_SPACING, 5, PSTR("1"));
-          #endif
             flags |= MENU_STATUSLINE;
         }
 
@@ -346,7 +348,7 @@ void lcd_menu_wattage()
 
     if (!(flags & MENU_STATUSLINE))
     {
-        lcd_lib_draw_string_leftP(4, PSTR("Wattage Distribution"));
+        lcd_lib_draw_string_leftP(4, PSTR("Power Limiter"));
     }
 
     lcd_lib_update_screen();

@@ -26,6 +26,7 @@
  It has preliminary support for Matthew Roberts advance algorithm
     http://reprap.org/pipermail/reprap-dev/2011-May/003323.html
 
+ 1/1/2017 gr5 - added power budget feature
  */
 
 
@@ -37,8 +38,8 @@
 #include "watchdog.h"
 #include "preferences.h"
 #include "tinkergnome.h"
+#include "wattage_distribution.h"
 
-#define MAX_HEATERS  2     // activate max. 2 heaters at the same time
 
 //===========================================================================
 //=============================public variables============================
@@ -1191,13 +1192,34 @@ ISR(TIMER0_COMPB_vect)
 
   if (pwm_count == 0)
   {
+    // start of our loop where pwm_count goes from 0 to 127 and then back again.  Each full loop very roughly 1/10 second
+    float budget = wattage_budget;
+    float requested_watts;
     soft_pwm_0 = soft_pwm[0];
+    requested_watts = wattage_extruder[0] * soft_pwm_0 / 128.0F;
+    if (requested_watts > budget)
+    {
+      soft_pwm_0 = (unsigned char) (127.0F * budget / wattage_extruder[0]); // reduce requested power so we don't go over the budget
+      budget=0;
+    }
+    else
+      budget -= requested_watts;
+
     if (soft_pwm_0 > 0)
     {
       WRITE(HEATER_0_PIN,1);
     }
     #if EXTRUDERS > 1
     soft_pwm_1 = soft_pwm[1];
+    requested_watts = wattage_extruder[1] * soft_pwm_1 / 128.0F;
+    if (requested_watts > budget)
+    {
+      soft_pwm_1 = (unsigned char) (127.0F * budget / wattage_extruder[1]); // reduce requested power so we don't go over the budget
+      budget=0;
+    }
+    else
+      budget -= requested_watts;
+
     if (soft_pwm_1 > 0)
     {
       WRITE(HEATER_1_PIN,1);
@@ -1205,6 +1227,15 @@ ISR(TIMER0_COMPB_vect)
     #endif
     #if EXTRUDERS > 2
     soft_pwm_2 = soft_pwm[2];
+    requested_watts = wattage_extruder[2] * soft_pwm_2 / 128.0F;
+    if (requested_watts > budget)
+    {
+      soft_pwm_2 = (unsigned char) (127.0F * budget / wattage_extruder[2]); // reduce requested power so we don't go over the budget
+      budget=0;
+    }
+    else
+      budget -= requested_watts;
+
     if (soft_pwm_2 > 0)
     {
       WRITE(HEATER_2_PIN,1);
@@ -1212,6 +1243,14 @@ ISR(TIMER0_COMPB_vect)
     #endif
     #if defined(HEATER_BED_PIN) && HEATER_BED_PIN > -1
     soft_pwm_b = soft_pwm_bed;
+    requested_watts = wattage_buildplate * soft_pwm_b / 128.0F;
+    if (requested_watts > budget)
+    {
+      soft_pwm_b = (unsigned char) (127.0F * budget / wattage_buildplate); // reduce requested power so we don't go over the budget
+      budget=0;
+    }
+    else
+      budget -= requested_watts;
     #endif
     #ifdef FAN_SOFT_PWM
     soft_pwm_fan = fanSpeedSoftPwm / 2;
@@ -1226,29 +1265,15 @@ ISR(TIMER0_COMPB_vect)
   if(soft_pwm_2 <= pwm_count) WRITE(HEATER_2_PIN,0);
   #endif
   #if defined(HEATER_BED_PIN) && HEATER_BED_PIN > -1
-  if(soft_pwm_b <= pwm_count)
-  {
-    WRITE(HEATER_BED_PIN,0);
-  }
+  // bed is reverse of other heaters - nozzle heaters typically turn on at pwm_count=0 and typically
+  // turns off before pwm_count gets to 127.  But the bed typically does not turn on until pwm_count
+  // is part way through the cycle and turns off when pwm_count gets back to 0.  This minimizes overlap
+  // when bed and nozzles are both on to reduce the load variation on the power supply (probably not necessary
+  // but possibly it lengthens the life of the capacitor inside the power brick).
+  if(pwm_count > (127-soft_pwm_b) ) // reverse timing
+    WRITE(HEATER_BED_PIN, 1);
   else
-  {
-    uint8_t heat_count = 0;
-    if (READ(HEATER_0_PIN))  ++heat_count;
-    #if EXTRUDERS > 1
-    if (READ(HEATER_1_PIN))  ++heat_count;
-    #endif
-    #if EXTRUDERS > 2
-    if (READ(HEATER_2_PIN))  ++heat_count;
-    #endif
-    if (heat_count < MAX_HEATERS)
-    {
-        WRITE(HEATER_BED_PIN, 1);
-    }
-    else
-    {
-        WRITE(HEATER_BED_PIN, 0);
-    }
-  }
+    WRITE(HEATER_BED_PIN, 0);
   #endif
   #ifdef FAN_SOFT_PWM
   if(soft_pwm_fan <= pwm_count) WRITE(FAN_PIN,0);

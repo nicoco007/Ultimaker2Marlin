@@ -166,7 +166,7 @@ static void lcd_preferences_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
     else if (nr == index++)
         strcpy_P(buffer, PSTR("Print area"));
     else if (nr == index++)
-        strcpy_P(buffer, PSTR("Wattage distribution"));
+        strcpy_P(buffer, PSTR("Power limiter"));
     else if (nr == index++)
         strcpy_P(buffer, PSTR("Version"));
     else if (nr == index++)

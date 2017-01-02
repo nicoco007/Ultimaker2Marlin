@@ -220,7 +220,7 @@ CXXSRC += WMath.cpp WString.cpp Print.cpp Marlin_main.cpp	\
 	MarlinSerial.cpp Sd2Card.cpp SdBaseFile.cpp SdFile.cpp \
 	SdVolume.cpp motion_control.cpp planner.cpp \
 	stepper.cpp temperature.cpp cardreader.cpp ConfigurationStore.cpp \
-	watchdog.cpp electronics_test.cpp
+	watchdog.cpp electronics_test.cpp wattage_distribution.cpp
 #CXXSRC += LiquidCrystal.cpp ultralcd.cpp SPI.cpp Servo.cpp Tone.cpp
 
 #Check for Arduino 1.0.0 or higher and use the correct sourcefiles for that version
