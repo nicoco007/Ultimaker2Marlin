@@ -141,7 +141,6 @@ void lcd_update()
     {
         if (!card.sdprinting())
         {
-            // handle serial communication
             if (HAS_SERIAL_CMD)
             {
                 if (!(sleep_state & SLEEP_SERIAL_SCREEN))

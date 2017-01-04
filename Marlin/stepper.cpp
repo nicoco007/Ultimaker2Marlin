@@ -408,9 +408,9 @@ ISR(TIMER1_COMPA_vect)
     #endif //!ADVANCE
 
 #if EXTRUDERS > 1
-  #ifdef Z_LATE_ENABLE
+    #ifdef Z_LATE_ENABLE
       bool bReturn(false);
-  #endif
+    #endif
       if (current_block->active_extruder != last_extruder)
       {
         // disable unused steppers
@@ -455,16 +455,16 @@ ISR(TIMER1_COMPA_vect)
         return;
       #endif // Z_LATE_ENABLE
       }
-      #ifdef Z_LATE_ENABLE
-        if(current_block->steps_z > 0) {
-          enable_z();
-          OCR1A = 2000; //1ms wait
-          bReturn = true;
-        }
+    #ifdef Z_LATE_ENABLE
+      if(current_block->steps_z > 0) {
+        enable_z();
+        OCR1A = 2000; //1ms wait
+        bReturn = true;
+      }
       if (bReturn) {
         return;
       }
-      #endif
+    #endif
 #else
       #ifdef Z_LATE_ENABLE
         if(current_block->steps_z > 0) {
@@ -474,6 +474,10 @@ ISR(TIMER1_COMPA_vect)
         }
       #endif
 #endif // EXTRUDERS
+
+//      #ifdef ADVANCE
+//      e_steps[current_block->active_extruder] = 0;
+//      #endif
     }
     else {
         OCR1A=2000; // 1kHz.
