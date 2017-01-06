@@ -37,7 +37,10 @@ cd "$SCRIPT_DIR"
 # Build the required firmwares
 #############################
 
-if [ -d "C:/arduino-1.0.3" ]; then
+if [ -d "D:/arduino-1.8.0" ]; then
+	ARDUINO_PATH=D:/arduino-1.8.0
+	ARDUINO_VERSION=180
+elif [ -d "C:/arduino-1.0.3" ]; then
 	ARDUINO_PATH=C:/arduino-1.0.3
 	ARDUINO_VERSION=103
 elif [ -d "/Applications/Arduino.app/Contents/Resources/Java" ]; then
