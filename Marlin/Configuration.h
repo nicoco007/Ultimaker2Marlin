@@ -12,7 +12,7 @@
 // build by the user have been successfully uploaded into firmware.
 #define STRING_VERSION_CONFIG_H __DATE__ " " __TIME__ // build date and time
 #ifndef STRING_CONFIG_H_AUTHOR
-#define STRING_CONFIG_H_AUTHOR "Tinker_16.12-DEV" // Who made the changes.
+#define STRING_CONFIG_H_AUTHOR "Tinker_17.01-DEV" // Who made the changes.
 #endif
 
 // SERIAL_PORT selects which serial port should be used for communication with the host.
@@ -158,7 +158,7 @@
 #define MAX_REDUNDANT_TEMP_SENSOR_DIFF 10
 
 // Actual temperature must be close to target for this long before M109 returns success
-#define TEMP_RESIDENCY_TIME 3   // (seconds)
+#define TEMP_RESIDENCY_TIME 750 // (milliseconds)
 #define TEMP_HYSTERESIS 3       // (degC) range of +/- temperatures considered "close" to the target one
 #define TEMP_WINDOW     2       // (degC) Window around target to start the residency timer x degC early.
 
@@ -358,8 +358,8 @@ const bool Z_ENDSTOPS_INVERTING = true; // set to true to invert the logic of th
 #define Y_HOME_DIR 1
 #define Z_HOME_DIR 1
 
-#define min_software_endstops true // If true, axis won't move to coordinates less than HOME_POS.
-#define max_software_endstops true  // If true, axis won't move to coordinates greater than the defined lengths below.
+#define MIN_SOFTWARE_ENDSTOPS // If defined, axis won't move to coordinates less than MIN_POS.
+#define MAX_SOFTWARE_ENDSTOPS // If defined, axis won't move to coordinates greater than MAX_POS
 // Travel limits after homing
 #ifndef X_MAX_POS
   #define X_MAX_POS 230

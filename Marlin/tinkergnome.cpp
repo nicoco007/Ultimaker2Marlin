@@ -2797,6 +2797,9 @@ static void lcd_extrude_return()
     menu.return_to_previous();
     if (!card.sdprinting())
     {
+        st_synchronize();
+        current_position[E_AXIS] = 0.0f;
+        plan_set_e_position(current_position[E_AXIS]);
         target_temperature[menu_extruder] = 0;
         target_temperature_diff[menu_extruder] = 0;
     }
@@ -2810,6 +2813,7 @@ static void lcd_extrude_temperature()
 static void lcd_extrude_reset_pos()
 {
     lcd_lib_keyclick();
+    st_synchronize();
     current_position[E_AXIS] = 0.0f;
     plan_set_e_position(current_position[E_AXIS]);
     TARGET_POS(E_AXIS) = current_position[E_AXIS];

@@ -200,12 +200,18 @@ void doStartPrint()
         // clear reheat flag
         retract_state &= ~(EXTRUDER_PREHEAT << e);
 #endif
-        SET_TOOLCHANGE_RETRACT(e);
-#if EXTRUDERS > 1
-        retract_recover_length[e] = toolchange_retractlen[e] / volume_to_filament_length[e];
-#else
-        retract_recover_length[e] = end_of_print_retraction / volume_to_filament_length[e];
-#endif
+//        if (!TOOLCHANGE_RETRACTED(e))
+//        {
+//            SET_TOOLCHANGE_RETRACT(e);
+//#if EXTRUDERS > 1
+//            toolchange_recover_length[e] = toolchange_retractlen[e] / volume_to_filament_length[e];
+//#else
+//            toolchange_recover_length[e] = end_of_print_retraction / volume_to_filament_length[e];
+//#endif
+//        }
+        CLEAR_TOOLCHANGE_RETRACT(e);
+        toolchange_recover_length[e] = 0.0f;
+
         if (!LCD_DETAIL_CACHE_MATERIAL(e))
         {
             // don't prime the extruder if it isn't used in the (Ulti)gcode
@@ -631,9 +637,9 @@ void lcd_menu_print_select()
                     fanSpeedPercent = 100;
                     target_temperature_bed_diff = 0;
 
-                    for(uint8_t e=0; e<EXTRUDERS; e++)
+                    for(uint8_t e=0; e<EXTRUDERS; ++e)
                     {
-                        volume_to_filament_length[e] = 1.0;
+                        volume_to_filament_length[e] = 1.0f;
                         extrudemultiply[e] = 100;
                         e_smoothed_speed[e] = 0.0f;
                         target_temperature_diff[e] = 0;
@@ -655,7 +661,7 @@ void lcd_menu_print_select()
 //                            SERIAL_ECHOLN(LCD_DETAIL_CACHE_MATERIAL(e));
 
                             target_temperature[e] = 0;
-                            volume_to_filament_length[e] = 1.0 / (M_PI * (material[e].diameter / 2.0) * (material[e].diameter / 2.0));
+                            volume_to_filament_length[e] = 1.0f / (M_PI * (material[e].diameter / 2.0) * (material[e].diameter / 2.0));
                             extrudemultiply[e] = material[e].flow;
 
                             if (LCD_DETAIL_CACHE_MATERIAL(e) < 1)

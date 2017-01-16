@@ -141,7 +141,7 @@ void lcd_update()
     {
         if (!card.sdprinting())
         {
-            if (HAS_SERIAL_CMD)
+            if (HAS_SERIAL_CMD || ((m - lastSerialCommandTime) < SERIAL_CONTROL_TIMEOUT))
             {
                 if (!(sleep_state & SLEEP_SERIAL_SCREEN))
                 {

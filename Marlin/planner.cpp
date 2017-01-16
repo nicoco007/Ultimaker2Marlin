@@ -563,10 +563,10 @@ void plan_buffer_line(const float &x, const float &y, const float &z, const floa
   while(block_buffer_tail == next_buffer_head)
   {
     idle();
-    if (HAS_SERIAL_CMD)
-    {
-      lastSerialCommandTime = millis();
-    }
+//    if (HAS_SERIAL_CMD)
+//    {
+//      lastSerialCommandTime = millis();
+//    }
   }
 
   // The target position of the tool in absolute steps

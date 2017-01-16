@@ -14,7 +14,7 @@
 
 #define TOOLCHANGE_STARTX 171
 #define TOOLCHANGE_STARTY DUAL_Y_MIN_POS
-#define WIPE_STARTX 60
+#define WIPE_STARTX 45
 #define WIPE_DISTANCEX 35
 #define WIPE_DISTANCEY 4
 
@@ -155,17 +155,15 @@ static void toolchange_retract(float x, float y, int feedrate, uint8_t e)
 {
     if (!TOOLCHANGE_RETRACTED(e))
     {
-        float length = toolchange_retractlen[e] / volume_to_filament_length[e];
+        toolchange_recover_length[e] = toolchange_retractlen[e] / volume_to_filament_length[e];
 #ifdef FWRETRACT
         if (EXTRUDER_RETRACTED(e))
         {
-            length = max(0.0, length-retract_recover_length[e]);
+            toolchange_recover_length[e] = max(0.0, toolchange_recover_length[e]-retract_recover_length[e]);
         }
-        retract_recover_length[e] = toolchange_retractlen[e] / volume_to_filament_length[e];
-        CLEAR_EXTRUDER_RETRACT(e);
         SET_TOOLCHANGE_RETRACT(e);
 #endif // FWRETRACT
-        current_position[E_AXIS] -= length;
+        current_position[E_AXIS] -= toolchange_recover_length[e];
         //relative_e_move(-length, toolchange_retractfeedrate[e]/60, e);
     }
     current_position[X_AXIS] = x;
@@ -199,8 +197,8 @@ void CommandBuffer::processT0(bool bRetract, bool bWipe)
         CommandBuffer::moveHead(current_position[X_AXIS], dock_position[Y_AXIS], 100);
         idle();
         CommandBuffer::moveHead(dock_position[X_AXIS], current_position[Y_AXIS], 50);
-        CommandBuffer::moveHead(dock_position[X_AXIS], TOOLCHANGE_STARTY, 100);
-        CommandBuffer::moveHead(TOOLCHANGE_STARTX, TOOLCHANGE_STARTY, 200);
+        CommandBuffer::moveHead(current_position[X_AXIS], TOOLCHANGE_STARTY, 100);
+        CommandBuffer::moveHead(TOOLCHANGE_STARTX-50.0f, TOOLCHANGE_STARTY, 200);
         idle();
 	}
 }
@@ -229,10 +227,13 @@ void CommandBuffer::processT1(bool bRetract, bool bWipe)
 void CommandBuffer::processWipe(const uint8_t printState)
 {
 #ifdef FWRETRACT
-    float length = TOOLCHANGE_RETRACTED(active_extruder) ? retract_recover_length[active_extruder] : toolchange_retractlen[active_extruder]/volume_to_filament_length[active_extruder];
+    float length = TOOLCHANGE_RETRACTED(active_extruder) ? toolchange_recover_length[active_extruder] : toolchange_retractlen[active_extruder]/volume_to_filament_length[active_extruder];
     CLEAR_TOOLCHANGE_RETRACT(active_extruder);
-    CLEAR_EXTRUDER_RETRACT(active_extruder);
-    retract_recover_length[active_extruder] = 0.0f;
+    toolchange_recover_length[active_extruder] = 0.0f;
+    if (EXTRUDER_RETRACTED(active_extruder))
+    {
+        length += retract_recover_length[active_extruder];
+    }
 #else
     float length = toolchange_retractlen[active_extruder]/volume_to_filament_length[active_extruder];
 #endif // FWRETRACT
@@ -242,15 +243,19 @@ void CommandBuffer::processWipe(const uint8_t printState)
 
     // prime nozzle
 //    relative_e_move((length*0.2)+toolchange_prime[active_extruder]/volume_to_filament_length[active_extruder], (PRIMING_MM3_PER_SEC * volume_to_filament_length[active_extruder]), active_extruder);
-    relative_e_move((length*0.2)+toolchange_prime[active_extruder]/volume_to_filament_length[active_extruder], 0.65f, active_extruder);
+    relative_e_move((length*0.2)+toolchange_prime[active_extruder]/volume_to_filament_length[active_extruder], 0.5f, active_extruder);
 
     // retract before wipe
-    length = toolchange_retractlen[active_extruder]/volume_to_filament_length[active_extruder];
-    relative_e_move(length*-0.4f, toolchange_retractfeedrate[active_extruder]/60, active_extruder);
+    if (!EXTRUDER_RETRACTED(active_extruder))
+    {
+        retract_recover_length[active_extruder] = retract_length/volume_to_filament_length[active_extruder];
+        SET_EXTRUDER_RETRACT(active_extruder);
+    }
+    relative_e_move(-retract_recover_length[active_extruder], retract_feedrate/60, active_extruder);
 
     // wait a short moment
     st_synchronize();
-    dwell(750);
+    dwell(250);
 
 #if defined(SDSUPPORT) && defined(TCSDSCRIPT)
     if (wipe)
@@ -264,10 +269,10 @@ void CommandBuffer::processWipe(const uint8_t printState)
 #endif // SDSUPPORT
     {
         // wipe start position
-        CommandBuffer::moveHead(WIPE_STARTX, current_position[Y_AXIS], 200);
+        CommandBuffer::moveHead(current_position[X_AXIS]-WIPE_STARTX, current_position[Y_AXIS], 200);
 
         // slow wipe move
-        CommandBuffer::moveHead(WIPE_STARTX-WIPE_DISTANCEX, current_position[Y_AXIS], 40);
+        CommandBuffer::moveHead(current_position[X_AXIS]-WIPE_DISTANCEX, current_position[Y_AXIS], 40);
 
         // switch fan speed back to normal
         printing_state = printState;
@@ -279,10 +284,10 @@ void CommandBuffer::processWipe(const uint8_t printState)
         CommandBuffer::moveHead(current_position[X_AXIS]+WIPE_DISTANCEY, TOOLCHANGE_STARTY, 125);
 	}
     // small retract after wipe
-    relative_e_move(length*-0.1, toolchange_retractfeedrate[active_extruder]/60, active_extruder);
+    // relative_e_move(length*-0.1, toolchange_retractfeedrate[active_extruder]/60, active_extruder);
 #ifdef FWRETRACT
-    retract_recover_length[active_extruder] = 0.5*length;
-    SET_EXTRUDER_RETRACT(active_extruder);
+    // retract_recover_length[active_extruder] = 0.5*length;
+    // SET_EXTRUDER_RETRACT(active_extruder);
 #endif // FWRETRACT
 }
 #endif // EXTRUDERS
