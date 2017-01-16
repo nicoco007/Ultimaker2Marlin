@@ -21,7 +21,7 @@ uint16_t lcd_timeout = LED_DIM_TIME;
 uint8_t lcd_contrast = 0xDF;
 uint8_t lcd_sleep_contrast = 0;
 uint8_t led_sleep_glow = 0;
-uint8_t expert_flags = FLAG_PID_NOZZLE;
+uint8_t control_flags = FLAG_PID_NOZZLE;
 float end_of_print_retraction = END_OF_PRINT_RETRACTION;
 uint8_t heater_check_temp = MAX_HEATING_TEMPERATURE_INCREASE;
 uint8_t heater_check_time = MAX_HEATING_CHECK_MILLIS / 1000;
@@ -2960,7 +2960,7 @@ static void lcd_store_pidbed()
     pidBed[2] = bedKd;
     eeprom_write_block(pidBed, (uint8_t*)EEPROM_PID_BED, sizeof(pidBed));
 
-    SET_EXPERT_FLAGS(expert_flags);
+    SET_CONTROL_FLAGS(control_flags);
     menu.return_to_previous();
 }
 
@@ -2968,12 +2968,12 @@ static void lcd_toggle_pid_bed()
 {
     if (pidTempBed())
     {
-        expert_flags &= ~FLAG_PID_BED;
+        control_flags &= ~FLAG_PID_BED;
         menu.set_selection(2);
     }
     else
     {
-        expert_flags |= FLAG_PID_BED;
+        control_flags |= FLAG_PID_BED;
         menu.set_selection(3);
     }
 }
