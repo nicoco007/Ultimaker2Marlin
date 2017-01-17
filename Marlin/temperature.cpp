@@ -1280,11 +1280,11 @@ ISR(TIMER0_COMPB_vect)
     soft_pwm_fan = fanSpeedSoftPwm / 2;
     #endif
     #ifdef FAN_SOFT_PWM
-    if(soft_pwm_fan > 0) WRITE(FAN_PIN,1);
+    if (!(control_flags & FLAG_MANUAL_FAN2) && (soft_pwm_fan > 0)) WRITE(FAN_PIN,1);
     #endif
   #if defined(FAN2_PIN) && FAN2_PIN > -1
     #ifdef FAN2_SOFT_PWM
-      if (active_extruder && (soft_pwm_fan > 0)) WRITE(FAN2_PIN,1);
+      if ((active_extruder || (control_flags & FLAG_MANUAL_FAN2)) && (soft_pwm_fan > 0)) WRITE(FAN2_PIN,1);
     #endif
   #endif
   }
@@ -1325,7 +1325,7 @@ ISR(TIMER0_COMPB_vect)
   #endif
   #if defined(FAN2_PIN) && FAN2_PIN > -1
     #ifdef FAN2_SOFT_PWM
-      if (!active_extruder || (soft_pwm_fan <= pwm_count)) WRITE(FAN2_PIN,0);
+      if ((!active_extruder && !(control_flags & FLAG_MANUAL_FAN2)) || (soft_pwm_fan <= pwm_count)) WRITE(FAN2_PIN,0);
     #endif
   #endif
   pwm_count += (1 << SOFT_PWM_SCALE);

@@ -636,6 +636,7 @@ void lcd_menu_print_select()
                     current_nominal_speed = 0.0f;
                     fanSpeedPercent = 100;
                     target_temperature_bed_diff = 0;
+                    control_flags &= ~FLAG_MANUAL_FAN2;
 
                     for(uint8_t e=0; e<EXTRUDERS; ++e)
                     {

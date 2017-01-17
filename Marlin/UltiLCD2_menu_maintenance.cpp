@@ -283,6 +283,25 @@ void start_move_material()
     }
 }
 
+static void start_fan_speed()
+{
+#if EXTRUDERS > 1
+    // remove nozzle selection menu
+    menu.return_to_previous();
+    LCD_EDIT_SETTING_BYTE_PERCENT(fanSpeed, "Fan speed", "%", 0, 100);
+    if (menu_extruder)
+    {
+        control_flags |= FLAG_MANUAL_FAN2;
+    }
+    else
+    {
+        control_flags &= ~FLAG_MANUAL_FAN2;
+    }
+#else
+    LCD_EDIT_SETTING_BYTE_PERCENT(fanSpeed, "Fan speed", "%", 0, 100);
+#endif // EXTRUDERS
+}
+
 #if EXTRUDERS > 1
 
 FORCE_INLINE static void lcd_dual_nozzle_heatup()
@@ -298,6 +317,11 @@ FORCE_INLINE static void lcd_dual_insert_material()
 void lcd_dual_move_material()
 {
     lcd_select_nozzle(start_move_material, NULL);
+}
+
+FORCE_INLINE static void lcd_dual_fan_speed()
+{
+    lcd_select_nozzle(start_fan_speed, NULL);
 }
 
 #endif // EXTRUDERS
@@ -318,7 +342,7 @@ void lcd_menu_maintenance_advanced()
 #endif
         else if (IS_SELECTED_SCROLL(index++))
         {
-            // heatup nozzle
+        // heatup nozzle
         #if EXTRUDERS < 2
             menu_extruder = 0;
             start_nozzle_heatup();
@@ -373,7 +397,12 @@ void lcd_menu_maintenance_advanced()
         }
         else if (IS_SELECTED_SCROLL(index++))
         {
-            LCD_EDIT_SETTING_BYTE_PERCENT(fanSpeed, "Fan speed", "%", 0, 100);
+        #if (EXTRUDERS > 1) && defined(FAN2_PIN) && FAN2_PIN > -1
+            menu.add_menu(menu_t(lcd_dual_fan_speed, MAIN_MENU_ITEM_POS(menu_extruder)));
+        #else
+            menu_extruder = 0;
+            start_fan_speed();
+        #endif
         }
         else if ((ui_mode & UI_MODE_EXPERT) && (IS_SELECTED_SCROLL(index++)))
         {

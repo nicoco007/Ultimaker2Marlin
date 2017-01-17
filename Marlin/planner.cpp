@@ -509,14 +509,37 @@ void check_axes_activity()
   fanSpeedSoftPwm = tail_fan_speed;
 #endif
 #ifndef FAN_SOFT_PWM
-  analogWrite(FAN_PIN, tail_fan_speed);
+  analogWrite(FAN_PIN, (control_flags & FLAG_MANUAL_FAN2) ? 0 : tail_fan_speed);
 #endif//!FAN_SOFT_PWM
 
  #if defined(FAN2_PIN) && FAN2_PIN > -1
   #ifndef FAN2_SOFT_PWM
-  analogWrite(FAN2_PIN, (active_extruder>0) ? tail_fan_speed : 0);
+  analogWrite(FAN2_PIN, (active_extruder>0 || (control_flags & FLAG_MANUAL_FAN2)) ? tail_fan_speed : 0);
   #endif
  #endif
+//static unsigned long last_protocol = millis();
+//if ((millis() - last_protocol) > 2000UL)
+//{
+//  SERIAL_PROTOCOLPGM("Fan speed: ");
+//if (control_flags & FLAG_MANUAL_FAN2)
+//{
+//    SERIAL_PROTOCOL( "0" );
+//}
+//else
+//{
+//    SERIAL_PROTOCOL( int(tail_fan_speed) );
+//}
+//SERIAL_PROTOCOLPGM(" / ");
+//if (active_extruder>0 || (control_flags & FLAG_MANUAL_FAN2))
+//{
+//    SERIAL_PROTOCOLLN( int(tail_fan_speed) );
+//}
+//else
+//{
+//    SERIAL_PROTOCOLLN( "0" );
+//}
+//  last_protocol = millis();
+//}
   }
   else
   {

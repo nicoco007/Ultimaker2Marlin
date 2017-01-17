@@ -664,9 +664,9 @@ static bool insertcommand(const char* cmd, bool isSerialCmd) {
   // check, if a toolchange command appeared and set a flag for nozzle re-heating
   checkToolchange(cmdbuffer[bufindw]);
 #endif
-#ifndef __AVR //simulator
-  SERIAL_PROTOCOLLN(cmd);
-#endif
+//#ifndef __AVR //simulator
+//  SERIAL_PROTOCOLLN(cmd);
+//#endif
   return true;
 }
 
@@ -1836,9 +1836,11 @@ void process_command(const char *strCmd, bool sendAck)
         else {
           fanSpeed = 255 * int(fanSpeedPercent) / 100;
         }
+        control_flags &= ~FLAG_MANUAL_FAN2;
         break;
       case 107: //M107 Fan Off
         fanSpeed = 0;
+        control_flags &= ~FLAG_MANUAL_FAN2;
         break;
     #endif //FAN_PIN
     #ifdef BARICUDA
