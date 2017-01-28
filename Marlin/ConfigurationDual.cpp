@@ -23,7 +23,7 @@
 #define WIPE_Y_POSITION     17
 
 #define TOOLCHANGE_RETRACT_LENGTH  16
-#define TOOLCHANGE_RETRACT_SPEED   20
+#define TOOLCHANGE_RETRACT_SPEED   20*60
 
 uint8_t dual_state = DUAL_ENABLED | DUAL_TOOLCHANGE | DUAL_WIPE;
 float add_homeing_z2 = 0.0f;

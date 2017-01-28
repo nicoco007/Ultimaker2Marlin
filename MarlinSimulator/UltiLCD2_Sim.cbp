@@ -45,6 +45,7 @@
 			<Add option="-DHEATER_0_MAXTEMP=325" />
 			<Add option="-DHEATER_1_MAXTEMP=325" />
 			<Add option="-DHEATER_2_MAXTEMP=325" />
+			<Add option="-DTCSDSCRIPT" />
 			<Add directory="arduino_sim" />
 			<Add directory="avr_sim" />
 			<Add directory="D:/GitRepo/SDL-1.2.15/include" />

@@ -25,7 +25,7 @@ void lcd_draw_scroll_entry(uint8_t offsetY, char * buffer, uint8_t flags);
 void lcd_menu_edit_setting();
 
 bool check_heater_timeout();
-bool check_preheat();
+bool check_preheat(uint8_t e);
 
 extern uint8_t heater_timeout;
 extern int backup_temperature[EXTRUDERS];

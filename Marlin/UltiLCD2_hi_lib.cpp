@@ -287,9 +287,16 @@ void lcd_menu_edit_setting()
 static void lcd_menu_material_reheat()
 {
     last_user_interaction = millis();
-    int16_t temp = degHotend(active_extruder);
-    int16_t target = degTargetHotend(active_extruder) - 10;
-    if (temp < 0) temp = 0;
+    int16_t temp = 0;
+    int16_t target = 0;
+    for (uint8_t e=0; e<EXTRUDERS; ++e)
+    {
+        int16_t t = degHotend(e);
+        if (t < 0) t = 0;
+        temp += t;
+        t = degTargetHotend(e) - 5;
+        target += t;
+    }
     if (temp > target)
     {
         menu.return_to_previous(false);
@@ -301,13 +308,19 @@ static void lcd_menu_material_reheat()
     else
         minProgress = progress;
 
-    // lcd_info_screen(lcd_change_to_previous_menu, cancelMaterialInsert);
     lcd_lib_clear();
     lcd_lib_draw_string_centerP(10, PSTR("Heating printhead"));
 
-    char buffer[16] = {0};
-    char *c = int_to_string(int(dsp_temperature[active_extruder]), buffer, PSTR("C/"));
-    int_to_string(int(degTargetHotend(active_extruder)), c, PSTR("C"));
+    char buffer[32] = {0};
+    char *c = buffer;
+    for(uint8_t e=0; e<EXTRUDERS; ++e)
+    {
+        c = int_to_string(dsp_temperature[e], c, PSTR("C/"));
+        c = int_to_string(degTargetHotend(e), c, PSTR("C "));
+    }
+    --c;
+    *c = '\0';
+
     lcd_lib_draw_string_center(24, buffer);
     // lcd_lib_draw_heater(LCD_GFX_WIDTH/2-2, 40, getHeaterPower(active_extruder));
 
@@ -322,15 +335,15 @@ bool check_heater_timeout()
     {
         const unsigned long m = millis();
         const unsigned long period = heater_timeout*MILLISECONDS_PER_MINUTE;
-        if (!HAS_SERIAL_CMD && (m-last_user_interaction > period) && (m-lastSerialCommandTime > period))
+        if ((m-last_user_interaction > period) && (m-lastSerialCommandTime > period))
         {
-            if (target_temperature[active_extruder] > (EXTRUDE_MINTEMP - 40))
+            for(uint8_t e=0; e<EXTRUDERS; ++e)
             {
-                for(uint8_t n=0; n<EXTRUDERS; ++n)
+                backup_temperature[e] = target_temperature[e];
+                if (target_temperature[e] > (EXTRUDE_MINTEMP - 40))
                 {
                     // switch off nozzle heater
-                    backup_temperature[n] = target_temperature[n];
-                    setTargetHotend(0, n);
+                    setTargetHotend(0, e);
                 }
             }
             return false;
@@ -339,17 +352,17 @@ bool check_heater_timeout()
     return true;
 }
 
-bool check_preheat()
+bool check_preheat(uint8_t e)
 {
-    int16_t target = degTargetHotend(active_extruder);
+    int16_t target = degTargetHotend(e);
     if (!target)
     {
-        for (uint8_t n=0; n<EXTRUDERS; ++n)
-        {
-            setTargetHotend(backup_temperature[n], n);
-        }
+        setTargetHotend(backup_temperature[e], e);
         minProgress = 0;
-        menu.add_menu(menu_t(lcd_menu_material_reheat));
+        if (menu.currentMenu().processMenuFunc != lcd_menu_material_reheat)
+        {
+            menu.add_menu(menu_t(lcd_menu_material_reheat));
+        }
         return false;
     }
     return true;

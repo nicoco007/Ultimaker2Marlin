@@ -71,12 +71,12 @@ typedef struct {
 void plan_init();
 
 // Add a new linear movement to the buffer. x, y and z is the signed, absolute target position in
-// millimaters. Feed rate specifies the speed of the motion.
+// millimeters. Feed rate specifies the speed of the motion.
 void plan_buffer_line(const float &x, const float &y, const float &z, const float &e, float feed_rate, const uint8_t &extruder);
 
 // Set position. Used for G92 instructions.
-void plan_set_position(const float &x, const float &y, const float &z, const float &e);
-void plan_set_e_position(const float &e);
+void plan_set_position(const float &x, const float &y, const float &z, const float &e, bool bSynchronize);
+void plan_set_e_position(const float &e, bool bSynchronize);
 
 void check_axes_activity();
 uint8_t movesplanned(); //return the nr of buffered moves
@@ -109,13 +109,11 @@ FORCE_INLINE float e_steps_per_unit(uint8_t e) {return axis_steps_per_unit[E_AXI
 #endif
 
 
-
-
-extern block_t block_buffer[BLOCK_BUFFER_SIZE];            // A ring buffer for motion instfructions
+extern block_t block_buffer[BLOCK_BUFFER_SIZE];            // A ring buffer for motion instructions
 extern volatile unsigned char block_buffer_head;           // Index of the next block to be pushed
 extern volatile unsigned char block_buffer_tail;
 // Called when the current block is no longer needed. Discards the block and makes the memory
-// availible for new blocks.
+// available for new blocks.
 FORCE_INLINE void plan_discard_current_block()
 {
   if (block_buffer_head != block_buffer_tail) {

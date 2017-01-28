@@ -78,7 +78,7 @@ FORCE_INLINE float degBed() {
   return current_temperature_bed;
 }
 
-FORCE_INLINE float degTargetBed() {
+FORCE_INLINE int degTargetBed() {
   return target_temperature_bed + target_temperature_bed_diff;
 }
 
@@ -91,7 +91,7 @@ FORCE_INLINE bool isCoolingBed() {
 }
 #endif // TEMP_SENSOR_BED
 
-FORCE_INLINE float degTargetHotend(uint8_t extruder) {
+FORCE_INLINE int degTargetHotend(uint8_t extruder) {
   return target_temperature[extruder]+target_temperature_diff[extruder];
 }
 

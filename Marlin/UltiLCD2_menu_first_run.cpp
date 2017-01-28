@@ -123,7 +123,7 @@ static void parkHeadForLeftAdjustment()
 {
     add_homeing[Z_AXIS] -= current_position[Z_AXIS];
     current_position[Z_AXIS] = 0;
-    plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+    plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], true);
 
     char buffer[32] = {0};
     sprintf_P(buffer, PSTR("G1 F%i Z5"), int(homing_feedrate[Z_AXIS]));
@@ -339,12 +339,10 @@ static void lcd_menu_first_run_bed_level_paper_right()
 
 static void parkHeadForHeating()
 {
+    cmd_synchronize();
     lcd_material_reset_defaults();
-    char buffer[32] = {0};
-    sprintf_P(buffer, PSTR("G1 F%i X%i Y%i"), int(homing_feedrate[0]), int(AXIS_CENTER_POS(X_AXIS)), max(int(min_pos[Y_AXIS]), 0)+5);
-    enquecommand(buffer);
-
-    enquecommand_P(PSTR("M84"));//Disable motor power.
+    CommandBuffer::move2front();
+    finishAndDisableSteppers();//Disable motor power.
 }
 
 static void lcd_menu_first_run_material_load()
@@ -385,7 +383,7 @@ static void lcd_menu_first_run_material_select_1()
 
 static void lcd_material_select_callback(uint8_t nr, uint8_t offsetY, uint8_t flags)
 {
-    char buffer[10];
+    char buffer[MATERIAL_NAME_SIZE+1] = {0};
     eeprom_read_block(buffer, EEPROM_MATERIAL_NAME_OFFSET(nr), MATERIAL_NAME_SIZE);
 
     buffer[MATERIAL_NAME_SIZE] = '\0';
@@ -483,8 +481,9 @@ static void runMaterialForward()
     retract_acceleration = float(FILAMENT_LONG_ACCELERATION_STEPS) / e_steps_per_unit(active_extruder);
     max_e_jerk = FILAMENT_LONG_MOVE_JERK;
 
+    quickStop();
     current_position[E_AXIS] = 0;
-    plan_set_e_position(current_position[E_AXIS]);
+    plan_set_e_position(current_position[E_AXIS], true);
     current_position[E_AXIS] = FILAMENT_FORWARD_LENGTH;
     plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], max_feedrate[E_AXIS], 0);
 

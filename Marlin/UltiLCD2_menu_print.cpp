@@ -47,11 +47,26 @@ void lcd_clear_cache()
     LCD_CACHE_NR_OF_FILES() = 0xFF;
 }
 
-void abortPrint()
+void abortPrint(bool bQuickstop)
 {
-	quickStop();
     clear_command_queue();
     postMenuCheck = 0;
+
+    // we're not printing any more
+    if (card.sdprinting() && !card.pause())
+    {
+        recover_height = current_position[Z_AXIS];
+    }
+    card.stopPrinting();
+
+    if (bQuickstop)
+    {
+        quickStop();
+    }
+    else
+    {
+        st_synchronize();
+    }
 
     // reset defaults
     feedmultiply = 100;
@@ -59,6 +74,9 @@ void abortPrint()
     {
         extrudemultiply[e] = 100;
     }
+
+    float minTemp = get_extrude_min_temp();
+    set_extrude_min_temp(0.0f);
 
     // set up the end of print retraction
     if ((primed & ENDOFPRINT_RETRACT) && (primed & (EXTRUDER_PRIMED << active_extruder)))
@@ -78,7 +96,7 @@ void abortPrint()
                 }
             }
             // perform end-of-print retract
-            plan_set_e_position(retractlen);
+            plan_set_e_position(retractlen, true);
             current_position[E_AXIS] = 0.0f;
             plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], toolchange_retractfeedrate[active_extruder]/60, active_extruder);
         }
@@ -86,7 +104,7 @@ void abortPrint()
         {
             // already retracted
             current_position[E_AXIS] = 0.0f;
-            plan_set_e_position(current_position[E_AXIS]);
+            plan_set_e_position(current_position[E_AXIS], true);
         }
 #else
         // perform the end-of-print retraction at the standard retract speed
@@ -94,27 +112,21 @@ void abortPrint()
         current_position[E_AXIS] = 0.0f;
         plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], retract_feedrate/60, active_extruder);
 #endif
-        // no longer primed
-        primed = 0;
     }
 
-//#if EXTRUDERS > 1
-//    switch_extruder(0, false);
-//#endif // EXTRUDERS
+    // no longer primed
+    primed = 0;
+    set_extrude_min_temp(minTemp);
+    doCooldown();
 
+#if EXTRUDERS > 1
+    if (!bQuickstop && active_extruder)
+    {
+        switch_extruder(0, true);
+    }
     // move to a safe y position in dual mode
     CommandBuffer::move2SafeYPos();
-
-    if (card.sdprinting())
-    {
-    	// we're not printing any more
-        if (!card.pause())
-        {
-            recover_height = current_position[Z_AXIS];
-        }
-        card.stopPrinting();
-    }
-
+#endif // EXTRUDERS
     if (current_position[Z_AXIS] > max_pos[Z_AXIS] - 30)
     {
         CommandBuffer::homeHead();
@@ -128,12 +140,10 @@ void abortPrint()
     // finish all moves
     cmd_synchronize();
     finishAndDisableSteppers();
-    doCooldown();
 
     stoptime=millis();
     lifetime_stats_print_end();
-    //If we where paused, make sure we abort that pause. Else strange things happen: https://github.com/Ultimaker/Ultimaker2Marlin/issues/32
-    card.stopPrinting();
+
     printing_state = PRINT_STATE_NORMAL;
 #if FAN2_PIN != LED_PIN
     if (led_mode == LED_MODE_WHILE_PRINTING)
@@ -141,7 +151,6 @@ void abortPrint()
 #endif
 
     // reset defaults
-	retract_state = 0;
     fanSpeedPercent = 100;
     for(uint8_t e=0; e<EXTRUDERS; ++e)
     {
@@ -152,27 +161,26 @@ void abortPrint()
 
 static void checkPrintFinished()
 {
-    if ((printing_state != PRINT_STATE_RECOVER) && (printing_state != PRINT_STATE_START) && (printing_state != PRINT_STATE_ABORT) && !card.sdprinting() && !commands_queued())
+    if ((printing_state != PRINT_STATE_RECOVER) && (printing_state != PRINT_STATE_START) && !card.sdprinting() && !commands_queued())
     {
         // normal end of gcode file
         recover_height = 0.0f;
         sleep_state |= SLEEP_COOLING;
         menu.return_to_main(false);
         menu.add_menu(menu_t(lcd_menu_print_ready, MAIN_MENU_ITEM_POS(0)), false);
-        abortPrint();
+        abortPrint(false);
     }
     else if (position_error)
     {
-        quickStop();
         sleep_state &= ~SLEEP_LED_OFF;
         menu.replace_menu(menu_t(lcd_menu_print_error_position, MAIN_MENU_ITEM_POS(0)));
-        abortPrint();
+        abortPrint(true);
     }
     else if (card.errorCode())
     {
         sleep_state &= ~SLEEP_LED_OFF;
         menu.replace_menu(menu_t(lcd_menu_print_error_sd, MAIN_MENU_ITEM_POS(0)));
-        abortPrint();
+        abortPrint(true);
     }
 }
 
@@ -187,14 +195,14 @@ void doStartPrint()
 
     // zero the extruder position
     current_position[E_AXIS] = 0.0;
-    plan_set_e_position(0);
+    plan_set_e_position(0, true);
 	primed = 0;
 	position_error = false;
 
 	// since we are going to prime the nozzle, forget about any G10/G11 retractions that happened at end of previous print
 	reset_retractstate();
 
-    for(int8_t e = EXTRUDERS-1; e>=0; --e)
+    for(int8_t e = EXTRUDERS-1; (e>=0) && (printing_state < PRINT_STATE_ABORT); --e)
     {
 #ifdef FWRETRACT
         // clear reheat flag
@@ -231,6 +239,10 @@ void doStartPrint()
             // finish z-move
             cmd_synchronize();
             st_synchronize();
+			if (printing_state == PRINT_STATE_ABORT)
+			{
+				return;
+			}
         }
 
 	#if (EXTRUDERS > 1)
@@ -251,20 +263,23 @@ void doStartPrint()
             // wait for nozzle heatup
             reheatNozzle(active_extruder);
 
-            if (IS_WIPE_ENABLED)
+            if ((printing_state < PRINT_STATE_ABORT) && IS_WIPE_ENABLED)
             {
                 // execute prime and wipe script
                 cmdBuffer.processWipe(printing_state);
             }
-            printing_state = old_printstate;
+			if (printing_state < PRINT_STATE_ABORT)
+			{
+                printing_state = old_printstate;
+			}
         }
-        if (!IS_WIPE_ENABLED)
+        if (!IS_WIPE_ENABLED && (printing_state < PRINT_STATE_ABORT))
         {
             // undo the end-of-print retraction
-            plan_set_e_position((current_position[E_AXIS] - toolchange_retractlen[e]) / volume_to_filament_length[e]);
+            plan_set_e_position((current_position[E_AXIS] - toolchange_retractlen[e]) / volume_to_filament_length[e], true);
             plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], END_OF_PRINT_RECOVERY_SPEED, e);
             // perform additional priming
-            plan_set_e_position(-PRIMING_MM3);
+            plan_set_e_position(-PRIMING_MM3, true);
             plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], (PRIMING_MM3_PER_SEC * volume_to_filament_length[e]), e);
 
             CLEAR_TOOLCHANGE_RETRACT(e);
@@ -272,7 +287,7 @@ void doStartPrint()
 
             // retract
             current_position[E_AXIS] = 0.0;
-            plan_set_e_position(0);
+            plan_set_e_position(0, true);
             enquecommand_P(PSTR("G1 E0"));
             enquecommand_P(PSTR("G10"));
         }
@@ -299,7 +314,7 @@ void doStartPrint()
 		// recover tool change retract
 		// process_command_P(PSTR("G11"));
 		current_position[E_AXIS] = 0.0;
-		plan_set_e_position(0);
+		plan_set_e_position(0, true);
 		enquecommand_P(PSTR("G1 E0"));
 		// enquecommand_P(PSTR("G11"));
 	}
@@ -308,7 +323,7 @@ void doStartPrint()
     if (printing_state == PRINT_STATE_START)
     {
         // move to the recover start position
-        plan_set_e_position(recover_position[E_AXIS]);
+        plan_set_e_position(recover_position[E_AXIS], true);
         plan_buffer_line(recover_position[X_AXIS], recover_position[Y_AXIS], recover_position[Z_AXIS], recover_position[E_AXIS], min(homing_feedrate[X_AXIS], homing_feedrate[Z_AXIS])/60, active_extruder);
         for(int8_t i=0; i < NUM_AXIS; ++i) {
             current_position[i] = recover_position[i];
@@ -1444,10 +1459,12 @@ static void lcd_print_resume()
 {
     menu.return_to_previous();
     card.resumePrinting();
-    if (LCD_DETAIL_CACHE_MATERIAL(active_extruder))
-        primed |= (EXTRUDER_PRIMED << active_extruder);
+    primed |= (EXTRUDER_PRIMED << active_extruder);
     primed |= ENDOFPRINT_RETRACT;
-    check_preheat();
+    for (uint8_t e=0; e<EXTRUDERS; ++e)
+    {
+        check_preheat(e);
+    }
 }
 
 static void lcd_print_change_material()

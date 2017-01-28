@@ -32,7 +32,7 @@ extern uint8_t primed;
 void lcd_menu_print_select();
 void lcd_clear_cache();
 
-void abortPrint();
+void abortPrint(bool bQuickstop);
 
 void lcd_print_pause();
 void lcd_print_tune();
