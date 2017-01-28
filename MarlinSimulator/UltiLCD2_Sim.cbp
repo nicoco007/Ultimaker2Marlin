@@ -120,6 +120,8 @@
 		<Unit filename="../Marlin/pins.h" />
 		<Unit filename="../Marlin/planner.cpp" />
 		<Unit filename="../Marlin/planner.h" />
+		<Unit filename="../Marlin/powerbudget.cpp" />
+		<Unit filename="../Marlin/powerbudget.h" />
 		<Unit filename="../Marlin/preferences.h" />
 		<Unit filename="../Marlin/speed_lookuptable.h" />
 		<Unit filename="../Marlin/stepper.cpp" />
@@ -131,6 +133,8 @@
 		<Unit filename="../Marlin/tinkergnome.h" />
 		<Unit filename="../Marlin/watchdog.cpp" />
 		<Unit filename="../Marlin/watchdog.h" />
+		<Unit filename="../Marlin/wattage_distribution.cpp" />
+		<Unit filename="../Marlin/wattage_distribution.h" />
 		<Unit filename="arduino_sim/Arduino.h" />
 		<Unit filename="arduino_sim/HardwareSerial.cpp" />
 		<Unit filename="arduino_sim/HardwareSerial.h" />

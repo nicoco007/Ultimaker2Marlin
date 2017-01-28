@@ -17,6 +17,7 @@
 #include "preferences.h"
 #include "tinkergnome.h"
 #include "commandbuffer.h"
+#include "powerbudget.h"
 #if (EXTRUDERS > 1)
 #include "UltiLCD2_menu_dual.h"
 #endif
@@ -156,6 +157,8 @@ static void lcd_preferences_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
     else if (nr == index++)
         strcpy_P(buffer, PSTR("Print area"));
     else if (nr == index++)
+        strcpy_P(buffer, PSTR("Power budget"));
+    else if (nr == index++)
         strcpy_P(buffer, PSTR("Version"));
     else if (nr == index++)
         strcpy_P(buffer, PSTR("Runtime stats"));
@@ -230,7 +233,7 @@ static void lcd_preferences_details(uint8_t nr)
             strcpy_P(c, PSTR("off"));
         }
     }
-    else if (nr == 11)
+    else if (nr == 12)
     {
         strcpy_P(buffer, PSTR(STRING_CONFIG_H_AUTHOR));
     }
@@ -857,9 +860,9 @@ static void lcd_menu_screen_contrast()
 static void lcd_menu_preferences()
 {
 #if FAN2_PIN != LED_PIN
-    lcd_scroll_menu(PSTR("PREFERENCES"), BED_MENU_OFFSET + 13, lcd_preferences_item, lcd_preferences_details);
+    lcd_scroll_menu(PSTR("PREFERENCES"), BED_MENU_OFFSET + 14, lcd_preferences_item, lcd_preferences_details);
 #else
-    lcd_scroll_menu(PSTR("PREFERENCES"), BED_MENU_OFFSET + 12, lcd_preferences_item, lcd_preferences_details);
+    lcd_scroll_menu(PSTR("PREFERENCES"), BED_MENU_OFFSET + 13, lcd_preferences_item, lcd_preferences_details);
 #endif
     if (lcd_lib_button_pressed)
     {
@@ -892,6 +895,8 @@ static void lcd_menu_preferences()
             menu.add_menu(menu_t(lcd_menu_maintenance_motion, SCROLL_MENU_ITEM_POS(0)));
         else if (IS_SELECTED_SCROLL(index++))
             menu.add_menu(menu_t(lcd_menu_axeslimit, MAIN_MENU_ITEM_POS(1)));
+        else if (IS_SELECTED_SCROLL(index++))
+            menu.add_menu(menu_t(lcd_menu_powerbudget, MAIN_MENU_ITEM_POS(1)));
         else if (IS_SELECTED_SCROLL(index++))
             menu.add_menu(menu_t(lcd_menu_advanced_version, SCROLL_MENU_ITEM_POS(0)));
         else if (IS_SELECTED_SCROLL(index++))

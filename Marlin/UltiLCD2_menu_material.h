@@ -5,9 +5,9 @@
 EEPROM structure:
                    Location      Size
 Total:             0x0000-0x1000
-Settings:          0x0064-0x00E0 0x7C? (careful with this one)
+Settings:          0x0064-0x00FE (careful with this one)
 FirstRunDone:      0x0400-0x0400 0x01
-Tinker settings    0x0401-
+Tinker settings    0x0401-0x044B
 RuntimeStats:      0x0700-0x071C 0x1C
 Materials:         0x0800-0x09B1 (8+16)*18+1=0x1B1
 ExtraTemperatures: 0x0a00-0x0C40 (16*18*2)=0x240

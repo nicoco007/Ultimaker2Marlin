@@ -49,6 +49,7 @@
 #include "preferences.h"
 #include "UltiLCD2_menu_print.h"
 #include "commandbuffer.h"
+#include "powerbudget.h"
 
 #if NUM_SERVOS > 0
 #include "Servo.h"
@@ -560,6 +561,7 @@ void setup()
 
   // loads data from EEPROM if available else uses defaults (and resets step acceleration rate)
   Config_RetrieveSettings();
+  PowerBudget_RetrieveSettings();
 
 #if (EXTRUDERS > 1)
   Dual_RetrieveSettings();
@@ -2889,7 +2891,7 @@ void process_command(const char *strCmd, bool sendAck)
     case 10010://M10010 - Request LCD screen button info (R:[rotation difference compared to previous request] B:[button down])
         {
             SERIAL_PROTOCOLPGM("ok R:");
-            SERIAL_PROTOCOL_F(lcd_lib_encoder_pos, 10);
+            SERIAL_PROTOCOL(lcd_lib_encoder_pos);
             lcd_lib_encoder_pos = 0;
             if (lcd_lib_button_down)
                 SERIAL_PROTOCOLLNPGM(" B:1");
