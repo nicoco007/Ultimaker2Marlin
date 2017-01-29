@@ -23,7 +23,7 @@ int16_t lcd_setting_max;
 int16_t lcd_setting_start_value;
 
 uint8_t heater_timeout = 3;
-int backup_temperature[EXTRUDERS] = { 0 };
+uint16_t backup_temperature[EXTRUDERS] = { 0 };
 
 //Arduino IDE compatibility, lacks the eeprom_read_float function
 float eeprom_read_float(const float* addr)
@@ -331,11 +331,10 @@ static void lcd_menu_material_reheat()
 
 bool check_heater_timeout()
 {
-    if (heater_timeout && !commands_queued())
+    if (heater_timeout && !commands_queued() && !HAS_SERIAL_CMD)
     {
-        const unsigned long m = millis();
-        const unsigned long period = heater_timeout*MILLISECONDS_PER_MINUTE;
-        if ((m-last_user_interaction > period) && (m-lastSerialCommandTime > period))
+        const unsigned long timeout = max(last_user_interaction, lastSerialCommandTime) + (heater_timeout*MILLISECONDS_PER_MINUTE);
+        if (timeout < millis())
         {
             for(uint8_t e=0; e<EXTRUDERS; ++e)
             {

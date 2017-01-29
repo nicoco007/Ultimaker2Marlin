@@ -27,18 +27,20 @@
   #include "stepper.h"
 #endif
 
+#define constrainmax(amt,high) ((amt)>(high)?(high):(amt))
+
 // public functions
 void tp_init();  //initialise the heating
 void manage_heater(); //it is critical that this is called periodically.
 
 // low level conversion routines
 // do not use these routines and variables outside of temperature.cpp
-extern int target_temperature[EXTRUDERS];
+extern uint16_t target_temperature[EXTRUDERS];
 extern int8_t target_temperature_diff[EXTRUDERS];
 extern float current_temperature[EXTRUDERS];
 extern unsigned long extruder_lastused[EXTRUDERS];
 #if TEMP_SENSOR_BED != 0
-extern int target_temperature_bed;
+extern uint16_t target_temperature_bed;
 extern int8_t target_temperature_bed_diff;
 extern float current_temperature_bed;
 #endif
@@ -95,15 +97,16 @@ FORCE_INLINE int degTargetHotend(uint8_t extruder) {
   return target_temperature[extruder]+target_temperature_diff[extruder];
 }
 
-FORCE_INLINE void setTargetHotend(const float &celsius, uint8_t extruder) {
-  target_temperature[extruder] = constrain(int(celsius), 0, HEATER_0_MAXTEMP - 15);
+FORCE_INLINE void setTargetHotend(const uint16_t &celsius, uint8_t extruder) {
+  target_temperature[extruder] = constrainmax(celsius, HEATER_0_MAXTEMP - 15);
 }
 
-FORCE_INLINE void setTargetBed(const float &celsius) {
-  target_temperature_bed = celsius;
+FORCE_INLINE void setTargetBed(const uint16_t &celsius)
+{
 #ifdef BED_MAXTEMP
-  if (target_temperature_bed > BED_MAXTEMP - 15)
-    target_temperature_bed = BED_MAXTEMP - 15;
+  target_temperature_bed = constrainmax(celsius, BED_MAXTEMP - 15);
+#else
+  target_temperature_bed = celsius;
 #endif
 }
 

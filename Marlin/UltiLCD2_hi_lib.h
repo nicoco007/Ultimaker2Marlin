@@ -28,7 +28,7 @@ bool check_heater_timeout();
 bool check_preheat(uint8_t e);
 
 extern uint8_t heater_timeout;
-extern int backup_temperature[EXTRUDERS];
+extern uint16_t backup_temperature[EXTRUDERS];
 
 extern const char* lcd_setting_name;
 extern const char* lcd_setting_postfix;

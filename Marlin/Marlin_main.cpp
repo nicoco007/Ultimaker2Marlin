@@ -267,6 +267,8 @@ uint8_t Stopped = false;
   Servo servos[NUM_SERVOS];
 #endif
 
+#define roundTemperature(x) ((x)>0?(uint16_t)((x)+0.5):0)
+
 //===========================================================================
 //=============================ROUTINES=============================
 //===========================================================================
@@ -1683,10 +1685,11 @@ void process_command(const char *strCmd, bool sendAck)
       }
       if (code_seen(strCmd, 'S'))
       {
-          setTargetHotend(code_value(), tmp_extruder);
-          extruder_lastused[tmp_extruder] = millis();
-          // set reheat flag
-          retract_state |= (EXTRUDER_PREHEAT << tmp_extruder);
+        float newTemperature = code_value();
+        setTargetHotend(roundTemperature(newTemperature), tmp_extruder);
+        extruder_lastused[tmp_extruder] = millis();
+        // set reheat flag
+        retract_state |= (EXTRUDER_PREHEAT << tmp_extruder);
       }
       if (printing_state != PRINT_STATE_RECOVER)
       {
@@ -1717,9 +1720,10 @@ void process_command(const char *strCmd, bool sendAck)
       #endif
       if (code_seen(strCmd, 'S'))
       {
-          setTargetHotend(code_value(), tmp_extruder);
-          extruder_lastused[tmp_extruder] = millis();
-          retract_state |= (EXTRUDER_PREHEAT << tmp_extruder);
+        float newTemperature = code_value();
+        setTargetHotend(roundTemperature(newTemperature), tmp_extruder);
+        extruder_lastused[tmp_extruder] = millis();
+        retract_state |= (EXTRUDER_PREHEAT << tmp_extruder);
       }
       #ifdef AUTOTEMP
         if (code_seen(strCmd, 'S')) autotemp_min=code_value();
@@ -3341,14 +3345,16 @@ static void manage_inactivity()
   manage_led_timeout();
 #endif
 
-  if(printing_state == PRINT_STATE_RECOVER)
-    previous_millis_cmd=millis();
+  unsigned long m=millis();
 
-  if( max_inactive_time && ((millis() - previous_millis_cmd) >  max_inactive_time) )
+  if(printing_state == PRINT_STATE_RECOVER)
+    previous_millis_cmd=m;
+
+  if( max_inactive_time && ((m - previous_millis_cmd) >  max_inactive_time) )
       kill();
 #if DISABLE_X || DISABLE_Y || DISABLE_Z || DISABLE_E
   if(stepper_inactive_time)  {
-    if( (millis() - previous_millis_cmd) >  stepper_inactive_time )
+    if( (m - previous_millis_cmd) >  stepper_inactive_time )
     {
       if(blocks_queued() == false) {
         if(DISABLE_X) disable_x();
@@ -3378,7 +3384,7 @@ static void manage_inactivity()
     controllerFan(); //Check if fan should be turned on to cool stepper drivers down
   #endif
   #ifdef EXTRUDER_RUNOUT_PREVENT
-    if( (millis() - previous_millis_cmd) >  EXTRUDER_RUNOUT_SECONDS*1000 )
+    if( (m - previous_millis_cmd) >  EXTRUDER_RUNOUT_SECONDS*1000 )
     if(degHotend(active_extruder)>EXTRUDER_RUNOUT_MINTEMP)
     {
      bool oldstatus=READ(E0_ENABLE_PIN);
