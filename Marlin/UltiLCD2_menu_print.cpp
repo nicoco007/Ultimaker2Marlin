@@ -85,7 +85,7 @@ void abortPrint(bool bQuickstop)
 #if EXTRUDERS > 1
         if (!TOOLCHANGE_RETRACTED(active_extruder))
         {
-            // perform tool change retraction
+            // add tool change retraction
             float retractlen = toolchange_retractlen[active_extruder]/volume_to_filament_length[active_extruder];
             if (EXTRUDER_RETRACTED(active_extruder))
             {
@@ -95,16 +95,13 @@ void abortPrint(bool bQuickstop)
                     retractlen = 0.0f;
                 }
             }
+            SET_TOOLCHANGE_RETRACT(active_extruder);
+            toolchange_recover_length[active_extruder] = retractlen;
+
             // perform end-of-print retract
             plan_set_e_position(retractlen, true);
             current_position[E_AXIS] = 0.0f;
             plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], toolchange_retractfeedrate[active_extruder]/60, active_extruder);
-        }
-        else
-        {
-            // already retracted
-            current_position[E_AXIS] = 0.0f;
-            plan_set_e_position(current_position[E_AXIS], true);
         }
 #else
         // perform the end-of-print retraction at the standard retract speed
@@ -140,6 +137,8 @@ void abortPrint(bool bQuickstop)
     // finish all moves
     cmd_synchronize();
     finishAndDisableSteppers();
+    current_position[E_AXIS] = 0.0f;
+    plan_set_e_position(current_position[E_AXIS], false);
 
     stoptime=millis();
     lifetime_stats_print_end();
