@@ -78,6 +78,13 @@ void abortPrint(bool bQuickstop)
     float minTemp = get_extrude_min_temp();
     set_extrude_min_temp(0.0f);
 
+#if EXTRUDERS > 1
+    if (!bQuickstop && active_extruder)
+    {
+        switch_extruder(0, true);
+    }
+#endif // EXTRUDERS
+
     // set up the end of print retraction
     if ((primed & ENDOFPRINT_RETRACT) && (primed & (EXTRUDER_PRIMED << active_extruder)))
     {
@@ -117,10 +124,6 @@ void abortPrint(bool bQuickstop)
     doCooldown();
 
 #if EXTRUDERS > 1
-    if (!bQuickstop && active_extruder)
-    {
-        switch_extruder(0, true);
-    }
     // move to a safe y position in dual mode
     CommandBuffer::move2SafeYPos();
 #endif // EXTRUDERS
@@ -207,15 +210,6 @@ void doStartPrint()
         // clear reheat flag
         retract_state &= ~(EXTRUDER_PREHEAT << e);
 #endif
-//        if (!TOOLCHANGE_RETRACTED(e))
-//        {
-//            SET_TOOLCHANGE_RETRACT(e);
-//#if EXTRUDERS > 1
-//            toolchange_recover_length[e] = toolchange_retractlen[e] / volume_to_filament_length[e];
-//#else
-//            toolchange_recover_length[e] = end_of_print_retraction / volume_to_filament_length[e];
-//#endif
-//        }
         CLEAR_TOOLCHANGE_RETRACT(e);
         toolchange_recover_length[e] = 0.0f;
 
@@ -266,6 +260,10 @@ void doStartPrint()
             {
                 // execute prime and wipe script
                 cmdBuffer.processWipe(printing_state);
+                // reset
+                current_position[E_AXIS] = 0.0;
+                plan_set_e_position(current_position[E_AXIS], true);
+                enquecommand_P(PSTR("G1 E0"));
             }
 			if (printing_state < PRINT_STATE_ABORT)
 			{
@@ -285,9 +283,6 @@ void doStartPrint()
             CLEAR_EXTRUDER_RETRACT(e);
 
             // retract
-            current_position[E_AXIS] = 0.0;
-            plan_set_e_position(0, true);
-            enquecommand_P(PSTR("G1 E0"));
             enquecommand_P(PSTR("G10"));
         }
 	#else
@@ -306,18 +301,6 @@ void doStartPrint()
         primed |= (EXTRUDER_PRIMED << e);
         primed |= ENDOFPRINT_RETRACT;
 	}
-
-#if (EXTRUDERS > 1)
-	if (primed & (EXTRUDER_PRIMED << active_extruder))
-	{
-		// recover tool change retract
-		// process_command_P(PSTR("G11"));
-		current_position[E_AXIS] = 0.0;
-		plan_set_e_position(0, true);
-		enquecommand_P(PSTR("G1 E0"));
-		// enquecommand_P(PSTR("G11"));
-	}
-#endif
 
     if (printing_state == PRINT_STATE_START)
     {

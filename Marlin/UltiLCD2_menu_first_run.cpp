@@ -131,7 +131,7 @@ static void parkHeadForLeftAdjustment()
 #if (EXTRUDERS > 1)
     if IS_DUAL_ENABLED
     {
-        sprintf_P(buffer, PSTR("G1 F%i X%i Y%i"), int(homing_feedrate[X_AXIS]), max(int(min_pos[X_AXIS]), 0)+10, max(int(min_pos[Y_AXIS]), 0)+DUAL_Y_MIN_POS);
+        sprintf_P(buffer, PSTR("G1 F%i X%i Y%i"), int(homing_feedrate[X_AXIS]), max(int(min_pos[X_AXIS]), 0)+10, max(int(min_pos[Y_AXIS]), 0)+int(DUAL_Y_MIN_POS));
     }
     else
     {
@@ -180,7 +180,7 @@ static void parkHeadForRightAdjustment()
 #if (EXTRUDERS > 1)
     if IS_DUAL_ENABLED
     {
-        sprintf_P(buffer, PSTR("G1 F%i X%i Y%i"), int(homing_feedrate[X_AXIS]), int(max_pos[X_AXIS])-10, max(int(min_pos[Y_AXIS]), 0)+DUAL_Y_MIN_POS);
+        sprintf_P(buffer, PSTR("G1 F%i X%i Y%i"), int(homing_feedrate[X_AXIS]), int(max_pos[X_AXIS])-10, max(int(min_pos[Y_AXIS]), 0)+int(DUAL_Y_MIN_POS));
     }
     else
     {

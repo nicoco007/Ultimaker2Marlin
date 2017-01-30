@@ -384,10 +384,11 @@ const bool Z_ENDSTOPS_INVERTING = true; // set to true to invert the logic of th
 #define Y_MAX_LENGTH (Y_MAX_POS - Y_MIN_POS)
 #define Z_MAX_LENGTH (Z_MAX_POS - Z_MIN_POS)
 
+
+#if EXTRUDERS > 1
 // safe y-position for dual head mode
-#ifndef DUAL_Y_MIN_POS
-#define DUAL_Y_MIN_POS 55
-#endif
+#define DUAL_Y_MIN_POS (dock_position[Y_AXIS] + 20.0f)
+#endif // EXTRUDERS
 
 // The position of the homing switches
 //#define MANUAL_HOME_POSITIONS  // If defined, MANUAL_*_HOME_POS below will be used
