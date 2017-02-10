@@ -1,7 +1,7 @@
 /* -*- c++ -*- */
 
 /*
-    Reprap firmware based on Sprinter and grbl.
+ Reprap firmware based on Sprinter and grbl.
  Copyright (C) 2011 Camiel Gubbels / Erik van der Zalm
 
  This program is free software: you can redistribute it and/or modify
@@ -330,6 +330,7 @@ void reset_retractstate()
  */
 static void commit_command(bool isSerialCmd)
 {
+  ++buflen;
   if (isSerialCmd)
   {
     //set serial flag for new command
@@ -342,8 +343,7 @@ static void commit_command(bool isSerialCmd)
     serialCmd &= ~(1 << bufindw);
   }
   ++bufindw;
-  bufindw %= BUFSIZE;
-  ++buflen;
+  bufindw &= BUFMASK;
 }
 
 /**
@@ -351,11 +351,10 @@ static void commit_command(bool isSerialCmd)
  */
 static void remove_command()
 {
-    memset(cmdbuffer[bufindr], 0, MAX_CMD_SIZE);
     serialCmd &= ~(1 << bufindr);
-    --buflen;
     ++bufindr;
-    bufindr %= BUFSIZE;
+    bufindr &= BUFMASK;
+    --buflen;
 }
 
 //Clear all the commands in the ASCII command buffer
@@ -408,9 +407,10 @@ static void next_command()
 
 static void prepareenque()
 {
-    while(buflen >= BUFSIZE)
+    while (buflen >= BUFSIZE)
     {
         next_command();
+        checkHitEndstops();
         idle();
     }
 }
@@ -612,12 +612,12 @@ void loop()
   }
   if(buflen < BUFSIZE)
   {
-    // get next command
+    // get available commands
     get_command();
   }
   // manage heater and inactivity
-  idle();
   checkHitEndstops();
+  idle();
 }
 
 FORCE_INLINE float code_value()
@@ -784,7 +784,6 @@ inline void get_serial_commands()
 #else
       insertcommand(command, true);
 #endif
-      memset(cmd_line_buffer, 0, MAX_CMD_SIZE);
 
     }
     else if (serial_count >= MAX_CMD_SIZE - 1) {
@@ -812,6 +811,7 @@ inline void get_sdcard_commands()
     if (!card.sdprinting() || card.pause() || (printing_state == PRINT_STATE_ABORT)) return;
 
     uint16_t sd_count = 0;
+    char sd_char = '\0';
     static uint32_t endOfLineFilePosition = 0;
 
     bool card_eof = card.eof();
@@ -837,13 +837,21 @@ inline void get_sdcard_commands()
             return;
         }
 
-        char sd_char = (char)n;
-        card_eof = card.eof();
-        if (card_eof || n == -1
+        if (n<=0)
+        {
+            card_eof = true;
+            sd_char = '\0';
+        }
+        else
+        {
+            card_eof = card.eof();
+            sd_char = (char)n;
+        }
+        if (card_eof
             || sd_char == '\n' || sd_char == '\r'
-            || ((sd_char == '#' || sd_char == ':') && !comment_mode)
-        ) {
-            if (card_eof || (n == -1)) {
+            || ((sd_char == '#' || sd_char == ':') && !comment_mode))
+        {
+            if (card_eof) {
                 SERIAL_PROTOCOLLNPGM(MSG_FILE_PRINTED);
 
                 stoptime=millis();
@@ -869,12 +877,18 @@ inline void get_sdcard_commands()
             endOfLineFilePosition = card.getFilePos();
 
             insertcommand(cmd_line_buffer, false);
-            memset(cmd_line_buffer, 0, MAX_CMD_SIZE);
         }
         else if (sd_count < MAX_CMD_SIZE - 1)
         {
-            if (sd_char == ';') comment_mode = true;
-            if (!comment_mode) cmd_line_buffer[sd_count++] = sd_char;
+            if (sd_char == ';')
+            {
+                comment_mode = true;
+            }
+            else if (!comment_mode)
+            {
+                // add char to line buffer
+                cmd_line_buffer[sd_count++] = sd_char;
+            }
         }
         /**
          * Keep fetching, but ignore normal characters beyond the max length

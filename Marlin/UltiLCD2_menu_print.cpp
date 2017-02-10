@@ -347,7 +347,6 @@ static void cardUpdir()
 static void lcd_sd_menu_filename_callback(uint8_t nr, uint8_t offsetY, uint8_t flags)
 {
     char buffer[32] = {0};
-    memset(buffer, '\0', sizeof(buffer));
     if (nr == 0)
     {
         if (card.atRoot())
