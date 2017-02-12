@@ -12,7 +12,7 @@
 // build by the user have been successfully uploaded into firmware.
 #define STRING_VERSION_CONFIG_H __DATE__ " " __TIME__ // build date and time
 #ifndef STRING_CONFIG_H_AUTHOR
-#define STRING_CONFIG_H_AUTHOR "Tinker_17.01-DEV" // Who made the changes.
+#define STRING_CONFIG_H_AUTHOR "Tinker_17.02-DEV" // Who made the changes.
 #endif
 
 // SERIAL_PORT selects which serial port should be used for communication with the host.
@@ -387,7 +387,7 @@ const bool Z_ENDSTOPS_INVERTING = true; // set to true to invert the logic of th
 
 #if EXTRUDERS > 1
 // safe y-position for dual head mode
-#define DUAL_Y_MIN_POS (dock_position[Y_AXIS] + 20.0f)
+#define DUAL_Y_MIN_POS (dock_position[Y_AXIS] + 17.0f)
 #endif // EXTRUDERS
 
 // The position of the homing switches

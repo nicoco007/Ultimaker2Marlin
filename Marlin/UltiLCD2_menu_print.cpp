@@ -68,9 +68,11 @@ void abortPrint(bool bQuickstop)
         st_synchronize();
     }
 
+    plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], true);
+
     // reset defaults
     feedmultiply = 100;
-    for(uint8_t e=0; e<EXTRUDERS; e++)
+    for(uint8_t e=0; e<EXTRUDERS; ++e)
     {
         extrudemultiply[e] = 100;
     }
@@ -152,7 +154,7 @@ void abortPrint(bool bQuickstop)
         analogWrite(LED_PIN, 0);
 #endif
 
-    // reset defaults
+    // reset to defaults
     fanSpeedPercent = 100;
     for(uint8_t e=0; e<EXTRUDERS; ++e)
     {
@@ -170,6 +172,7 @@ static void checkPrintFinished()
         sleep_state |= SLEEP_COOLING;
         menu.return_to_main(false);
         menu.add_menu(menu_t(lcd_menu_print_ready, MAIN_MENU_ITEM_POS(0)), false);
+        printing_state = PRINT_STATE_END;
         abortPrint(false);
     }
     else if (position_error)

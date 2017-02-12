@@ -515,23 +515,6 @@ static void lcd_dockposition_move()
     menu.replace_menu(menu_t(lcd_dockmove_init, lcd_menu_dockmove, NULL, MAIN_MENU_ITEM_POS(1)), true);
 }
 
-static void lcd_menu_dockmove_prepare()
-{
-    lcd_question_screen(NULL, lcd_dockposition_move, PSTR("CONTINUE"), NULL, lcd_change_to_previous_menu, PSTR("CANCEL"));
-
-    lcd_lib_draw_string_centerP( 8, PSTR("Remove the second"));
-    lcd_lib_draw_string_centerP(18, PSTR("printhead from the"));
-    lcd_lib_draw_string_centerP(28, PSTR("dock to start"));
-    lcd_lib_draw_string_centerP(38, PSTR("calibration."));
-
-    lcd_lib_update_screen();
-}
-
-static void lcd_dockmove_prepare()
-{
-	menu.add_menu(menu_t(lcd_menu_dockmove_prepare, MAIN_MENU_ITEM_POS(1)));
-}
-
 // create menu options for "dock position"
 static const menu_t & get_dockposition_menuoption(uint8_t nr, menu_t &opt)
 {
@@ -544,7 +527,7 @@ static const menu_t & get_dockposition_menuoption(uint8_t nr, menu_t &opt)
     else if (!active_extruder && nr == index++)
     {
         // MOVE
-        opt.setData(MENU_NORMAL, lcd_dockmove_prepare);
+        opt.setData(MENU_NORMAL, lcd_dockposition_move);
     }
     else if (nr == index++)
     {

@@ -2,9 +2,16 @@
 #define POWERBUDGET_H
 
 // default values for wattage distribution
-#define DEFAULT_POWER_BUDGET     160
-#define DEFAULT_POWER_EXTRUDER    35
-#define DEFAULT_POWER_BUILDPLATE 120
+#ifndef DEFAULT_POWER_BUDGET
+  #define DEFAULT_POWER_BUDGET     160
+#endif
+#ifndef DEFAULT_POWER_EXTRUDER
+  #define DEFAULT_POWER_EXTRUDER    35
+#endif
+#ifndef DEFAULT_POWER_BUILDPLATE
+  #define DEFAULT_POWER_BUILDPLATE 150
+#endif
+
 
 // min/max allowed input value
 #define POWER_MINVALUE             0

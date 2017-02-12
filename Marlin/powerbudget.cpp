@@ -74,6 +74,13 @@ void PowerBudget_RetrieveSettings()
         }
       #endif
     }
+    // don't let any of these variables equal zero or we will get divide by zero errors
+    if (power_budget==0) power_budget=DEFAULT_POWER_BUDGET;
+    if (power_buildplate==0) power_buildplate=DEFAULT_POWER_BUILDPLATE;
+    for (uint8_t e=0; e<EXTRUDERS; ++e)
+    {
+        if (power_extruder[e]==0) power_extruder[e] = DEFAULT_POWER_EXTRUDER;
+    }
 }
 
 static void PowerBudget_SaveSettings()

@@ -1223,13 +1223,12 @@ static unsigned char limit_power(uint16_t wattage, unsigned char pwm, uint16_t &
 {
     if (pwm)
     {
-        if (budget)
+        if (budget && wattage)
         {
             uint16_t power = (float(pwm) / 0x7f) * wattage;
             if (power > budget)
             {
-                power = budget;
-                pwm = (float(power) / wattage) * 0x7f;
+                pwm = (float(budget) / wattage) * 0x7f;
                 budget = 0;
             }
             else
@@ -1290,7 +1289,7 @@ ISR(TIMER0_COMPB_vect)
     }
     #endif
     #if EXTRUDERS > 2
-    soft_pwm_2 = limit_power(power_extruder[1], soft_pwm[2], budget);
+    soft_pwm_2 = limit_power(power_extruder[2], soft_pwm[2], budget);
     if (soft_pwm_2 > 0)
     {
       WRITE(HEATER_2_PIN, 1);
@@ -1298,10 +1297,6 @@ ISR(TIMER0_COMPB_vect)
     #endif
     #if defined(HEATER_BED_PIN) && HEATER_BED_PIN > -1
     soft_pwm_b = limit_power(power_buildplate, soft_pwm_bed, budget);
-    if(soft_pwm_b > 0)
-    {
-      WRITE(HEATER_BED_PIN, 1);
-    }
     #endif
     #if defined(FAN_SOFT_PWM) || defined(FAN2_SOFT_PWM)
     soft_pwm_fan = fanSpeedSoftPwm / 2;
@@ -1332,7 +1327,16 @@ ISR(TIMER0_COMPB_vect)
   }
   #endif
   #if defined(HEATER_BED_PIN) && HEATER_BED_PIN > -1
-  if(soft_pwm_b <= pwm_count)
+  // bed is reverse of other heaters - nozzle heaters typically turn on at pwm_count=0 and typically
+  // turns off before pwm_count gets to 127.  But the bed typically does not turn on until pwm_count
+  // is part way through the cycle and turns off when pwm_count gets back to 0.  This minimizes overlap
+  // when bed and nozzles are both on to reduce the load variation on the power supply (probably not necessary
+  // but possibly it lengthens the life of the capacitor inside the power brick).
+  if (pwm_count > (0x7f-soft_pwm_b) ) // reverse timing
+  {
+    WRITE(HEATER_BED_PIN, 1);
+  }
+  else
   {
     WRITE(HEATER_BED_PIN, 0);
   }

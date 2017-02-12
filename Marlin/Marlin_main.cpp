@@ -3339,9 +3339,10 @@ void idle()
     manage_inactivity();
 
     // detect serial communication
-    if ((commands_queued() && serialCmd) || ((lastSerialCommandTime > 0) && ((millis() - lastSerialCommandTime) < SERIAL_CONTROL_TIMEOUT)))
+    if (commands_queued() && serialCmd)
     {
       sleep_state |= SLEEP_SERIAL_CMD;
+      lastSerialCommandTime = millis();
     }
     else
     {
@@ -3607,7 +3608,10 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
 
     if IS_DUAL_ENABLED
     {
-        printing_state = PRINT_STATE_TOOLCHANGE;
+        if (printing_state < PRINT_STATE_END)
+        {
+            printing_state = PRINT_STATE_TOOLCHANGE;
+        }
         float old_feedrate = feedrate;
         float oldjerk = max_xy_jerk;
         float oldaccel = acceleration;
@@ -3661,7 +3665,7 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
 
         if IS_TOOLCHANGE_ENABLED
         {
-            if (IS_WIPE_ENABLED)
+            if (IS_WIPE_ENABLED && (printing_state < PRINT_STATE_END))
             {
                 // limit fan speed during priming
                 printing_state = PRINT_STATE_PRIMING;
@@ -3704,47 +3708,50 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
 
         if (moveZ)
         {
-            // move to heatup pos
-            CommandBuffer::move2heatup();
+            if (printing_state < PRINT_STATE_END)
+            {
 
-            // wait for nozzle heatup
-            reheatNozzle(active_extruder);
-            if (printing_state == PRINT_STATE_ABORT)
-            {
-                CommandBuffer::move2SafeYPos();
-            }
-            else
-            {
-                if (IS_WIPE_ENABLED)
+                // move to heatup pos
+                CommandBuffer::move2heatup();
+
+                // wait for nozzle heatup
+                reheatNozzle(active_extruder);
+                if (printing_state == PRINT_STATE_ABORT)
                 {
-        #ifdef PREVENT_DANGEROUS_EXTRUDE
-                    if (degHotend(active_extruder) >= get_extrude_min_temp())
-        #endif
+                    CommandBuffer::move2SafeYPos();
+                }
+                else
+                {
+                    if (IS_WIPE_ENABLED)
                     {
-                        // execute wipe script
-                        cmdBuffer.processWipe(PRINT_STATE_TOOLCHANGE);
+            #ifdef PREVENT_DANGEROUS_EXTRUDE
+                        if (degHotend(active_extruder) >= get_extrude_min_temp())
+            #endif
+                        {
+                            // execute wipe script
+                            cmdBuffer.processWipe(PRINT_STATE_TOOLCHANGE);
+                        }
+                        // finish wipe moves
+                        st_synchronize();
                     }
-                    // finish wipe moves
-                    st_synchronize();
+                    else if (TOOLCHANGE_RETRACTED(active_extruder)
+            #ifdef PREVENT_DANGEROUS_EXTRUDE
+                      && (degHotend(active_extruder) >= get_extrude_min_temp())
+            #endif
+                            )
+                    {
+                        // recover toolchange retract
+                        recover_toolchange_retract(active_extruder, false);
+                    }
                 }
-                else if (TOOLCHANGE_RETRACTED(active_extruder)
-        #ifdef PREVENT_DANGEROUS_EXTRUDE
-                  && (degHotend(active_extruder) >= get_extrude_min_temp())
-        #endif
-                        )
-                {
-                    // recover toolchange retract
-                    recover_toolchange_retract(active_extruder, false);
-                }
+            }
+            // reset wipe offset
+            current_position[Z_AXIS] += wipeOffset;
 
-                // reset wipe offset
-                current_position[Z_AXIS] += wipeOffset;
-
-                // raise buildplate if necessary
-                if (zoffset > 0.0f)
-                {
-                   current_position[Z_AXIS] += zoffset;
-                }
+            // raise buildplate if necessary
+            if (zoffset > 0.0f)
+            {
+               current_position[Z_AXIS] += zoffset;
             }
         }
 
