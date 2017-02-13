@@ -68,7 +68,7 @@ void abortPrint(bool bQuickstop)
         st_synchronize();
     }
 
-    plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], true);
+    plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], active_extruder, true);
 
     // reset defaults
     feedmultiply = 100;
@@ -108,13 +108,13 @@ void abortPrint(bool bQuickstop)
             toolchange_recover_length[active_extruder] = retractlen;
 
             // perform end-of-print retract
-            plan_set_e_position(retractlen, true);
+            plan_set_e_position(retractlen, active_extruder, true);
             current_position[E_AXIS] = 0.0f;
             plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], toolchange_retractfeedrate[active_extruder]/60, active_extruder);
         }
 #else
         // perform the end-of-print retraction at the standard retract speed
-        plan_set_e_position(end_of_print_retraction / volume_to_filament_length[active_extruder]);
+        plan_set_e_position(end_of_print_retraction / volume_to_filament_length[active_extruder], active_extruder, true);
         current_position[E_AXIS] = 0.0f;
         plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], retract_feedrate/60, active_extruder);
 #endif
@@ -143,7 +143,7 @@ void abortPrint(bool bQuickstop)
     cmd_synchronize();
     finishAndDisableSteppers();
     current_position[E_AXIS] = 0.0f;
-    plan_set_e_position(current_position[E_AXIS], false);
+    plan_set_e_position(current_position[E_AXIS], active_extruder, true);
 
     stoptime=millis();
     lifetime_stats_print_end();
@@ -200,7 +200,7 @@ void doStartPrint()
 
     // zero the extruder position
     current_position[E_AXIS] = 0.0;
-    plan_set_e_position(0, true);
+    plan_set_e_position(current_position[E_AXIS], active_extruder, true);
 	primed = 0;
 	position_error = false;
 
@@ -213,8 +213,10 @@ void doStartPrint()
         // clear reheat flag
         retract_state &= ~(EXTRUDER_PREHEAT << e);
 #endif
+      #if EXTRUDERS > 1
         CLEAR_TOOLCHANGE_RETRACT(e);
         toolchange_recover_length[e] = 0.0f;
+      #endif
 
         if (!LCD_DETAIL_CACHE_MATERIAL(e))
         {
@@ -265,7 +267,7 @@ void doStartPrint()
                 cmdBuffer.processWipe(printing_state);
                 // reset
                 current_position[E_AXIS] = 0.0;
-                plan_set_e_position(current_position[E_AXIS], true);
+                plan_set_e_position(current_position[E_AXIS], e, true);
                 enquecommand_P(PSTR("G1 E0"));
             }
 			if (printing_state < PRINT_STATE_ABORT)
@@ -276,10 +278,10 @@ void doStartPrint()
         if (!IS_WIPE_ENABLED && (printing_state < PRINT_STATE_ABORT))
         {
             // undo the end-of-print retraction
-            plan_set_e_position((current_position[E_AXIS] - toolchange_retractlen[e]) / volume_to_filament_length[e], true);
+            plan_set_e_position((current_position[E_AXIS] - toolchange_retractlen[e]) / volume_to_filament_length[e], e, true);
             plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], END_OF_PRINT_RECOVERY_SPEED, e);
             // perform additional priming
-            plan_set_e_position(-PRIMING_MM3, true);
+            plan_set_e_position(-PRIMING_MM3, e, true);
             plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], (PRIMING_MM3_PER_SEC * volume_to_filament_length[e]), e);
 
             CLEAR_TOOLCHANGE_RETRACT(e);
@@ -290,10 +292,10 @@ void doStartPrint()
         }
 	#else
 		// undo the end-of-print retraction
-		plan_set_e_position((0.0 - end_of_print_retraction) / volume_to_filament_length[e]);
+		plan_set_e_position((0.0 - end_of_print_retraction) / volume_to_filament_length[e], e, true);
 		plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], END_OF_PRINT_RECOVERY_SPEED, e);
 		// perform additional priming
-		plan_set_e_position(-PRIMING_MM3);
+		plan_set_e_position(-PRIMING_MM3, e, true);
 		plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], (PRIMING_MM3_PER_SEC * volume_to_filament_length[e]), e);
 	#endif
 
@@ -308,7 +310,7 @@ void doStartPrint()
     if (printing_state == PRINT_STATE_START)
     {
         // move to the recover start position
-        plan_set_e_position(recover_position[E_AXIS], true);
+        plan_set_e_position(recover_position[E_AXIS], active_extruder, true);
         plan_buffer_line(recover_position[X_AXIS], recover_position[Y_AXIS], recover_position[Z_AXIS], recover_position[E_AXIS], min(homing_feedrate[X_AXIS], homing_feedrate[Z_AXIS])/60, active_extruder);
         for(int8_t i=0; i < NUM_AXIS; ++i) {
             current_position[i] = recover_position[i];
@@ -1412,14 +1414,15 @@ void lcd_print_pause()
         }
 
         char buffer[32] = {0};
-    #if (EXTRUDERS > 1)
         char buffer_len[10];
+    #if (EXTRUDERS > 1)
         float_to_string2(toolchange_retractlen[active_extruder], buffer_len, NULL);
         uint16_t x = max(5, int(min_pos[X_AXIS]) + 5 + extruder_offset[X_AXIS][active_extruder]);
         uint16_t y = IS_DUAL_ENABLED ? (int)min_pos[Y_AXIS]+60 : (int)min_pos[Y_AXIS]+5;
         sprintf_P(buffer, PSTR("M601 X%u Y%u Z%u L%s"), x, y, zdiff, buffer_len);
     #else
-        sprintf_P(buffer, PSTR("M601 X5 Y10 Z%u L%u"), zdiff, end_of_print_retraction);
+        float_to_string2(end_of_print_retraction, buffer_len, NULL);
+        sprintf_P(buffer, PSTR("M601 X5 Y10 Z%u L%s"), zdiff, buffer_len);
     #endif
         process_command(buffer, false);
         // clear flag for end of print retraction

@@ -7,10 +7,10 @@
 #include "UltiLCD2_low_lib.h"
 #include "UltiLCD2_menu_print.h" // use lcd_cache as char buffer
 
-#define CONFIG_DIR  "config"
-#define FILENAME_T0 "T0"
-#define FILENAME_T1 "T1"
-#define FILENAME_WIPE "wipe"
+
+CommandBuffer cmdBuffer;
+
+#if (EXTRUDERS > 1)
 
 #define TOOLCHANGE_DISTANCEX 58.0f
 #define TOOLCHANGE_DISTANCEY 2.0f
@@ -19,11 +19,12 @@
 #define WIPE_DISTANCEX 33.0f
 #define WIPE_DISTANCEY 4.0f
 
-CommandBuffer cmdBuffer;
-
-#if (EXTRUDERS > 1)
-
 #if defined(TCSDSCRIPT)
+#define CONFIG_DIR  "config"
+#define FILENAME_T0 "T0"
+#define FILENAME_T1 "T1"
+#define FILENAME_WIPE "wipe"
+
 CommandBuffer::~CommandBuffer()
 {
     deleteScript(t0);
@@ -310,6 +311,7 @@ void CommandBuffer::moveHead(float x, float y, int feedrate)
     plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], feedrate, active_extruder);
 }
 
+#if EXTRUDERS > 1
 void CommandBuffer::move2dock(bool bRetract)
 {
     if (current_position[Y_AXIS] < TOOLCHANGE_STARTY)
@@ -324,9 +326,9 @@ void CommandBuffer::move2dock(bool bRetract)
     {
         CommandBuffer::moveHead(dock_position[X_AXIS], TOOLCHANGE_STARTY, 200);
     }
-    idle();
     CommandBuffer::moveHead(dock_position[X_AXIS], dock_position[Y_AXIS], 100);
 }
+#endif // EXTRUDERS
 
 void CommandBuffer::move2heatup()
 {

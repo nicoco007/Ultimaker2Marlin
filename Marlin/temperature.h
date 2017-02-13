@@ -30,7 +30,7 @@
 #define constrainmax(amt,high) ((amt)>(high)?(high):(amt))
 
 // public functions
-void tp_init();  //initialise the heating
+void tp_init();  //initialize the heating
 void manage_heater(); //it is critical that this is called periodically.
 
 // low level conversion routines

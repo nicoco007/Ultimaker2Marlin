@@ -272,7 +272,7 @@ void start_move_material()
     set_extrude_min_temp(0);
     // reset e-position
     current_position[E_AXIS] = 0;
-    plan_set_e_position(0, true);
+    plan_set_e_position(0, menu_extruder, true);
     // heatup nozzle
     target_temperature[menu_extruder] = material[menu_extruder].temperature[0];
     target_temperature_diff[menu_extruder] = 0;

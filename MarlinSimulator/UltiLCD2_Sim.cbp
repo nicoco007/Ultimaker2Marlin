@@ -42,9 +42,9 @@
 			<Add option="-DFAN2_PIN=6" />
 			<Add option="-DHOTEND_FAN2_PIN=14" />
 			<Add option="-DTEMP_SENSOR_BED=20" />
-			<Add option="-DHEATER_0_MAXTEMP=325" />
-			<Add option="-DHEATER_1_MAXTEMP=325" />
-			<Add option="-DHEATER_2_MAXTEMP=325" />
+			<Add option="-DHEATER_0_MAXTEMP=315" />
+			<Add option="-DHEATER_1_MAXTEMP=315" />
+			<Add option="-DHEATER_2_MAXTEMP=315" />
 			<Add option="-DTCSDSCRIPT" />
 			<Add directory="arduino_sim" />
 			<Add directory="avr_sim" />

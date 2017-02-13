@@ -44,7 +44,6 @@
 #define HEATER_TIMEOUT_OFF (1000L * 300L)   // 300 seconds
 #define HEATER_TIMEOUT_MINTEMP 80           // 80C
 
-
 //===========================================================================
 //=============================public variables============================
 //===========================================================================
@@ -1217,7 +1216,6 @@ static int read_max6675()
   return max6675_temp;
 }
 #endif
-
 
 static unsigned char limit_power(uint16_t wattage, unsigned char pwm, uint16_t &budget)
 {

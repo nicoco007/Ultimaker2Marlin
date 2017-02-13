@@ -574,7 +574,7 @@ void check_axes_activity()
 
 // Add a new linear movement to the buffer. x, y and z is the signed, absolute target position in
 // millimeters. Feed rate specifies the speed of the motion.
-void plan_buffer_line(const float &x, const float &y, const float &z, const float &e, float feed_rate, const uint8_t &extruder)
+void plan_buffer_line(const float &x, const float &y, const float &z, const float &e, float feed_rate, const uint8_t extruder)
 {
   // Calculate the buffer head after we push this byte
   uint8_t next_buffer_head = next_block_index(block_buffer_head);
@@ -980,12 +980,12 @@ block->steps_y = labs((target[X_AXIS]-position[X_AXIS]) - (target[Y_AXIS]-positi
   st_wake_up();
 }
 
-void plan_set_position(const float &x, const float &y, const float &z, const float &e, bool bSynchronize)
+void plan_set_position(const float &x, const float &y, const float &z, const float &e, const uint8_t extruder, bool bSynchronize)
 {
   position[X_AXIS] = lround(x*axis_steps_per_unit[X_AXIS]);
   position[Y_AXIS] = lround(y*axis_steps_per_unit[Y_AXIS]);
   position[Z_AXIS] = lround(z*axis_steps_per_unit[Z_AXIS]);
-  position[E_AXIS] = lround(e*e_steps_per_unit(active_extruder)*volume_to_filament_length[active_extruder]);
+  position[E_AXIS] = lround(e*e_steps_per_unit(extruder)*volume_to_filament_length[extruder]);
   previous_nominal_speed = 0.0; // Resets planner junction speeds. Assumes start from rest.
   previous_speed[0] = 0.0;
   previous_speed[1] = 0.0;
@@ -998,9 +998,9 @@ void plan_set_position(const float &x, const float &y, const float &z, const flo
   }
 }
 
-void plan_set_e_position(const float &e, bool bSynchronize)
+void plan_set_e_position(const float &e, const uint8_t extruder, bool bSynchronize)
 {
-  position[E_AXIS] = lround(e*e_steps_per_unit(active_extruder)*volume_to_filament_length[active_extruder]);
+  position[E_AXIS] = lround(e*e_steps_per_unit(extruder)*volume_to_filament_length[extruder]);
   if (bSynchronize)
   {
       st_synchronize();

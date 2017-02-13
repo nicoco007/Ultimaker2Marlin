@@ -161,7 +161,7 @@ void lcd_menu_change_material_preheat()
             quickStop();
             set_extrude_min_temp(0);
             current_position[E_AXIS] = 0.0f;
-            plan_set_e_position(current_position[E_AXIS], true);
+            plan_set_e_position(current_position[E_AXIS], menu_extruder, true);
 
             float old_max_feedrate_e = max_feedrate[E_AXIS];
             float old_retract_acceleration = retract_acceleration;
@@ -359,7 +359,7 @@ static void lcd_menu_change_material_insert_wait_user_ready()
 
     quickStop();
     current_position[E_AXIS] = 0.0f;
-    plan_set_e_position(current_position[E_AXIS], true);
+    plan_set_e_position(current_position[E_AXIS], menu_extruder, true);
 
     current_position[E_AXIS] += FILAMENT_FORWARD_LENGTH / volume_to_filament_length[menu_extruder];
     plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], max_feedrate[E_AXIS], menu_extruder);
@@ -422,7 +422,7 @@ static void materialInsertReady()
 
     // retract material
     current_position[E_AXIS] = 0.0f;
-    plan_set_e_position(current_position[E_AXIS], true);
+    plan_set_e_position(current_position[E_AXIS], menu_extruder, true);
     if (EXTRUDER_RETRACTED(menu_extruder))
     {
         current_position[E_AXIS] -= retract_recover_length[menu_extruder];

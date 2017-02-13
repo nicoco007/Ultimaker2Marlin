@@ -3,7 +3,7 @@
 
 // default values for wattage distribution
 #ifndef DEFAULT_POWER_BUDGET
-  #define DEFAULT_POWER_BUDGET     160
+  #define DEFAULT_POWER_BUDGET     175
 #endif
 #ifndef DEFAULT_POWER_EXTRUDER
   #define DEFAULT_POWER_EXTRUDER    35

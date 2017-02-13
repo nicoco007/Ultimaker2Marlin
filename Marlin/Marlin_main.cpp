@@ -1001,7 +1001,7 @@ static void homeaxis(int axis) {
 
     // Do a fast run to the home position.
     current_position[axis] = 0;
-    plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], true);
+    plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], active_extruder, true);
     destination[axis] = 1.5 * (max_pos[axis]-min_pos[axis]) * home_dir(axis);
     feedrate = homing_feedrate[axis];
     plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate/60, active_extruder);
@@ -1013,7 +1013,7 @@ static void homeaxis(int axis) {
             //Move the bed upwards, as most likely something is stuck under the bed when we cannot reach the endstop.
             // We need to move up, as the Z screw is quite strong and will lodge the bed into a position where it is hard to remove by hand.
             current_position[axis] = 0;
-            plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], true);
+            plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], active_extruder, true);
             destination[axis] = -5 * home_dir(axis);
             plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate/60, active_extruder);
             //Disable the motor power so the bed can be moved by hand
@@ -1032,7 +1032,7 @@ static void homeaxis(int axis) {
 
     // Move back a little bit.
     current_position[axis] = 0;
-    plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], true);
+    plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], active_extruder, true);
     destination[axis] = -home_retract_mm(axis) * home_dir(axis);
     plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate/60, active_extruder);
     st_synchronize();
@@ -1181,9 +1181,9 @@ inline void gcode_G92(const char *cmd)
     }
   }
   if (didXYZ)
-    plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], true);
+    plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], active_extruder, true);
   else if (didE)
-    plan_set_e_position(current_position[E_AXIS], false);
+    plan_set_e_position(current_position[E_AXIS], active_extruder, false);
 }
 
 static char * truncate_checksum(char *str)
@@ -1281,7 +1281,7 @@ void process_command(const char *strCmd, bool sendAck)
         prepare_move(strCmd);
         feedrate = oldFeedrate;
         destination[E_AXIS] = current_position[E_AXIS] = oldpos;
-        plan_set_e_position(oldpos, false);
+        plan_set_e_position(oldpos, active_extruder, false);
       }
 
       break;
@@ -1303,7 +1303,7 @@ void process_command(const char *strCmd, bool sendAck)
         prepare_move(strCmd);
         feedrate = oldFeedrate;
         destination[E_AXIS] = current_position[E_AXIS] = oldpos;
-        plan_set_e_position(oldpos, false);
+        plan_set_e_position(oldpos, active_extruder, false);
       }
       break;
       #endif //FWRETRACT
@@ -1333,7 +1333,7 @@ void process_command(const char *strCmd, bool sendAck)
           current_position[X_AXIS] = 0;
           current_position[Y_AXIS] = 0;
           current_position[Z_AXIS] = 0;
-          plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS]);
+          plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], active_extruder, true);
 
           destination[X_AXIS] = 3 * AXIS_LENGTH(Z_AXIS);
           destination[Y_AXIS] = 3 * AXIS_LENGTH(Z_AXIS);
@@ -1353,7 +1353,7 @@ void process_command(const char *strCmd, bool sendAck)
           HOMEAXIS(Z);
 
           calculate_delta(current_position);
-          plan_set_position(delta[X_AXIS], delta[Y_AXIS], delta[Z_AXIS], current_position[E_AXIS]);
+          plan_set_position(delta[X_AXIS], delta[Y_AXIS], delta[Z_AXIS], current_position[E_AXIS], active_extruder, true);
 
 #else // NOT DELTA
 
@@ -1365,7 +1365,7 @@ void process_command(const char *strCmd, bool sendAck)
       {
         current_position[X_AXIS] = 0; current_position[Y_AXIS] = 0; current_position[Z_AXIS] = 0;
 
-        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], true);
+        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], active_extruder, true);
 
         destination[X_AXIS] = 1.5 * AXIS_LENGTH(X_AXIS) * X_HOME_DIR;
         destination[Y_AXIS] = 1.5 * AXIS_LENGTH(Y_AXIS) * Y_HOME_DIR;
@@ -1378,7 +1378,7 @@ void process_command(const char *strCmd, bool sendAck)
         axis_is_at_home(X_AXIS);
         axis_is_at_home(Y_AXIS);
         axis_is_at_home(Z_AXIS);
-        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], true);
+        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], active_extruder, true);
         destination[X_AXIS] = current_position[X_AXIS];
         destination[Y_AXIS] = current_position[Y_AXIS];
         destination[Z_AXIS] = current_position[Z_AXIS];
@@ -1402,7 +1402,7 @@ void process_command(const char *strCmd, bool sendAck)
       {
         current_position[X_AXIS] = 0;current_position[Y_AXIS] = 0;
 
-        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], true);
+        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], active_extruder, true);
         destination[X_AXIS] = 1.5 * AXIS_LENGTH(X_AXIS) * X_HOME_DIR;
 		destination[Y_AXIS] = 1.5 * AXIS_LENGTH(Y_AXIS) * Y_HOME_DIR;
         feedrate = homing_feedrate[X_AXIS];
@@ -1413,7 +1413,7 @@ void process_command(const char *strCmd, bool sendAck)
 
         axis_is_at_home(X_AXIS);
         axis_is_at_home(Y_AXIS);
-        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], true);
+        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], active_extruder, true);
         destination[X_AXIS] = current_position[X_AXIS];
         destination[Y_AXIS] = current_position[Y_AXIS];
         plan_buffer_line(destination[X_AXIS], destination[Y_AXIS], destination[Z_AXIS], destination[E_AXIS], feedrate/60, active_extruder);
@@ -1460,7 +1460,7 @@ void process_command(const char *strCmd, bool sendAck)
           current_position[Z_AXIS]=code_value()+add_homeing[Z_AXIS];
         }
       }
-      plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], true);
+      plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], active_extruder, true);
 #endif // DELTA
 
       #ifdef ENDSTOPS_ONLY_FOR_HOMING
@@ -1540,7 +1540,7 @@ void process_command(const char *strCmd, bool sendAck)
         {
           idle();
         }
-        plan_set_e_position(current_position[E_AXIS], true);
+        plan_set_e_position(current_position[E_AXIS], active_extruder, true);
 //        serial_action_P(PSTR("resume"));
     }
     break;
@@ -1961,11 +1961,13 @@ void process_command(const char *strCmd, bool sendAck)
         if(all_axis)
         {
           finishAndDisableSteppers();
+        #if EXTRUDERS > 1
           for (uint8_t e=0; e<EXTRUDERS; ++e)
           {
             CLEAR_TOOLCHANGE_RETRACT(e);
             toolchange_recover_length[e] = 0.0f;
           }
+        #endif // EXTRUDERS
         }
         else
         {
@@ -1981,11 +1983,13 @@ void process_command(const char *strCmd, bool sendAck)
           #if EXTRUDERS > 1
               last_extruder = 0xFF;
           #endif
+            #if EXTRUDERS > 1
               for (uint8_t e=0; e<EXTRUDERS; ++e)
               {
                 CLEAR_TOOLCHANGE_RETRACT(e);
                 toolchange_recover_length[e] = 0.0f;
               }
+            #endif
             }
           #endif
         }
@@ -2026,7 +2030,7 @@ void process_command(const char *strCmd, bool sendAck)
           }
         }
       }
-      plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], true);
+      plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], active_extruder, true);
       break;
     case 115: // M115
       SERIAL_PROTOCOLPGM(MSG_M115_REPORT);
@@ -2610,7 +2614,7 @@ void process_command(const char *strCmd, bool sendAck)
           #endif
         }
         current_position[E_AXIS]=target[E_AXIS]; //the long retract of L is compensated by manual filament feeding
-        plan_set_e_position(current_position[E_AXIS] / volume_to_filament_length[active_extruder]);
+        plan_set_e_position(current_position[E_AXIS] / volume_to_filament_length[active_extruder], active_extruder, true);
         plan_buffer_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], target[E_AXIS], feedrate/60, active_extruder); //should do nothing
         plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], target[Z_AXIS], target[E_AXIS], feedrate/60, active_extruder); //move xy back
         plan_buffer_line(lastpos[X_AXIS], lastpos[Y_AXIS], lastpos[Z_AXIS], target[E_AXIS], feedrate/60, active_extruder); //move z back
@@ -2693,7 +2697,7 @@ void process_command(const char *strCmd, bool sendAck)
           }
         }
 
-        plan_set_e_position(target[E_AXIS], true);
+        plan_set_e_position(target[E_AXIS], active_extruder, true);
 
         if ((printing_state != PRINT_STATE_ABORT) && (card.sdprinting() || HAS_SERIAL_CMD))
         {
@@ -3060,7 +3064,7 @@ static void get_coordinates(const char *cmd)
                 feedrate=retract_feedrate;
                 current_position[E_AXIS]-=correctede;
 
-                plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], false);
+                plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], active_extruder, false);
             }
             else
             {
@@ -3068,7 +3072,7 @@ static void get_coordinates(const char *cmd)
                 {
                     // ignore additional retracts
                     current_position[E_AXIS] = destination[E_AXIS];
-                    plan_set_e_position(current_position[E_AXIS], false);
+                    plan_set_e_position(current_position[E_AXIS], active_extruder, false);
                 }
                 else if (EXTRUDER_RETRACTED(active_extruder))
                 {
@@ -3096,14 +3100,14 @@ static void get_coordinates(const char *cmd)
                     //if slicer retracted_recovered by echange=+1mm and you want to retract_recover 3mm, corrrectede=2mm additionally
                     float correctede=-echange+1*retract_length+retract_recover_length[active_extruder]; //total unretract=retract_length+retract_recover_length[surplus]
                     current_position[E_AXIS]+=correctede; //to generate the additional steps, not the destination is changed, but inversely the current position
-                    plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], false);
+                    plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], active_extruder, false);
                     feedrate=retract_recover_feedrate[active_extruder];
                 }
                 else
                 {
                     float correctede=echange-retract_recover_length[active_extruder]; //total unretract=retract_length+retract_recover_length[surplus]
                     current_position[E_AXIS]+=correctede; //to generate the additional steps, not the destination is changed, but inversely the current position
-                    plan_set_e_position(current_position[E_AXIS], false);
+                    plan_set_e_position(current_position[E_AXIS], active_extruder, false);
                 }
             }
             CLEAR_EXTRUDER_RETRACT(active_extruder);
@@ -3118,7 +3122,7 @@ static void get_coordinates(const char *cmd)
 		#endif
         if (EXTRUDER_RETRACTED(active_extruder))
         {
-            plan_set_e_position(current_position[E_AXIS]-retract_recover_length[active_extruder], false);
+            plan_set_e_position(current_position[E_AXIS]-retract_recover_length[active_extruder], active_extruder, false);
             plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], retract_recover_feedrate[active_extruder]/60, active_extruder);
             CLEAR_EXTRUDER_RETRACT(active_extruder);
 		    retract_recover_length[active_extruder] = 0.0f;
@@ -3407,13 +3411,12 @@ static void manage_inactivity()
      float oldepos=current_position[E_AXIS];
      float oldedes=destination[E_AXIS];
      plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS],
-                      current_position[E_AXIS]+EXTRUDER_RUNOUT_EXTRUDE*EXTRUDER_RUNOUT_ESTEPS/axis_steps_per_unit[E_AXIS],
-                      EXTRUDER_RUNOUT_SPEED/60.*EXTRUDER_RUNOUT_ESTEPS/axis_steps_per_unit[E_AXIS], active_extruder);
+                      current_position[E_AXIS]+EXTRUDER_RUNOUT_EXTRUDE*EXTRUDER_RUNOUT_ESTEPS/e_steps_per_unit(active_extruder),
+                      EXTRUDER_RUNOUT_SPEED/60.*EXTRUDER_RUNOUT_ESTEPS/e_steps_per_unit(active_extruder), active_extruder);
      current_position[E_AXIS]=oldepos;
      destination[E_AXIS]=oldedes;
-     plan_set_e_position(oldepos);
+     plan_set_e_position(oldepos, active_extruder, true);
      previous_millis_cmd=millis();
-     st_synchronize();
      WRITE(E0_ENABLE_PIN,oldstatus);
     }
   #endif
@@ -3555,7 +3558,7 @@ static void recover_toolchange_retract(uint8_t e, bool bSynchronize)
     if(TOOLCHANGE_RETRACTED(e))
     {
         // recover tool change retraction
-        plan_set_e_position(current_position[E_AXIS]-toolchange_recover_length[e], bSynchronize);
+        plan_set_e_position(current_position[E_AXIS]-toolchange_recover_length[e], e, bSynchronize);
         plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], toolchange_retractfeedrate[e]/60, e);
         CLEAR_TOOLCHANGE_RETRACT(e);
         toolchange_recover_length[e] = 0.0f;
@@ -3661,7 +3664,7 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
             }
         }
 
-        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], true);
+        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], active_extruder, true);
 
         if IS_TOOLCHANGE_ENABLED
         {
@@ -3704,7 +3707,7 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
         SERIAL_ECHOPGM(MSG_ACTIVE_EXTRUDER);
         SERIAL_PROTOCOLLN((int)active_extruder);
 
-        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], true);
+        plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], active_extruder, true);
 
         if (moveZ)
         {
@@ -3792,7 +3795,7 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
 
     }
     // restore position
-    plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], true);
+    plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], active_extruder, true);
     return true;
 }
 #endif

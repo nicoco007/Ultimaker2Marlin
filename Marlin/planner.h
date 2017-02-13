@@ -72,11 +72,12 @@ void plan_init();
 
 // Add a new linear movement to the buffer. x, y and z is the signed, absolute target position in
 // millimeters. Feed rate specifies the speed of the motion.
-void plan_buffer_line(const float &x, const float &y, const float &z, const float &e, float feed_rate, const uint8_t &extruder);
+void plan_buffer_line(const float &x, const float &y, const float &z, const float &e, float feed_rate, const uint8_t extruder);
 
 // Set position. Used for G92 instructions.
-void plan_set_position(const float &x, const float &y, const float &z, const float &e, bool bSynchronize);
-void plan_set_e_position(const float &e, bool bSynchronize);
+void plan_set_position(const float &x, const float &y, const float &z, const float &e, const uint8_t extruder, bool bSynchronize);
+void plan_set_e_position(const float &e, const uint8_t extruder, bool bSynchronize);
+
 
 void check_axes_activity();
 uint8_t movesplanned(); //return the nr of buffered moves
