@@ -1273,6 +1273,20 @@ ISR(TIMER0_COMPB_vect)
   if (pwm_count == 0)
   {
     uint16_t budget = power_budget;
+    {
+        // reduce power budget on axis activity
+        if (block_buffer_head != block_buffer_tail)
+        {
+            block_t *block = &block_buffer[block_buffer_tail];
+            uint16_t budget_part = constrain(20, 0, power_budget >> 3);
+            uint8_t  counter = 0x01;
+            if(block->steps_x != 0) counter <<= 0x01;
+            if(block->steps_y != 0) counter <<= 0x01;
+            if(block->steps_z != 0) counter <<= 0x01;
+            if(block->steps_e != 0) counter <<= 0x01;
+            while (counter >>= 1) budget -= budget_part;
+        }
+    }
 
     soft_pwm_0 = limit_power(power_extruder[0], soft_pwm[0], budget);
     if (soft_pwm_0 > 0)

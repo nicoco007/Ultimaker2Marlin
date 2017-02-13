@@ -109,7 +109,6 @@ FORCE_INLINE float e_steps_per_unit(uint8_t e) {return axis_steps_per_unit[E_AXI
     extern float autotemp_factor;
 #endif
 
-
 extern block_t block_buffer[BLOCK_BUFFER_SIZE];            // A ring buffer for motion instructions
 extern volatile unsigned char block_buffer_head;           // Index of the next block to be pushed
 extern volatile unsigned char block_buffer_tail;

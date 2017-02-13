@@ -1512,7 +1512,7 @@ void process_command(const char *strCmd, bool sendAck)
       {
         codenum += millis();  // keep track of when we started waiting
         while(millis()  < codenum && !lcd_clicked()){
-          idle(false);
+          idle();
         }
       }
       else
@@ -2586,7 +2586,7 @@ void process_command(const char *strCmd, bool sendAck)
         while(!lcd_clicked())
         {
           cnt++;
-          idle(false);
+          idle();
           if(cnt==0)
           {
           #if BEEPER > 0

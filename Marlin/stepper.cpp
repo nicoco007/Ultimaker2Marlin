@@ -428,33 +428,55 @@ ISR(TIMER1_COMPA_vect)
             disable_e2();
         }
       #endif
+
+        last_extruder = current_block->active_extruder;
     #if defined(MOTOR_CURRENT_PWM_E_PIN) && MOTOR_CURRENT_PWM_E_PIN > -1
         // adjust motor current
-        digipot_current(2, current_block->active_extruder ? motor_current_e2 : motor_current_setting[2]);
+        digipot_current(2, last_extruder ? motor_current_e2 : motor_current_setting[2]);
     #endif
-        last_extruder = current_block->active_extruder;
-        // enable current stepper
-        if (last_extruder == 0)
-        {
-            enable_e0();
-        }
-        else if (last_extruder == 1)
-        {
-            enable_e1();
-        }
-      #if EXTRUDERS > 2
-        else if (last_extruder == 2)
-        {
-            enable_e2();
-        }
-      #endif
+
+        current_block = NULL;
+
         OCR1A = 2000; //1ms wait
       #ifdef Z_LATE_ENABLE
         bReturn = true;
       #else
         return;
       #endif // Z_LATE_ENABLE
+
       }
+      else
+      {
+        uint8_t wait = 0;
+        // enable current stepper
+        if ((last_extruder == 0) && (READ(E0_ENABLE_PIN) != E_ENABLE_ON))
+        {
+            enable_e0();
+            ++wait;
+        }
+        else if ((last_extruder == 1) && (READ(E1_ENABLE_PIN) != E_ENABLE_ON))
+        {
+            enable_e1();
+            ++wait;
+        }
+      #if EXTRUDERS > 2
+        else if ((last_extruder == 2) && (READ(E2_ENABLE_PIN) != E_ENABLE_ON))
+        {
+            enable_e2();
+            ++wait;
+        }
+      #endif
+        if (wait)
+        {
+          OCR1A = 2000; //1ms wait
+        #ifdef Z_LATE_ENABLE
+          bReturn = true;
+        #else
+          return;
+        #endif // Z_LATE_ENABLE
+        }
+      }
+
     #ifdef Z_LATE_ENABLE
       if(current_block->steps_z > 0) {
         enable_z();
