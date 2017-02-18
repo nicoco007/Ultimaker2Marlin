@@ -22,7 +22,6 @@
 
 #define LCD_CHARS_PER_LINE 20
 
-unsigned long lastSerialCommandTime = 0;
 uint8_t led_brightness_level = 100;
 uint8_t led_mode = LED_MODE_ALWAYS_ON;
 float dsp_temperature[EXTRUDERS] = { 20.0 };
@@ -62,7 +61,6 @@ void lcd_init()
 #if FAN2_PIN != LED_PIN
     analogWrite(LED_PIN, 0);
 #endif
-    lastSerialCommandTime = 0;
 }
 
 void lcd_update()
@@ -142,7 +140,7 @@ void lcd_update()
     {
         if (!card.sdprinting())
         {
-            if (HAS_SERIAL_CMD || ((lastSerialCommandTime>0) && ((m - lastSerialCommandTime) < SERIAL_CONTROL_TIMEOUT)))
+            if (HAS_SERIAL_CMD)
             {
                 if (!(sleep_state & SLEEP_SERIAL_SCREEN))
                 {

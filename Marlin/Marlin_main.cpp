@@ -335,7 +335,6 @@ static void commit_command(bool isSerialCmd)
   {
     //set serial flag for new command
     serialCmd |= (1 << bufindw);
-    lastSerialCommandTime = millis();
   }
   else
   {
@@ -3339,8 +3338,13 @@ void controllerFan()
  */
 void idle()
 {
+    static unsigned long lastSerialCommandTime = 0;
+
     manage_heater();
     manage_inactivity();
+
+    lcd_update();
+    lifetime_stats_tick();
 
     // detect serial communication
     if (commands_queued() && serialCmd)
@@ -3348,13 +3352,14 @@ void idle()
       sleep_state |= SLEEP_SERIAL_CMD;
       lastSerialCommandTime = millis();
     }
+    else if ((lastSerialCommandTime>0) && ((millis() - lastSerialCommandTime) < SERIAL_CONTROL_TIMEOUT))
+    {
+        sleep_state |= SLEEP_SERIAL_CMD;
+    }
     else
     {
       sleep_state &= ~SLEEP_SERIAL_CMD;
     }
-
-    lcd_update();
-    lifetime_stats_tick();
 }
 
 static void manage_inactivity()
