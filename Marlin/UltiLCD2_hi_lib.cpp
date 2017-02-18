@@ -204,7 +204,7 @@ void lcd_scroll_menu(const char* menuNameP, int8_t entryCount, scrollDrawCallbac
 
     lcd_lib_clear();
 
-    int16_t targetViewPos = selIndex * 8 - 15;
+    int16_t targetViewPos = (selIndex << 3) - 15;
 
     int16_t viewDiff = targetViewPos - viewPos;
     viewPos += viewDiff / 4;
@@ -213,8 +213,8 @@ void lcd_scroll_menu(const char* menuNameP, int8_t entryCount, scrollDrawCallbac
     if (viewDiff > 0) { ++viewPos; }
     else if (viewDiff < 0) { --viewPos; }
 
-    uint8_t drawOffset = 10 - (uint16_t(viewPos) % 8);
-    uint8_t itemOffset = uint16_t(viewPos) / 8;
+    uint8_t drawOffset = 11 - (uint16_t(viewPos) & 0x07);
+    uint8_t itemOffset = uint16_t(viewPos) >> 3;
     for(uint8_t n=0; n<6; n++)
     {
         uint8_t itemIdx = n + itemOffset;
@@ -225,7 +225,7 @@ void lcd_scroll_menu(const char* menuNameP, int8_t entryCount, scrollDrawCallbac
 
     }
     lcd_lib_set(3, 0, 124, 8);
-    lcd_lib_clear(3, 47, 124, 63);
+    lcd_lib_clear(3, 49, 124, 63);
     lcd_lib_clear(3, 9, 124, 9);
 
     lcd_lib_draw_hline(3, 124, 50);
