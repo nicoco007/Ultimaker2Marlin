@@ -390,6 +390,11 @@ static const menu_t & get_dockmove_menuoption(uint8_t nr, menu_t &opt)
     return opt;
 }
 
+static void pos2string(uint8_t flags, uint8_t axis, char *buffer)
+{
+    float_to_string2((flags & MENU_ACTIVE) ? TARGET_POS(axis) : st_get_position(axis) / axis_steps_per_unit[axis], buffer, PSTR("mm"));
+}
+
 static void drawDockMoveSubmenu(uint8_t nr, uint8_t &flags)
 {
     uint8_t index(0);
@@ -440,7 +445,7 @@ static void drawDockMoveSubmenu(uint8_t nr, uint8_t &flags)
             flags |= MENU_STATUSLINE;
         }
         lcd_lib_draw_string_leftP(20, PSTR("X"));
-        float_to_string2(st_get_position(X_AXIS) / axis_steps_per_unit[X_AXIS], buffer, PSTR("mm"));
+        pos2string(flags, X_AXIS, buffer);
         LCDMenu::drawMenuString(LCD_CHAR_MARGIN_LEFT+LCD_CHAR_SPACING*3
                                 , 20
                                 , LCD_CHAR_SPACING*8
@@ -458,7 +463,7 @@ static void drawDockMoveSubmenu(uint8_t nr, uint8_t &flags)
             flags |= MENU_STATUSLINE;
         }
         lcd_lib_draw_string_leftP(32, PSTR("Y"));
-        float_to_string2(st_get_position(Y_AXIS) / axis_steps_per_unit[Y_AXIS], buffer, PSTR("mm"));
+        pos2string(flags, Y_AXIS, buffer);
         LCDMenu::drawMenuString(LCD_CHAR_MARGIN_LEFT+LCD_CHAR_SPACING*3
                                 , 32
                                 , LCD_CHAR_SPACING*8
