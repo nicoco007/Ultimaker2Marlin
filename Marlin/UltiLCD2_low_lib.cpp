@@ -536,8 +536,6 @@ void line_entry_pos_update (uint16_t maxStep)
 	}
 }
 
-inline void line_entry_pos_reset () { lineEntryPos = lineEntryWait = 0; }
-
 void lcd_lib_draw_string_center(uint8_t y, const char* str)
 {
     lcd_lib_draw_string(LCD_GFX_WIDTH/2 - min(strlen(str), LINE_ENTRY_TEXT_LENGHT) * (LCD_CHAR_SPACING/2), y, str);

@@ -73,7 +73,7 @@ extern int8_t   lineEntryWait;
 #define LINE_ENTRY_GFX_BEGIN()   (LCD_CHAR_SPACING-1 - (lineEntryPos + LCD_CHAR_SPACING-1) % LCD_CHAR_SPACING)
 #define LINE_ENTRY_MAX_STEP(text_length) ((text_length) * LCD_CHAR_SPACING)
 void line_entry_pos_update (uint16_t maxStep);
-inline void line_entry_pos_reset ();
+FORCE_INLINE void line_entry_pos_reset() { lineEntryPos = lineEntryWait = 0; }
 
 FORCE_INLINE void lcd_lib_draw_string_left(uint8_t y, const char* str) { lcd_lib_draw_string(LCD_CHAR_MARGIN_LEFT, y, str); }
 FORCE_INLINE void lcd_lib_draw_string_leftP(uint8_t y, const char* pstr) { lcd_lib_draw_stringP(LCD_CHAR_MARGIN_LEFT, y, pstr); }

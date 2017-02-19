@@ -241,10 +241,8 @@ void lcd_scroll_menu(const char* menuNameP, int8_t entryCount, scrollDrawCallbac
 
     int16_t viewDiff = targetViewPos - viewPos;
     viewPos += viewDiff / 4;
-//    if (viewDiff > 0) { viewPos ++; led_glow = led_glow_dir = 0; }
-//    if (viewDiff < 0) { viewPos --; led_glow = led_glow_dir = 0; }
-    if (viewDiff > 0) { ++viewPos; }
-    else if (viewDiff < 0) { --viewPos; }
+    if      (viewDiff > 0) { ++viewPos; line_entry_pos_reset(); }
+    else if (viewDiff < 0) { --viewPos; line_entry_pos_reset(); }
 
     uint8_t drawOffset = 11 - (uint16_t(viewPos) & 0x07);
     uint8_t itemOffset = uint16_t(viewPos) >> 3;
