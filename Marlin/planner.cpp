@@ -379,9 +379,12 @@ void planner_recalculate() {
   planner_recalculate_trapezoids();
 }
 
-void plan_init() {
+void plan_init()
+{
+  CRITICAL_SECTION_START
   block_buffer_head = 0;
   block_buffer_tail = 0;
+  CRITICAL_SECTION_END
   memset(position, 0, sizeof(position)); // clear position
   previous_speed[0] = 0.0;
   previous_speed[1] = 0.0;
@@ -451,15 +454,19 @@ void check_axes_activity()
   #endif
   block_t *block;
 
-  if(block_buffer_tail != block_buffer_head)
+  CRITICAL_SECTION_START
+  uint8_t block_head  = block_buffer_head;
+  uint8_t block_index = block_buffer_tail;
+  CRITICAL_SECTION_END
+
+  if(block_index != block_head)
   {
-    uint8_t block_index = block_buffer_tail;
     tail_fan_speed = block_buffer[block_index].fan_speed;
     #ifdef BARICUDA
     tail_valve_pressure = block_buffer[block_index].valve_pressure;
     tail_e_to_p_pressure = block_buffer[block_index].e_to_p_pressure;
     #endif
-    while(block_index != block_buffer_head)
+    while(block_index != block_head)
     {
       block = &block_buffer[block_index];
       if(block->steps_x != 0) x_active++;
@@ -533,7 +540,7 @@ float junction_deviation = 0.1;
 // Add a new linear movement to the buffer. steps_x, _y and _z is the absolute position in
 // mm. Microseconds specify how many microseconds the move should take to perform. To aid acceleration
 // calculation the caller must also provide the physical length of the line in millimeters.
-void plan_buffer_line(const float &x, const float &y, const float &z, const float &e, float feed_rate, const uint8_t &extruder)
+void plan_buffer_line(const float &x, const float &y, const float &z, const float &e, float feed_rate, const uint8_t extruder)
 {
   // Calculate the buffer head after we push this byte
   int next_buffer_head = next_block_index(block_buffer_head);
@@ -543,10 +550,6 @@ void plan_buffer_line(const float &x, const float &y, const float &z, const floa
   while(block_buffer_tail == next_buffer_head)
   {
     idle();
-    if (HAS_SERIAL_CMD)
-    {
-      lastSerialCommandTime = millis();
-    }
   }
 
   // The target position of the tool in absolute steps
@@ -933,7 +936,9 @@ block->steps_y = labs((target[X_AXIS]-position[X_AXIS]) - (target[Y_AXIS]-positi
   calculate_trapezoid_for_block(block, block->entry_speed/block->nominal_speed, safe_speed/block->nominal_speed);
 
   // Move buffer head
+  CRITICAL_SECTION_START
   block_buffer_head = next_buffer_head;
+  CRITICAL_SECTION_END
 
   // Update position
   memcpy(position, target, sizeof(position)); // position[] = target[]
@@ -943,12 +948,12 @@ block->steps_y = labs((target[X_AXIS]-position[X_AXIS]) - (target[Y_AXIS]-positi
   st_wake_up();
 }
 
-void plan_set_position(const float &x, const float &y, const float &z, const float &e)
+void plan_set_position(const float &x, const float &y, const float &z, const float &e, const uint8_t extruder)
 {
   position[X_AXIS] = lround(x*axis_steps_per_unit[X_AXIS]);
   position[Y_AXIS] = lround(y*axis_steps_per_unit[Y_AXIS]);
   position[Z_AXIS] = lround(z*axis_steps_per_unit[Z_AXIS]);
-  position[E_AXIS] = lround(e*e_steps_per_unit(active_extruder)*volume_to_filament_length[active_extruder]);
+  position[E_AXIS] = lround(e*e_steps_per_unit(extruder)*volume_to_filament_length[extruder]);
   st_set_position(position[X_AXIS], position[Y_AXIS], position[Z_AXIS], position[E_AXIS]);
   previous_nominal_speed = 0.0; // Resets planner junction speeds. Assumes start from rest.
   previous_speed[0] = 0.0;
@@ -957,9 +962,9 @@ void plan_set_position(const float &x, const float &y, const float &z, const flo
   previous_speed[3] = 0.0;
 }
 
-void plan_set_e_position(const float &e)
+void plan_set_e_position(const float &e, const uint8_t extruder)
 {
-  position[E_AXIS] = lround(e*e_steps_per_unit(active_extruder)*volume_to_filament_length[active_extruder]);
+  position[E_AXIS] = lround(e*e_steps_per_unit(extruder)*volume_to_filament_length[extruder]);
   st_set_e_position(position[E_AXIS]);
 }
 
