@@ -57,7 +57,7 @@ static void lcd_advanced_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
     uint8_t index(0);
     char buffer[32] = {0};
     if (nr == index++)
-        strcpy_P(buffer, PSTR("< RETURN"));
+        lcd_cpyreturn(buffer);
     else if (nr == index++)
         strcpy_P(buffer, PSTR("Preferences"));
 #if (EXTRUDERS > 1)
@@ -86,8 +86,6 @@ static void lcd_advanced_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
         strcpy_P(buffer, PSTR("Adjust buildplate"));
     else if (nr == index++)
         strcpy_P(buffer, PSTR("Expert functions"));
-    else
-        strcpy_P(buffer, PSTR("???"));
 
     lcd_draw_scroll_entry(offsetY, buffer, flags);
 }
@@ -129,7 +127,7 @@ static void lcd_preferences_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
     uint8_t index(0);
     char buffer[32] = {0};
     if (nr == index++)
-        strcpy_P(buffer, PSTR("< RETURN"));
+        lcd_cpyreturn(buffer);
     else if (nr == index++)
         strcpy_P(buffer, PSTR("User interface"));
 #if FAN2_PIN != LED_PIN
@@ -138,6 +136,8 @@ static void lcd_preferences_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
 #endif
     else if (nr == index++)
         strcpy_P(buffer, PSTR("Click sound"));
+    else if (nr == index++)
+        strcpy_P(buffer, PSTR("Scroll filenames"));
     else if (nr == index++)
         strcpy_P(buffer, PSTR("Sleep timer"));
     else if (nr == index++)
@@ -164,8 +164,6 @@ static void lcd_preferences_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
         strcpy_P(buffer, PSTR("Runtime stats"));
     else if (nr == index++)
         strcpy_P(buffer, PSTR("Factory reset"));
-    else
-        strcpy_P(buffer, PSTR("???"));
 
     lcd_draw_scroll_entry(offsetY, buffer, flags);
 }
@@ -208,11 +206,22 @@ static void lcd_preferences_details(uint8_t nr)
             strcpy_P(buffer, PSTR("Standard"));
         }
     }
-    else if (nr == 5)
+    else if (nr == 4)
+    {
+        if (ui_mode & UI_SCROLL_ENTRY)
+        {
+            strcpy_P(buffer, PSTR("Enabled"));
+        }
+        else
+        {
+            strcpy_P(buffer, PSTR("Disabled"));
+        }
+    }
+    else if (nr == 6)
     {
         int_to_string(float(lcd_contrast)*100/255 + 0.5f, buffer, PSTR("%"));
     }
-    else if (nr == 6)
+    else if (nr == 7)
     {
         char *c = buffer;
         if (heater_timeout)
@@ -233,7 +242,7 @@ static void lcd_preferences_details(uint8_t nr)
             strcpy_P(c, PSTR("off"));
         }
     }
-    else if (nr == 12)
+    else if (nr == 13)
     {
         strcpy_P(buffer, PSTR(STRING_CONFIG_H_AUTHOR));
     }
@@ -581,7 +590,7 @@ static void lcd_motion_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
 {
     char buffer[32] = {0};
     if (nr == 0)
-        strcpy_P(buffer, PSTR("< RETURN"));
+        lcd_cpyreturn(buffer);
     else if (nr == 1)
         strcpy_P(buffer, PSTR("Acceleration"));
     else if (nr == 2)
@@ -592,8 +601,6 @@ static void lcd_motion_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
         strcpy_P(buffer, PSTR("Axis steps/mm"));
     else if (nr == 5)
         strcpy_P(buffer, PSTR("Invert axis"));
-    else
-       strcpy_P(buffer, PSTR("???"));
 
     lcd_draw_scroll_entry(offsetY, buffer, flags);
 }
@@ -624,7 +631,7 @@ static void lcd_led_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
 {
     char buffer[32] = {0};
     if (nr == 0)
-        strcpy_P(buffer, PSTR("< RETURN"));
+        lcd_cpyreturn(buffer);
     else if (nr == 1)
         strcpy_P(buffer, PSTR("Brightness"));
     else if (nr == 2)
@@ -635,8 +642,6 @@ static void lcd_led_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
         strcpy_P(buffer, PSTR(" On while printing"));
     else if (nr == 5)
         strcpy_P(buffer, PSTR(" Glow when done"));
-    else
-        strcpy_P(buffer, PSTR("???"));
     if (nr - 2 == led_mode)
         buffer[0] = '>';
 
@@ -711,7 +716,7 @@ static void lcd_uimode_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
 
     if (nr == 0)
     {
-        strcpy_P(buffer, PSTR("< RETURN"));
+        lcd_cpyreturn(buffer);
     }
     else if (nr == 1)
     {
@@ -729,10 +734,6 @@ static void lcd_uimode_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
         }
         strcpy_P(buffer+1, PSTR("Geek Mode"));
     }
-    else
-    {
-        strcpy_P(buffer+1, PSTR("???"));
-    }
 
     lcd_draw_scroll_entry(offsetY, buffer, flags);
 }
@@ -742,7 +743,7 @@ static void lcd_clicksound_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
     char buffer[20] = {' '};
     if (nr == 0)
     {
-        strcpy_P(buffer, PSTR("< RETURN"));
+        lcd_cpyreturn(buffer);
     }
     else if (nr == 1)
     {
@@ -771,6 +772,35 @@ static void lcd_clicksound_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
     else
     {
         strcpy_P(buffer, PSTR(" ???"));
+    }
+
+    lcd_draw_scroll_entry(offsetY, buffer, flags);
+}
+
+
+static void lcd_scrollentry_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
+{
+    char buffer[20] = {' '};
+
+    if (nr == 0)
+    {
+        lcd_cpyreturn(buffer);
+    }
+    else if (nr == 1)
+    {
+        if (!(ui_mode & UI_SCROLL_ENTRY))
+        {
+            strcpy_P(buffer, PSTR(">"));
+        }
+        strcpy_P(buffer+1, PSTR("No scrolling"));
+    }
+    else if (nr == 2)
+    {
+        if (ui_mode & UI_SCROLL_ENTRY)
+        {
+            strcpy_P(buffer, PSTR(">"));
+        }
+        strcpy_P(buffer+1, PSTR("Scroll filenames"));
     }
 
     lcd_draw_scroll_entry(offsetY, buffer, flags);
@@ -827,6 +857,28 @@ static void lcd_menu_clicksound()
     lcd_lib_update_screen();
 }
 
+static void lcd_menu_scrollentry()
+{
+    lcd_scroll_menu(PSTR("Scroll filenames"), 3, lcd_scrollentry_item, NULL);
+    if (lcd_lib_button_pressed)
+    {
+        if (IS_SELECTED_SCROLL(1))
+        {
+            ui_mode &= ~UI_SCROLL_ENTRY;
+        }
+        else if (IS_SELECTED_SCROLL(2))
+        {
+            ui_mode |= UI_SCROLL_ENTRY;
+        }
+        if (ui_mode != GET_UI_MODE())
+        {
+            SET_UI_MODE(ui_mode);
+        }
+        menu.return_to_previous();
+    }
+    lcd_lib_update_screen();
+}
+
 static void lcd_menu_screen_contrast()
 {
     if (lcd_tune_byte(lcd_contrast, 0, 100))
@@ -857,9 +909,9 @@ static void lcd_menu_screen_contrast()
 static void lcd_menu_preferences()
 {
 #if FAN2_PIN != LED_PIN
-    lcd_scroll_menu(PSTR("PREFERENCES"), BED_MENU_OFFSET + 14, lcd_preferences_item, lcd_preferences_details);
+    lcd_scroll_menu(PSTR("PREFERENCES"), BED_MENU_OFFSET + 15, lcd_preferences_item, lcd_preferences_details);
 #else
-    lcd_scroll_menu(PSTR("PREFERENCES"), BED_MENU_OFFSET + 13, lcd_preferences_item, lcd_preferences_details);
+    lcd_scroll_menu(PSTR("PREFERENCES"), BED_MENU_OFFSET + 14, lcd_preferences_item, lcd_preferences_details);
 #endif
     if (lcd_lib_button_pressed)
     {
@@ -874,6 +926,8 @@ static void lcd_menu_preferences()
 #endif
         else if (IS_SELECTED_SCROLL(index++))
             menu.add_menu(menu_t(lcd_menu_clicksound));
+        else if (IS_SELECTED_SCROLL(index++))
+            menu.add_menu(menu_t(lcd_menu_scrollentry));
         else if (IS_SELECTED_SCROLL(index++))
             menu.add_menu(menu_t(lcd_menu_sleeptimer));
         else if (IS_SELECTED_SCROLL(index++))

@@ -3221,15 +3221,13 @@ static void lcd_tempcontrol_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
     uint8_t index(0);
     char buffer[32] = {0};
     if (nr == index++)
-        strcpy_P(buffer, PSTR("< RETURN"));
+        lcd_cpyreturn(buffer);
     else if (nr == index++)
         strcpy_P(buffer, PSTR("Extruder 1"));
     else if (nr == index++)
         strcpy_P(buffer, PSTR("Extruder 2"));
     else if (nr == index++)
         strcpy_P(buffer, PSTR("Buildplate"));
-    else
-        strcpy_P(buffer, PSTR("???"));
 
     lcd_draw_scroll_entry(offsetY, buffer, flags);
 }

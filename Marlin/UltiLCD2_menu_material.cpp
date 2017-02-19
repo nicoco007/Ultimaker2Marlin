@@ -739,7 +739,7 @@ static void lcd_material_select_callback(uint8_t nr, uint8_t offsetY, uint8_t fl
     uint8_t count = eeprom_read_byte(EEPROM_MATERIAL_COUNT_OFFSET());
     char buffer[32] = {0};
     if (nr == 0)
-        strcpy_P(buffer, PSTR("< RETURN"));
+        lcd_cpyreturn(buffer);
     else if (nr == count + 1)
         strcpy_P(buffer, PSTR("Customize"));
     else if (nr == count + 2)
@@ -838,7 +838,7 @@ static void lcd_material_settings_callback(uint8_t nr, uint8_t offsetY, uint8_t 
 {
     char buffer[32] = {0};
     if (nr == 0)
-        strcpy_P(buffer, PSTR("< RETURN"));
+        lcd_cpyreturn(buffer);
     else if (nr == 1)
         strcpy_P(buffer, PSTR("Temperature"));
 #if TEMP_SENSOR_BED != 0
@@ -862,8 +862,6 @@ static void lcd_material_settings_callback(uint8_t nr, uint8_t offsetY, uint8_t 
     else if (nr == 5 + BED_MENU_OFFSET)
         strcpy_P(buffer, PSTR("Store as preset"));
 #endif
-    else
-        strcpy_P(buffer, PSTR("???"));
 
     lcd_draw_scroll_entry(offsetY, buffer, flags);
 }
@@ -960,7 +958,7 @@ static void lcd_material_temperature_settings_callback(uint8_t nr, uint8_t offse
     char buffer[20] = {0};
     if (nr == 0)
     {
-        strcpy_P(buffer, PSTR("< RETURN"));
+        lcd_cpyreturn(buffer);
     }
     else
     {
@@ -1005,7 +1003,7 @@ static void lcd_menu_material_settings_store_callback(uint8_t nr, uint8_t offset
     uint8_t count = eeprom_read_byte(EEPROM_MATERIAL_COUNT_OFFSET());
     char buffer[32] = {0};
     if (nr == 0)
-        strcpy_P(buffer, PSTR("< RETURN"));
+        lcd_cpyreturn(buffer);
     else if (nr > count)
         strcpy_P(buffer, PSTR("New preset"));
     else{

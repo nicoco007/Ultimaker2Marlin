@@ -22,6 +22,8 @@ void lcd_scroll_menu(const char* menuNameP, int8_t entryCount, scrollDrawCallbac
 void lcd_progressbar(uint8_t progress);
 void lcd_draw_scroll_entry(uint8_t offsetY, char * buffer, uint8_t flags);
 
+void lcd_cpyreturn(char * buffer);
+
 void lcd_menu_edit_setting();
 
 bool check_heater_timeout();
@@ -42,65 +44,65 @@ extern menuFunc_t postMenuCheck;
 extern uint8_t minProgress;
 
 #define LCD_EDIT_SETTING(_setting, _name, _postfix, _min, _max) do { \
-            menu.add_menu(menu_t(lcd_menu_edit_setting)); \
-            lcd_setting_name = PSTR(_name); \
-            lcd_setting_postfix = PSTR(_postfix); \
-            lcd_setting_ptr = &_setting; \
-            lcd_setting_type = sizeof(_setting); \
-            lcd_setting_start_value = lcd_lib_encoder_pos = _setting; \
-            lcd_setting_min = _min; \
-            lcd_setting_max = _max; \
-        } while(0)
+    menu.add_menu(menu_t(lcd_menu_edit_setting)); \
+    lcd_setting_name = PSTR(_name); \
+    lcd_setting_postfix = PSTR(_postfix); \
+    lcd_setting_ptr = &_setting; \
+    lcd_setting_type = sizeof(_setting); \
+    lcd_setting_start_value = lcd_lib_encoder_pos = _setting; \
+    lcd_setting_min = _min; \
+    lcd_setting_max = _max; \
+  } while(0)
 #define LCD_EDIT_SETTING_BYTE_PERCENT(_setting, _name, _postfix, _min, _max) do { \
-            menu.add_menu(menu_t(lcd_menu_edit_setting)); \
-            lcd_setting_name = PSTR(_name); \
-            lcd_setting_postfix = PSTR(_postfix); \
-            lcd_setting_ptr = &_setting; \
-            lcd_setting_type = 5; \
-            lcd_setting_start_value = lcd_lib_encoder_pos = int(_setting) * 100 / 255; \
-            lcd_setting_min = _min; \
-            lcd_setting_max = _max; \
-        } while(0)
+    menu.add_menu(menu_t(lcd_menu_edit_setting)); \
+    lcd_setting_name = PSTR(_name); \
+    lcd_setting_postfix = PSTR(_postfix); \
+    lcd_setting_ptr = &_setting; \
+    lcd_setting_type = 5; \
+    lcd_setting_start_value = lcd_lib_encoder_pos = int(_setting) * 100 / 255; \
+    lcd_setting_min = _min; \
+    lcd_setting_max = _max; \
+  } while(0)
 #define LCD_EDIT_SETTING_FLOAT001(_setting, _name, _postfix, _min, _max) do { \
-            menu.add_menu(menu_t(lcd_menu_edit_setting)); \
-            lcd_setting_name = PSTR(_name); \
-            lcd_setting_postfix = PSTR(_postfix); \
-            lcd_setting_ptr = &_setting; \
-            lcd_setting_type = 3; \
-            lcd_setting_start_value = lcd_lib_encoder_pos = (_setting) * 100.0 + 0.5; \
-            lcd_setting_min = (_min) * 100; \
-            lcd_setting_max = (_max) * 100; \
-        } while(0)
+    menu.add_menu(menu_t(lcd_menu_edit_setting)); \
+    lcd_setting_name = PSTR(_name); \
+    lcd_setting_postfix = PSTR(_postfix); \
+    lcd_setting_ptr = &_setting; \
+    lcd_setting_type = 3; \
+    lcd_setting_start_value = lcd_lib_encoder_pos = (_setting) * 100.0 + 0.5; \
+    lcd_setting_min = (_min) * 100; \
+    lcd_setting_max = (_max) * 100; \
+  } while(0)
 #define LCD_EDIT_SETTING_FLOAT100(_setting, _name, _postfix, _min, _max) do { \
-            menu.add_menu(menu_t(lcd_menu_edit_setting)); \
-            lcd_setting_name = PSTR(_name); \
-            lcd_setting_postfix = PSTR("00" _postfix); \
-            lcd_setting_ptr = &(_setting); \
-            lcd_setting_type = 7; \
-            lcd_setting_start_value = lcd_lib_encoder_pos = (_setting) / 100 + 0.5; \
-            lcd_setting_min = (_min) / 100 + 0.5; \
-            lcd_setting_max = (_max) / 100 + 0.5; \
-        } while(0)
+    menu.add_menu(menu_t(lcd_menu_edit_setting)); \
+    lcd_setting_name = PSTR(_name); \
+    lcd_setting_postfix = PSTR("00" _postfix); \
+    lcd_setting_ptr = &(_setting); \
+    lcd_setting_type = 7; \
+    lcd_setting_start_value = lcd_lib_encoder_pos = (_setting) / 100 + 0.5; \
+    lcd_setting_min = (_min) / 100 + 0.5; \
+    lcd_setting_max = (_max) / 100 + 0.5; \
+  } while(0)
 #define LCD_EDIT_SETTING_FLOAT1(_setting, _name, _postfix, _min, _max) do { \
-            menu.add_menu(menu_t(lcd_menu_edit_setting)); \
-            lcd_setting_name = PSTR(_name); \
-            lcd_setting_postfix = PSTR(_postfix); \
-            lcd_setting_ptr = &(_setting); \
-            lcd_setting_type = 8; \
-            lcd_setting_start_value = lcd_lib_encoder_pos = (_setting) + 0.5; \
-            lcd_setting_min = (_min) + 0.5; \
-            lcd_setting_max = (_max) + 0.5; \
-        } while(0)
+    menu.add_menu(menu_t(lcd_menu_edit_setting)); \
+    lcd_setting_name = PSTR(_name); \
+    lcd_setting_postfix = PSTR(_postfix); \
+    lcd_setting_ptr = &(_setting); \
+    lcd_setting_type = 8; \
+    lcd_setting_start_value = lcd_lib_encoder_pos = (_setting) + 0.5; \
+    lcd_setting_min = (_min) + 0.5; \
+    lcd_setting_max = (_max) + 0.5; \
+  } while(0)
 #define LCD_EDIT_SETTING_SPEED(_setting, _name, _postfix, _min, _max) do { \
-            menu.add_menu(menu_t(lcd_menu_edit_setting)); \
-            lcd_setting_name = PSTR(_name); \
-            lcd_setting_postfix = PSTR(_postfix); \
-            lcd_setting_ptr = &(_setting); \
-            lcd_setting_type = 6; \
-            lcd_setting_start_value = lcd_lib_encoder_pos = (_setting) / 60 + 0.5; \
-            lcd_setting_min = (_min) / 60 + 0.5; \
-            lcd_setting_max = (_max) / 60 + 0.5; \
-        } while(0)
+    menu.add_menu(menu_t(lcd_menu_edit_setting)); \
+    lcd_setting_name = PSTR(_name); \
+    lcd_setting_postfix = PSTR(_postfix); \
+    lcd_setting_ptr = &(_setting); \
+    lcd_setting_type = 6; \
+    lcd_setting_start_value = lcd_lib_encoder_pos = (_setting) / 60 + 0.5; \
+    lcd_setting_min = (_min) / 60 + 0.5; \
+    lcd_setting_max = (_max) / 60 + 0.5; \
+  } while(0)
 
 //If we have a heated bed, then the heated bed menu entries have a size of 1, else they have a size of 0.
 #if TEMP_SENSOR_BED != 0

@@ -1558,7 +1558,7 @@ static void lcd_expert_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
     char buffer[20] = {' '};
     if (nr == 0)
     {
-        strcpy_P(buffer, PSTR("< RETURN"));
+        lcd_cpyreturn(buffer);
     }
     else if (nr == 1)
     {
@@ -1577,10 +1577,6 @@ static void lcd_expert_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
     else if (nr == 5-EXTRUDERS)
     {
         strcpy_P(buffer+1, PSTR("Disable steppers"));
-    }
-    else
-    {
-        strcpy_P(buffer+1, PSTR("???"));
     }
 
     lcd_draw_scroll_entry(offsetY, buffer, flags);

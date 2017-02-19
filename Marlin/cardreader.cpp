@@ -493,8 +493,6 @@ void CardReader::closefile()
 {
   file.sync();
   file.close();
-//  saving = false;
-//  logging = false;
   state &= ~(SD_SAVING | SD_LOGGING);
 }
 
@@ -559,8 +557,6 @@ void CardReader::printingHasFinished()
     st_synchronize();
     quickStop();
     file.close();
-//    sdprinting = false;
-//    pause = false;
     state &= ~(SD_PRINTING | SD_PAUSE | SD_SAVING | SD_LOGGING);
     if(SD_FINISHED_STEPPERRELEASE)
     {
@@ -569,4 +565,22 @@ void CardReader::printingHasFinished()
     }
     autotempShutdown();
 }
+
+void CardReader::getFilenameFromNr(char* buffer, uint8_t nr)
+{
+	getfilename(nr);
+	if (*longFilename)
+	{
+		strncpy(buffer, longFilename, LONG_FILENAME_LENGTH-1);
+	}
+	else
+    {
+		strncpy(buffer, filename, LONG_FILENAME_LENGTH-1);
+	}
+	if (!filenameIsDir())
+	{
+		if (strrchr(buffer, '.')) strrchr(buffer, '.')[0] = '\0';
+	}
+}
+
 #endif //SDSUPPORT

@@ -1174,7 +1174,7 @@ static void lcd_dual_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
     char buffer[32] = {0};
 
     if (nr == index++)
-        strcpy_P(buffer, PSTR("< RETURN"));
+        lcd_cpyreturn(buffer);
     else if (nr == index++)
         strcpy_P(buffer, PSTR("Dual mode"));
     else if (nr == index++)
@@ -1192,8 +1192,6 @@ static void lcd_dual_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
         strcpy_P(buffer, PSTR("Adjust Z (nozzle "));
         int_to_string(active_extruder+1, buffer+strlen(buffer), PSTR(")"));
     }
-    else
-        strcpy_P(buffer, PSTR("???"));
 
     lcd_draw_scroll_entry(offsetY, buffer, flags);
 }

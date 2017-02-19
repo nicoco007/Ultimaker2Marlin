@@ -51,14 +51,13 @@ public:
   void printingHasFinished();
 
   void getfilename(const uint8_t nr);
+  void getFilenameFromNr(char* buffer, uint8_t nr);
   uint16_t getnrfilenames();
-
 
   void ls();
   void chdir(const char * relpath);
   void updir();
   void setroot();
-
 
   FORCE_INLINE bool isFileOpen() { return file.isOpen(); }
   FORCE_INLINE bool eof() { return sdpos>=filesize ;}
