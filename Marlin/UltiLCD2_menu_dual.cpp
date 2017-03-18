@@ -798,7 +798,7 @@ static void lcd_menu_wipeposition()
     }
     if (!(flags & MENU_STATUSLINE))
     {
-        lcd_lib_draw_string_leftP(5, PSTR("Wipe position"));
+        lcd_lib_draw_string_leftP(5, PSTR("Prime/Wipe position"));
     }
 
     lcd_lib_update_screen();
@@ -1186,7 +1186,7 @@ static void lcd_dual_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
     else if (nr == index++)
         strcpy_P(buffer, PSTR("Docking position"));
     else if (nr == index++)
-        strcpy_P(buffer, PSTR("Wipe position"));
+        strcpy_P(buffer, PSTR("Prime/Wipe position"));
     else if (nr == index++)
     {
         strcpy_P(buffer, PSTR("Adjust Z (nozzle "));

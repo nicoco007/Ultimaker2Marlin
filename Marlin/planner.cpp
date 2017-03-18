@@ -1001,7 +1001,6 @@ void plan_set_position(const float &x, const float &y, const float &z, const flo
   previous_speed[3] = 0.0;
   if (bSynchronize)
   {
-    st_synchronize();
     st_set_position(position[X_AXIS], position[Y_AXIS], position[Z_AXIS], position[E_AXIS]);
   }
 }
@@ -1011,7 +1010,6 @@ void plan_set_e_position(const float &e, const uint8_t extruder, bool bSynchroni
   position[E_AXIS] = lround(e*e_steps_per_unit(extruder)*volume_to_filament_length[extruder]);
   if (bSynchronize)
   {
-      st_synchronize();
       st_set_e_position(position[E_AXIS]);
   }
 }

@@ -340,12 +340,6 @@ void lcd_lib_led_color(uint8_t r, uint8_t g, uint8_t b)
     led_b = b;
 }
 
-uint8_t lcd_lib_led_brightness()
-{
-    uint16_t sum = (led_r+led_g+led_b);
-    return sum/3;
-}
-
 // norpchen
 // the baseline ASCII->font table offset.  Was 32 (space) but shifted down as I added custom characters to the font
 // had to add them to the start of the table, because we're using char, which are signed and top out at 128, which is already the max table value.

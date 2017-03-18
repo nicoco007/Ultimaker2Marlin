@@ -192,6 +192,7 @@ void enquecommand_P(const char *cmd); //put an ascii command at the end of the c
 uint8_t commands_queued();
 void cmd_synchronize();
 void clamp_to_software_endstops(float target[3]);
+void set_current_position(uint8_t axis, const float &pos);
 
 #ifdef FAST_PWM_FAN
 void setPwmFrequency(uint8_t pin, int val);

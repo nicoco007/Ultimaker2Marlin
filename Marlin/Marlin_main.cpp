@@ -261,7 +261,7 @@ static unsigned long stepper_inactive_time = DEFAULT_STEPPER_DEACTIVE_TIME*1000l
 unsigned long starttime=0;
 unsigned long stoptime=0;
 
-uint8_t Stopped = false;
+static uint8_t Stopped = 0x0;
 
 #if NUM_SERVOS > 0
   Servo servos[NUM_SERVOS];
@@ -324,6 +324,12 @@ void reset_retractstate()
     }
 }
 #endif // FWRETRACT
+
+
+void set_current_position(uint8_t axis, const float &pos)
+{
+    destination[axis] = current_position[axis] = pos;
+}
 
 /**
  * Once a new command is in the ring buffer, call this to commit it
@@ -582,13 +588,18 @@ void setup()
   for (uint8_t e=0; e<EXTRUDERS; ++e)
   {
       retract_recover_feedrate[e] = retract_feedrate;
+#if EXTRUDERS > 1
+      SET_TOOLCHANGE_RETRACT(e);
+      toolchange_recover_length[e] = toolchange_retractlen[e];
+#endif
   }
 
   // initialize current position
   for (uint8_t i=X_AXIS; i<=Z_AXIS; ++i)
   {
-      current_position[i] = min_pos[i];
+      destination[i] = current_position[i] = min_pos[i];
   }
+  plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], active_extruder, true);
 
   #if defined(CONTROLLERFAN_PIN) && CONTROLLERFAN_PIN > -1
     SET_OUTPUT(CONTROLLERFAN_PIN); //Set pin used for driver cooling fan
@@ -1212,7 +1223,7 @@ void process_command(const char *strCmd, bool sendAck)
     {
     case 0: // G0 -> G1
     case 1: // G1
-      if(Stopped == false) {
+      if(!Stopped) {
         get_coordinates(strCmd); // For X Y Z E F
         prepare_move(strCmd);
         if (sendAck) ClearToSend();
@@ -1220,14 +1231,14 @@ void process_command(const char *strCmd, bool sendAck)
       }
       //break;
     case 2: // G2  - CW ARC
-      if(Stopped == false) {
+      if(!Stopped) {
         get_arc_coordinates(strCmd);
         prepare_arc_move(true);
         if (sendAck) ClearToSend();
         return;
       }
     case 3: // G3  - CCW ARC
-      if(Stopped == false) {
+      if(!Stopped) {
         get_arc_coordinates(strCmd);
         prepare_arc_move(false);
         if (sendAck) ClearToSend();
@@ -1960,13 +1971,13 @@ void process_command(const char *strCmd, bool sendAck)
         if(all_axis)
         {
           finishAndDisableSteppers();
-        #if EXTRUDERS > 1
-          for (uint8_t e=0; e<EXTRUDERS; ++e)
-          {
-            CLEAR_TOOLCHANGE_RETRACT(e);
-            toolchange_recover_length[e] = 0.0f;
-          }
-        #endif // EXTRUDERS
+//        #if EXTRUDERS > 1
+//          for (uint8_t e=0; e<EXTRUDERS; ++e)
+//          {
+//            CLEAR_TOOLCHANGE_RETRACT(e);
+//            toolchange_recover_length[e] = 0.0f;
+//          }
+//        #endif // EXTRUDERS
         }
         else
         {
@@ -1982,13 +1993,13 @@ void process_command(const char *strCmd, bool sendAck)
           #if EXTRUDERS > 1
               last_extruder = 0xFF;
           #endif
-            #if EXTRUDERS > 1
-              for (uint8_t e=0; e<EXTRUDERS; ++e)
-              {
-                CLEAR_TOOLCHANGE_RETRACT(e);
-                toolchange_recover_length[e] = 0.0f;
-              }
-            #endif
+//            #if EXTRUDERS > 1
+//              for (uint8_t e=0; e<EXTRUDERS; ++e)
+//              {
+//                CLEAR_TOOLCHANGE_RETRACT(e);
+//                toolchange_recover_length[e] = 0.0f;
+//              }
+//            #endif
             }
           #endif
         }
@@ -2820,7 +2831,7 @@ void process_command(const char *strCmd, bool sendAck)
     case 999: // M999: Restart after being stopped
       if (printing_state == PRINT_STATE_RECOVER)
         break;
-      Stopped = false;
+      Stopped = 0x0;
       lcd_reset_alert_level();
       gcode_LastN = Stopped_gcode_LastN;
       FlushSerialRequestResend();
@@ -2953,7 +2964,7 @@ void process_command(const char *strCmd, bool sendAck)
       if (changeExtruder(tmp_extruder, position_state & KNOWNPOS_Z))
       {
         // Move to the old position if 'F' was in the parameters
-        if((printing_state < PRINT_STATE_ABORT) && make_move && Stopped == false && (IS_SD_PRINTING || commands_queued()))
+        if((printing_state < PRINT_STATE_ABORT) && make_move && !Stopped && (IS_SD_PRINTING || commands_queued()))
         {
            prepare_move(strCmd);
         }
@@ -3456,7 +3467,7 @@ void kill()
 void Stop(uint8_t reasonNr)
 {
   disable_heater();
-  if(Stopped == false) {
+  if(!Stopped) {
     Stopped = reasonNr;
     Stopped_gcode_LastN = gcode_LastN; // Save last g_code for restart
     SERIAL_ERROR_START;

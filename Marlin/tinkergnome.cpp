@@ -10,6 +10,7 @@
 #include "filament_sensor.h"
 #include "preferences.h"
 #include "commandbuffer.h"
+#include "powerbudget.h"
 #include "UltiLCD2_low_lib.h"
 #include "UltiLCD2_hi_lib.h"
 #include "UltiLCD2.h"
@@ -1222,14 +1223,21 @@ void lcd_menu_print_heatup_tg()
     {
 #endif
         printing_state = PRINT_STATE_HEATING;
+        uint16_t budget = power_budget - constrain(power_buildplate, 0, power_budget);
+
         for(int8_t e=EXTRUDERS-1; e>=0; --e)
         {
             if (LCD_DETAIL_CACHE_MATERIAL(e) < 1)
+            {
                 continue;
+            }
             if (target_temperature[e] <= 0)
+            {
                 target_temperature[e] = material[e].temperature[nozzleSizeToTemperatureIndex(LCD_DETAIL_CACHE_NOZZLE_DIAMETER(e))];
-            // limit power consumption: pre-heat only one nozzle at the same time
-            if (target_temperature[e] > 0)
+                budget -= constrain(power_extruder[e], 0, budget);
+            }
+            // limit power consumption: don't heat up all at the same time
+            if (!budget && (target_temperature[e] > 0))
                 break;
         }
 #if TEMP_SENSOR_BED != 0

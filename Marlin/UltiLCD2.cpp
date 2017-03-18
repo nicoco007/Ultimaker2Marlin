@@ -129,10 +129,17 @@ void lcd_update()
 			strcat_P(buffer, PSTR("ER07"));
             break;
 		default:
+		    char strReason[8];
+		    int_to_string(StoppedReason(), strReason);
+            lcd_lib_draw_string_center(20, strReason);
 			strcat_P(buffer, PSTR("support"));
+			break;
         }
         lcd_lib_draw_string_centerP(40, PSTR("Go to:"));
         lcd_lib_draw_string_center(50, buffer);
+        int_to_string(freeMemory(), buffer, PSTR(" bytes free"));
+        lcd_lib_draw_string_center(30, buffer);
+
         LED_GLOW_ERROR
         lcd_lib_update_screen();
     }
