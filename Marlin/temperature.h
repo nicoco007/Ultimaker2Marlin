@@ -86,6 +86,16 @@ FORCE_INLINE bool isHeatingBed() {
 FORCE_INLINE bool isCoolingBed() {
   return target_temperature_bed < current_temperature_bed;
 }
+
+#ifdef BED_MAXTEMP
+void setTargetBed(const uint16_t &celsius);
+#else
+FORCE_INLINE void setTargetBed(const float &celsius)
+{
+  target_temperature_bed = celsius;
+}
+#endif // BED_MAXTEMP
+
 #endif // TEMP_SENSOR_BED
 
 FORCE_INLINE float degTargetHotend(uint8_t extruder) {
@@ -95,17 +105,6 @@ FORCE_INLINE float degTargetHotend(uint8_t extruder) {
 void setTargetHotend(const uint16_t &celsius, uint8_t extruder);
 
 void cooldownHotend(uint8_t extruder);
-
-#if TEMP_SENSOR_BED != 0
-#ifdef BED_MAXTEMP
-void setTargetBed(const uint16_t &celsius);
-#else
-FORCE_INLINE void setTargetBed(const float &celsius)
-{
-  target_temperature_bed = celsius;
-}
-#endif // BED_MAXTEMP
-#endif // TEMP_SENSOR_BED
 
 FORCE_INLINE bool isHeatingHotend(uint8_t extruder){
   return target_temperature[extruder] > current_temperature[extruder];

@@ -39,7 +39,7 @@
 			<Add option="-DTEMP_SENSOR_1=0" />
 			<Add option="-DFILAMENT_SENSOR_PIN=-1" />
 			<Add option="-DBABYSTEPPING" />
-			<Add option="-DTEMP_SENSOR_BED=20" />
+			<Add option="-DTEMP_SENSOR_BED=0" />
 			<Add option="-DHEATER_0_MAXTEMP=315" />
 			<Add option="-DHEATER_1_MAXTEMP=315" />
 			<Add option="-DHEATER_2_MAXTEMP=315" />
