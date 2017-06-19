@@ -167,6 +167,7 @@ extern float extruder_offset[2][EXTRUDERS];
 
 enum AxisEnum {X_AXIS=0, Y_AXIS=1, Z_AXIS=2, E_AXIS=3};
 
+float roundOffset(uint8_t axis, const float &offset);
 
 #ifdef DELTA
 void calculate_delta(float cartesian[3]);
@@ -238,7 +239,6 @@ extern float retract_length, retract_feedrate, retract_zlift;
 #define SET_TOOLCHANGE_RETRACT(e) (retract_state |= (TOOLCHANGE_RETRACT << e))
 #define CLEAR_TOOLCHANGE_RETRACT(e) (retract_state &= ~(TOOLCHANGE_RETRACT << e))
 #if EXTRUDERS > 1
-extern float extruder_offset[2][EXTRUDERS];
 bool changeExtruder(uint8_t nextExtruder, bool moveZ);
 #endif
 extern float retract_recover_length[EXTRUDERS];
