@@ -2490,6 +2490,15 @@ void process_command(const char *strCmd, bool sendAck)
     case 501: // M501 Read settings from EEPROM
     {
         Config_RetrieveSettings();
+        // reset extruder status
+        for (uint8_t e=0; e<EXTRUDERS; ++e)
+        {
+            retract_recover_feedrate[e] = retract_feedrate;
+#if EXTRUDERS > 1
+            SET_TOOLCHANGE_RETRACT(e);
+            toolchange_recover_length[e] = toolchange_retractlen[e];
+#endif
+        }
     }
     break;
     case 502: // M502 Revert to default settings
