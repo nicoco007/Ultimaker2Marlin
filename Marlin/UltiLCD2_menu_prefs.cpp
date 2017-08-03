@@ -324,7 +324,7 @@ static void lcd_limit_ymax()
 
 static void lcd_limit_zmax()
 {
-    lcd_tune_value(max_pos[Z_AXIS], 0.0f, +999.0f, 0.1f);
+    lcd_tune_value(max_pos[Z_AXIS], 0.0f, +9999.0f, 0.1f);
 }
 
 // create menu options for "print area"
