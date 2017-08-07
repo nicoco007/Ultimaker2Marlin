@@ -2499,6 +2499,21 @@ void process_command(const char *strCmd, bool sendAck)
             toolchange_recover_length[e] = toolchange_retractlen[e];
 #endif
         }
+#if defined(TEMP_0_PIN) && TEMP_0_PIN > -1
+        target_temperature_diff[0]=0;
+#endif
+
+#if defined(TEMP_1_PIN) && TEMP_1_PIN > -1 && EXTRUDERS > 1
+        target_temperature_diff[1]=0;
+#endif
+
+#if defined(TEMP_2_PIN) && TEMP_2_PIN > -1 && EXTRUDERS > 2
+        target_temperature_diff[2]=0;
+#endif
+
+#if defined(TEMP_BED_PIN) && (TEMP_BED_PIN > -1) && (TEMP_SENSOR_BED != 0)
+        target_temperature_bed_diff=0;
+#endif
     }
     break;
     case 502: // M502 Revert to default settings
