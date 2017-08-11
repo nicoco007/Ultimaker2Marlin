@@ -167,8 +167,8 @@ void lcd_menu_change_material_preheat()
             float old_retract_acceleration = retract_acceleration;
             float old_max_e_jerk = max_e_jerk;
 
-            max_feedrate[E_AXIS] = float(FILAMENT_FAST_STEPS) / e_steps_per_unit(active_extruder);
-            retract_acceleration = float(FILAMENT_LONG_ACCELERATION_STEPS) / e_steps_per_unit(active_extruder);
+            max_feedrate[E_AXIS] = float(FILAMENT_FAST_STEPS) / e_steps_per_unit(menu_extruder);
+            retract_acceleration = float(FILAMENT_LONG_ACCELERATION_STEPS) / e_steps_per_unit(menu_extruder);
             max_e_jerk = FILAMENT_LONG_MOVE_JERK;
 
             current_position[E_AXIS] -= 1.0 / volume_to_filament_length[menu_extruder];
@@ -353,8 +353,8 @@ static void lcd_menu_change_material_insert_wait_user_ready()
     float old_retract_acceleration = retract_acceleration;
     float old_max_e_jerk = max_e_jerk;
 
-    max_feedrate[E_AXIS] = float(FILAMENT_FAST_STEPS) / e_steps_per_unit(active_extruder);
-    retract_acceleration = float(FILAMENT_LONG_ACCELERATION_STEPS) / e_steps_per_unit(active_extruder);
+    max_feedrate[E_AXIS] = float(FILAMENT_FAST_STEPS) / e_steps_per_unit(menu_extruder);
+    retract_acceleration = float(FILAMENT_LONG_ACCELERATION_STEPS) / e_steps_per_unit(menu_extruder);
     max_e_jerk = FILAMENT_LONG_MOVE_JERK;
 
     quickStop();
