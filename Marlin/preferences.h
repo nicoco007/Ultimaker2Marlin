@@ -80,7 +80,7 @@
 #define FLAG_PID_BED         0x02
 // #define FLAG_SWAP_EXTRUDERS  0x04
 #define FLAG_MANUAL_FAN2     0x08
-#define FLAG_RESERVED_4      0x10
+#define FLAG_SEPARATE_FAN    0x10
 #define FLAG_RESERVED_5      0x20
 #define FLAG_RESERVED_6      0x40
 #define FLAG_RESERVED_7      0x80

@@ -3144,12 +3144,12 @@ static void get_coordinates(const char *cmd)
                     plan_set_position(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], active_extruder, false);
                     feedrate=retract_recover_feedrate[active_extruder];
                 }
-                else
-                {
-                    float correctede=echange-retract_recover_length[active_extruder]; //total unretract=retract_length+retract_recover_length[surplus]
-                    current_position[E_AXIS]+=correctede; //to generate the additional steps, not the destination is changed, but inversely the current position
-                    plan_set_e_position(current_position[E_AXIS], active_extruder, false);
-                }
+//                else
+//                {
+//                    float correctede=echange-retract_recover_length[active_extruder]; //total unretract=retract_length+retract_recover_length[surplus]
+//                    current_position[E_AXIS]+=correctede; //to generate the additional steps, not the destination is changed, but inversely the current position
+//                    plan_set_e_position(current_position[E_AXIS], active_extruder, false);
+//                }
             }
             CLEAR_EXTRUDER_RETRACT(active_extruder);
             retract_recover_length[active_extruder] = 0.0f;
@@ -3605,7 +3605,7 @@ static void recover_toolchange_retract(uint8_t e, bool bSynchronize)
     if(TOOLCHANGE_RETRACTED(e))
     {
         // recover tool change retraction
-        plan_set_e_position(current_position[E_AXIS]-toolchange_recover_length[e], e, bSynchronize);
+        plan_set_e_position(current_position[E_AXIS]-toolchange_recover_length[e]-(toolchange_prime[e]/volume_to_filament_length[e]), e, bSynchronize);
         plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], toolchange_retractfeedrate[e]/60, e);
         CLEAR_TOOLCHANGE_RETRACT(e);
         toolchange_recover_length[e] = 0.0f;

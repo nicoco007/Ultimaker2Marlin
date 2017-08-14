@@ -508,18 +508,24 @@ void check_axes_activity()
       fan_kick_end = 0;
     }
   #endif//FAN_KICKSTART_TIME
-#if defined(FAN_SOFT_PWM) || defined(FAN2_SOFT_PWM)
-  fanSpeedSoftPwm = tail_fan_speed;
-#endif
-#ifndef FAN_SOFT_PWM
-  analogWrite(FAN_PIN, (control_flags & FLAG_MANUAL_FAN2) ? 0 : tail_fan_speed);
-#endif//!FAN_SOFT_PWM
 
- #if defined(FAN2_PIN) && FAN2_PIN > -1
-  #ifndef FAN2_SOFT_PWM
-  analogWrite(FAN2_PIN, (active_extruder>0 || (control_flags & FLAG_MANUAL_FAN2)) ? tail_fan_speed : 0);
+  #if defined(FAN_SOFT_PWM) || defined(FAN2_SOFT_PWM)
+    fanSpeedSoftPwm = tail_fan_speed;
   #endif
- #endif
+
+  #if defined(FAN2_PIN) && FAN2_PIN > -1
+    #ifndef FAN_SOFT_PWM
+      analogWrite(FAN_PIN, ((control_flags & FLAG_MANUAL_FAN2) || (active_extruder>0 && (control_flags & FLAG_SEPARATE_FAN))) ? 0 : tail_fan_speed);
+    #endif
+    #ifndef FAN2_SOFT_PWM
+      analogWrite(FAN2_PIN, (active_extruder>0 || (control_flags & FLAG_MANUAL_FAN2)) ? tail_fan_speed : 0);
+    #endif
+  #else
+    #ifndef FAN_SOFT_PWM
+      analogWrite(FAN_PIN, tail_fan_speed);
+    #endif//!FAN_SOFT_PWM
+  #endif
+
 //static unsigned long last_protocol = millis();
 //if ((millis() - last_protocol) > 2000UL)
 //{

@@ -14,6 +14,12 @@
 #include "UltiLCD2_menu_print.h"
 #include "UltiLCD2_menu_dual.h"
 
+#if defined(FAN2_PIN) && FAN2_PIN > -1
+  #define MENU_FAN_OFFSET 1
+#else
+  #define MENU_FAN_OFFSET 0
+#endif
+
 void lcd_menu_dual();
 
 static void lcd_store_dualstate()
@@ -806,6 +812,149 @@ static void lcd_menu_wipeposition()
 
 //////////////////
 
+static void lcd_store_fancontrol()
+{
+    SET_CONTROL_FLAGS(control_flags);
+    menu.return_to_previous();
+}
+
+static void lcd_toggle_fancontrol()
+{
+    control_flags ^= FLAG_SEPARATE_FAN;
+}
+
+// return fan control menu option
+static const menu_t & get_fancontrol_menuoption(uint8_t nr, menu_t &opt)
+{
+    uint8_t menu_index = 0;
+    if (nr == menu_index++)
+    {
+        opt.setData(MENU_NORMAL, lcd_store_fancontrol);
+    }
+    else if (nr == menu_index++)
+    {
+        opt.setData(MENU_NORMAL, lcd_change_to_previous_menu);
+    }
+    else
+    {
+        // toggle fan option
+        opt.setData(MENU_NORMAL, lcd_toggle_fancontrol);
+    }
+
+    return opt;
+}
+
+static void drawFanControlSubmenu (uint8_t nr, uint8_t &flags)
+{
+    uint8_t index(0);
+
+    if (nr == index++)
+    {
+        // Store
+        if (flags & MENU_SELECTED)
+        {
+            lcd_lib_draw_string_leftP(5, PSTR("Store fan options"));
+            flags |= MENU_STATUSLINE;
+        }
+        LCDMenu::drawMenuString_P(LCD_CHAR_MARGIN_LEFT
+                                , BOTTOM_MENU_YPOS
+                                , 52
+                                , LCD_CHAR_HEIGHT
+                                , PSTR("STORE")
+                                , ALIGN_CENTER
+                                , flags);
+    }
+    else if (nr == index++)
+    {
+        // RETURN
+        LCDMenu::drawMenuBox(LCD_GFX_WIDTH/2 + 2*LCD_CHAR_MARGIN_LEFT
+                           , BOTTOM_MENU_YPOS
+                           , 52
+                           , LCD_CHAR_HEIGHT
+                           , flags);
+        if (flags & MENU_SELECTED)
+        {
+            lcd_lib_draw_string_leftP(5, PSTR("Click to return"));
+            flags |= MENU_STATUSLINE;
+        }
+        LCDMenu::drawMenuString_P(LCD_GFX_WIDTH/2 + 2*LCD_CHAR_MARGIN_LEFT
+                                , BOTTOM_MENU_YPOS
+                                , 52
+                                , LCD_CHAR_HEIGHT
+                                , PSTR("RETURN")
+                                , ALIGN_CENTER
+                                , flags);
+    }
+    else if (nr == index++)
+    {
+        // FLAG_SEPARATE_FAN
+        if (flags & MENU_SELECTED)
+        {
+            lcd_lib_draw_string_leftP(5, PSTR("main fan always on"));
+            flags |= MENU_STATUSLINE;
+        }
+        lcd_lib_draw_stringP(LCD_CHAR_MARGIN_LEFT + 4*LCD_CHAR_SPACING, 20, PSTR("main fan on"));
+        LCDMenu::drawMenuBox(LCD_CHAR_MARGIN_LEFT
+                           , 20
+                           , 3*LCD_CHAR_SPACING
+                           , LCD_CHAR_HEIGHT
+                           , flags);
+        if (flags & MENU_SELECTED)
+        {
+            lcd_lib_clear_gfx(LCD_CHAR_MARGIN_LEFT+LCD_CHAR_SPACING, 20, (control_flags & FLAG_SEPARATE_FAN)?checkbox_off:checkbox_on);
+        }
+        else
+        {
+            lcd_lib_draw_gfx(LCD_CHAR_MARGIN_LEFT+LCD_CHAR_SPACING, 20, (control_flags & FLAG_SEPARATE_FAN)?checkbox_off:checkbox_on);
+        }
+    }
+    else if (nr == index++)
+    {
+        // FLAG_SEPARATE_FAN
+        if (flags & MENU_SELECTED)
+        {
+            lcd_lib_draw_string_leftP(5, PSTR("separate fan control"));
+            flags |= MENU_STATUSLINE;
+        }
+        lcd_lib_draw_stringP(LCD_CHAR_MARGIN_LEFT + 4*LCD_CHAR_SPACING, 30, PSTR("separate fans"));
+        LCDMenu::drawMenuBox(LCD_CHAR_MARGIN_LEFT
+                           , 30
+                           , 3*LCD_CHAR_SPACING
+                           , LCD_CHAR_HEIGHT
+                           , flags);
+        if (flags & MENU_SELECTED)
+        {
+            lcd_lib_clear_gfx(LCD_CHAR_MARGIN_LEFT+LCD_CHAR_SPACING, 30, (control_flags & FLAG_SEPARATE_FAN)?checkbox_on:checkbox_off);
+        }
+        else
+        {
+            lcd_lib_draw_gfx(LCD_CHAR_MARGIN_LEFT+LCD_CHAR_SPACING, 30, (control_flags & FLAG_SEPARATE_FAN)?checkbox_on:checkbox_off);
+        }
+    }
+}
+
+static void lcd_menu_fancontrol()
+{
+    lcd_basic_screen();
+    lcd_lib_draw_hline(3, 124, 13);
+
+    menu.process_submenu(get_fancontrol_menuoption, 4);
+
+    uint8_t flags = 0;
+    for (uint8_t index=0; index<4; ++index)
+    {
+        menu.drawSubMenu(drawFanControlSubmenu, index, flags);
+    }
+    if (!(flags & MENU_STATUSLINE))
+    {
+        lcd_lib_draw_string_leftP(5, PSTR("Fan control"));
+    }
+
+    lcd_lib_update_screen();
+}
+
+//////////////////
+
 static void lcd_tune_tcretractlen()
 {
     lcd_tune_value(toolchange_retractlen[menu_extruder], 0.0f, 50.0, 0.1f);
@@ -1187,6 +1336,10 @@ static void lcd_dual_item(uint8_t nr, uint8_t offsetY, uint8_t flags)
         strcpy_P(buffer, PSTR("Docking position"));
     else if (nr == index++)
         strcpy_P(buffer, PSTR("Prime/Wipe position"));
+#if defined(FAN2_PIN) && FAN2_PIN > -1
+    else if (nr == index++)
+        strcpy_P(buffer, PSTR("Fan control"));
+#endif
     else if (nr == index++)
     {
         strcpy_P(buffer, PSTR("Adjust Z (nozzle "));
@@ -1203,6 +1356,12 @@ static void lcd_dual_details(uint8_t nr)
         // dual mode
         lcd_lib_draw_string_leftP(BOTTOM_MENU_YPOS, IS_DUAL_ENABLED ? PSTR("enabled") : PSTR("off"));
     }
+#if defined(FAN2_PIN) && FAN2_PIN > -1
+    else if (nr == 7)
+    {
+        lcd_lib_draw_string_leftP(BOTTOM_MENU_YPOS, (control_flags & FLAG_SEPARATE_FAN) ? PSTR("separate fan control") : PSTR("main fan always on"));
+    }
+#endif
 }
 
 static void start_menu_tcretract()
@@ -1217,7 +1376,7 @@ static void lcd_menu_tcretraction()
 
 void lcd_menu_dual()
 {
-    lcd_scroll_menu(PSTR("Dual extrusion"), 8, lcd_dual_item, lcd_dual_details);
+    lcd_scroll_menu(PSTR("Dual extrusion"), 8+MENU_FAN_OFFSET, lcd_dual_item, lcd_dual_details);
     if (lcd_lib_button_pressed)
     {
         if (IS_SELECTED_SCROLL(0))
@@ -1234,7 +1393,11 @@ void lcd_menu_dual()
             menu.add_menu(menu_t(lcd_menu_dockposition, MAIN_MENU_ITEM_POS(1)));
         else if (IS_SELECTED_SCROLL(6))
             menu.add_menu(menu_t(lcd_menu_wipeposition, MAIN_MENU_ITEM_POS(1)));
+#if defined(FAN2_PIN) && FAN2_PIN > -1
         else if (IS_SELECTED_SCROLL(7))
+            menu.add_menu(menu_t(lcd_menu_fancontrol, MAIN_MENU_ITEM_POS(1)));
+#endif
+        else if (IS_SELECTED_SCROLL(7+MENU_FAN_OFFSET))
         {
             lcd_prepare_buildplate_adjust();
             menu.add_menu(menu_t(lcd_menu_simple_buildplate_init, ENCODER_NO_SELECTION));
