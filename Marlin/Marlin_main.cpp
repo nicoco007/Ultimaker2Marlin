@@ -646,7 +646,7 @@ static bool code_seen(const char *cmd, char code)
   return (strchr_pointer != NULL);  //Return True if a character was found
 }
 
-#if (EXTRUDERS > 1) && defined(FWRETRACT)
+#if (EXTRUDERS > 1)
 // check, if a toolchange command appeared and set a flag for nozzle re-heating
 static void checkToolchange(const char *cmd)
 {
@@ -660,7 +660,7 @@ static void checkToolchange(const char *cmd)
         if ((e < EXTRUDERS) && (e != active_extruder))
         {
             // set reheat flag
-            retract_state |= (EXTRUDER_PREHEAT << e);
+            temperature_state |= (EXTRUDER_PREHEAT << e);
         }
     }
 }
@@ -1716,11 +1716,22 @@ void process_command(const char *strCmd, bool sendAck)
       }
       if (code_seen(strCmd, 'S'))
       {
-        float newTemperature = code_value();
-        setTargetHotend(roundTemperature(newTemperature), tmp_extruder);
-        extruder_lastused[tmp_extruder] = millis();
-        // set reheat flag
-        retract_state |= (EXTRUDER_PREHEAT << tmp_extruder);
+        float newTemperatureF = code_value();
+        uint16_t newTemperature = roundTemperature(newTemperatureF);
+        // update temperature state
+        temperature_state |= (EXTRUDER_PREHEAT << tmp_extruder);
+        if ((active_extruder != tmp_extruder) && (newTemperature < target_temperature[tmp_extruder]))
+        {
+          if ((target_temperature[tmp_extruder] - newTemperature) > (target_temperature[tmp_extruder]/10))
+          {
+            temperature_state |= (EXTRUDER_STANDBY << tmp_extruder);
+          }
+        }
+        else if (newTemperature > target_temperature[tmp_extruder])
+        {
+            temperature_state &= ~(EXTRUDER_STANDBY << tmp_extruder);
+        }
+        setTargetHotend(newTemperature, tmp_extruder);
       }
       if (printing_state != PRINT_STATE_RECOVER)
       {
@@ -1751,10 +1762,22 @@ void process_command(const char *strCmd, bool sendAck)
       #endif
       if (code_seen(strCmd, 'S'))
       {
-        float newTemperature = code_value();
-        setTargetHotend(roundTemperature(newTemperature), tmp_extruder);
-        extruder_lastused[tmp_extruder] = millis();
-        retract_state |= (EXTRUDER_PREHEAT << tmp_extruder);
+        float newTemperatureF = code_value();
+        uint16_t newTemperature = roundTemperature(newTemperatureF);
+        // update temperature state
+        temperature_state |= (EXTRUDER_PREHEAT << tmp_extruder);
+        if ((active_extruder != tmp_extruder) && (newTemperature < target_temperature[tmp_extruder]))
+        {
+          if ((target_temperature[tmp_extruder] - newTemperature) > (target_temperature[tmp_extruder]/10))
+          {
+            temperature_state |= (EXTRUDER_STANDBY << tmp_extruder);
+          }
+        }
+        else if (newTemperature > target_temperature[tmp_extruder])
+        {
+          temperature_state &= ~(EXTRUDER_STANDBY << tmp_extruder);
+        }
+        setTargetHotend(newTemperature, tmp_extruder);
       }
       #ifdef AUTOTEMP
         if (code_seen(strCmd, 'S')) autotemp_min=code_value();
@@ -2497,20 +2520,10 @@ void process_command(const char *strCmd, bool sendAck)
 #if EXTRUDERS > 1
             SET_TOOLCHANGE_RETRACT(e);
             toolchange_recover_length[e] = toolchange_retractlen[e];
+            standby_temperature_diff[e]=0;
 #endif
+            target_temperature_diff[e]=0;
         }
-#if defined(TEMP_0_PIN) && TEMP_0_PIN > -1
-        target_temperature_diff[0]=0;
-#endif
-
-#if defined(TEMP_1_PIN) && TEMP_1_PIN > -1 && EXTRUDERS > 1
-        target_temperature_diff[1]=0;
-#endif
-
-#if defined(TEMP_2_PIN) && TEMP_2_PIN > -1 && EXTRUDERS > 2
-        target_temperature_diff[2]=0;
-#endif
-
 #if defined(TEMP_BED_PIN) && (TEMP_BED_PIN > -1) && (TEMP_SENSOR_BED != 0)
         target_temperature_bed_diff=0;
 #endif
@@ -3739,16 +3752,15 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
            current_position[axis] += roundOffset(axis, extruder_offset[axis][nextExtruder]);
         }
 
+
+
+
         // Set the new active extruder and restore position
         active_extruder = nextExtruder;
 
-#ifdef FWRETRACT
-        // clear reheat flags
-        for (uint8_t e=0; e<EXTRUDERS; ++e)
-        {
-            retract_state &= ~(EXTRUDER_PREHEAT << e);
-        }
-#endif // FWRETRACT
+        // clear temperature flags
+        temperature_state &= ~(EXTRUDER_PREHEAT << active_extruder);
+        temperature_state &= ~(EXTRUDER_STANDBY << active_extruder);
 
         SERIAL_ECHO_START;
         SERIAL_ECHOPGM(MSG_ACTIVE_EXTRUDER);
@@ -3828,17 +3840,17 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
                                     roundOffset(axis, extruder_offset[axis][active_extruder]) +
                                     roundOffset(axis, extruder_offset[axis][nextExtruder]);
         }
+
         // Set the new active extruder and position
         active_extruder = nextExtruder;
+
+        // clear temperature flags
+        temperature_state &= ~(EXTRUDER_PREHEAT << active_extruder);
+        temperature_state &= ~(EXTRUDER_STANDBY << active_extruder);
 
 		SERIAL_ECHO_START;
         SERIAL_ECHOPGM(MSG_ACTIVE_EXTRUDER);
         SERIAL_PROTOCOLLN((int)active_extruder);
-
-#ifdef FWRETRACT
-        // clear reheat flag
-        retract_state &= ~(EXTRUDER_PREHEAT << active_extruder);
-#endif // FWRETRACT
 
     }
     // restore position

@@ -277,6 +277,7 @@ void start_move_material()
 #if EXTRUDERS > 1
     // remove nozzle selection menu
     menu.return_to_previous();
+    standby_temperature_diff[menu_extruder] = 0;
 #endif // EXTRUDERS
     set_extrude_min_temp(0);
     // reset e-position
@@ -470,6 +471,9 @@ static void lcd_menu_maintenance_extrude()
         set_extrude_min_temp(EXTRUDE_MINTEMP);
         target_temperature[menu_extruder] = 0;
         target_temperature_diff[menu_extruder] = 0;
+#if EXTRUDERS > 1
+        standby_temperature_diff[menu_extruder] = 0;
+#endif
         menu.return_to_previous();
     }
     // reset heater timeout until target temperature is reached

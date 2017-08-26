@@ -39,16 +39,21 @@
 #include "tinkergnome.h"
 #include "powerbudget.h"
 
-#define HEATER_TIMEOUT_START (1000L * 30L)  //  30 seconds
-#define HEATER_TIMEOUT_IDLE (1000L * 120L)  // 120 seconds
-#define HEATER_TIMEOUT_OFF (1000L * 300L)   // 300 seconds
-#define HEATER_TIMEOUT_MINTEMP 80           // 80C
+#define HEATER_TIMEOUT_1   (1000L * 30L)   //  30 seconds
+#define HEATER_TIMEOUT_2   (1000L * 90L)   //  90 seconds
+#define HEATER_TIMEOUT_3   (1000L * 300L)  // 300 seconds
+#define HEATER_TIMEOUT_OFF (1000L * 720L)  // 720 seconds
+#define HEATER_TIMEOUT_MINTEMP 80          // 80C
 
 //===========================================================================
 //=============================public variables============================
 //===========================================================================
+uint8_t temperature_state=0;
 uint16_t target_temperature[EXTRUDERS] = { 0 };
 int8_t target_temperature_diff[EXTRUDERS] = { 0 };
+#if EXTRUDERS > 1
+int8_t standby_temperature_diff[EXTRUDERS] = { 0 };
+#endif
 int current_temperature_raw[EXTRUDERS] = { 0 };
 float current_temperature[EXTRUDERS] = { 0.0 };
 #if TEMP_SENSOR_BED != 0
@@ -523,22 +528,30 @@ void manage_heater()
   for(uint8_t e = 0; e < EXTRUDERS; ++e)
   {
     target_temp = (printing_state == PRINT_STATE_RECOVER) ? recover_temperature[e] : target_temperature[e]>0 ? int(degTargetHotend(e)) : 0;
-    if ((printing_state != PRINT_STATE_HEATING) && !(retract_state & (EXTRUDER_PREHEAT << e)) && (IS_SD_PRINTING || serialCmd))
+    if ((printing_state != PRINT_STATE_HEATING) && !(temperature_state & (EXTRUDER_PREHEAT << e)) && !(temperature_state & (EXTRUDER_STANDBY << e)) && (IS_SD_PRINTING || serialCmd))
     {
         // reduce target temp of inactive nozzle during printing
         if ((extruder_lastused[e] + HEATER_TIMEOUT_OFF) < m)
         {
             target_temp = (target_temp > HEATER_TIMEOUT_MINTEMP) ? HEATER_TIMEOUT_MINTEMP : target_temp;
+            target_temp += standby_temperature_diff[e];
         }
-        else if ((extruder_lastused[e] + HEATER_TIMEOUT_IDLE) < m)
+        else if ((extruder_lastused[e] + HEATER_TIMEOUT_3) < m)
+        {
+            target_temp = target_temp/2;
+            target_temp -= target_temp % 10;
+            target_temp += standby_temperature_diff[e];
+        }
+        else if ((extruder_lastused[e] + HEATER_TIMEOUT_2) < m)
         {
             target_temp = target_temp*4/5;
             target_temp -= target_temp % 10;
         }
-        else if ((extruder_lastused[e] + HEATER_TIMEOUT_START) < m)
+        else if ((extruder_lastused[e] + HEATER_TIMEOUT_1) < m)
         {
             target_temp -= target_temp/20;
         }
+        target_temp = constrain(target_temp, 0, get_maxtemp(e));
     }
   #ifdef PIDTEMP
     pid_input = current_temperature[e];
@@ -1117,31 +1130,25 @@ void setWatch()
 
 void disable_heater()
 {
-  #if defined(TEMP_0_PIN) && TEMP_0_PIN > -1
-  target_temperature[0]=0;
-  target_temperature_diff[0]=0;
-  soft_pwm[0]=0;
+  for (uint8_t e=0; e<EXTRUDERS; ++e)
+  {
+    target_temperature[e]=0;
+    target_temperature_diff[e]=0;
+#if EXTRUDERS > 1
+    standby_temperature_diff[e]=0;
+#endif
+    soft_pwm[e]=0;
+  }
    #if defined(HEATER_0_PIN) && HEATER_0_PIN > -1
      WRITE(HEATER_0_PIN,LOW);
    #endif
+
+  #if defined(HEATER_1_PIN) && HEATER_1_PIN > -1
+    WRITE(HEATER_1_PIN,LOW);
   #endif
 
-  #if defined(TEMP_1_PIN) && TEMP_1_PIN > -1 && EXTRUDERS > 1
-    target_temperature[1]=0;
-    target_temperature_diff[1]=0;
-    soft_pwm[1]=0;
-    #if defined(HEATER_1_PIN) && HEATER_1_PIN > -1
-      WRITE(HEATER_1_PIN,LOW);
-    #endif
-  #endif
-
-  #if defined(TEMP_2_PIN) && TEMP_2_PIN > -1 && EXTRUDERS > 2
-    target_temperature[2]=0;
-    target_temperature_diff[2]=0;
-    soft_pwm[2]=0;
-    #if defined(HEATER_2_PIN) && HEATER_2_PIN > -1
-      WRITE(HEATER_2_PIN,LOW);
-    #endif
+  #if defined(HEATER_2_PIN) && HEATER_2_PIN > -1
+    WRITE(HEATER_2_PIN,LOW);
   #endif
 
   #if defined(TEMP_BED_PIN) && (TEMP_BED_PIN > -1) && (TEMP_SENSOR_BED != 0)

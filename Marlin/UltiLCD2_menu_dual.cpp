@@ -14,12 +14,6 @@
 #include "UltiLCD2_menu_print.h"
 #include "UltiLCD2_menu_dual.h"
 
-#if defined(FAN2_PIN) && FAN2_PIN > -1
-  #define MENU_FAN_OFFSET 1
-#else
-  #define MENU_FAN_OFFSET 0
-#endif
-
 void lcd_menu_dual();
 
 static void lcd_store_dualstate()
@@ -933,7 +927,7 @@ static void drawFanControlSubmenu (uint8_t nr, uint8_t &flags)
     }
 }
 
-static void lcd_menu_fancontrol()
+void lcd_menu_fancontrol()
 {
     lcd_basic_screen();
     lcd_lib_draw_hline(3, 124, 13);
@@ -1376,7 +1370,7 @@ static void lcd_menu_tcretraction()
 
 void lcd_menu_dual()
 {
-    lcd_scroll_menu(PSTR("Dual extrusion"), 8+MENU_FAN_OFFSET, lcd_dual_item, lcd_dual_details);
+    lcd_scroll_menu(PSTR("Dual extrusion"), 8+FAN_MENU_OFFSET, lcd_dual_item, lcd_dual_details);
     if (lcd_lib_button_pressed)
     {
         if (IS_SELECTED_SCROLL(0))
@@ -1397,7 +1391,7 @@ void lcd_menu_dual()
         else if (IS_SELECTED_SCROLL(7))
             menu.add_menu(menu_t(lcd_menu_fancontrol, MAIN_MENU_ITEM_POS(1)));
 #endif
-        else if (IS_SELECTED_SCROLL(7+MENU_FAN_OFFSET))
+        else if (IS_SELECTED_SCROLL(7+FAN_MENU_OFFSET))
         {
             lcd_prepare_buildplate_adjust();
             menu.add_menu(menu_t(lcd_menu_simple_buildplate_init, ENCODER_NO_SELECTION));

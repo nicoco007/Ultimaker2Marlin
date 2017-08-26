@@ -213,14 +213,9 @@ void doStartPrint()
 
     for(int8_t e = EXTRUDERS-1; (e>=0) && (printing_state < PRINT_STATE_ABORT); --e)
     {
-#ifdef FWRETRACT
-        // clear reheat flag
-        retract_state &= ~(EXTRUDER_PREHEAT << e);
-#endif
-//      #if EXTRUDERS > 1
-//        CLEAR_TOOLCHANGE_RETRACT(e);
-//        toolchange_recover_length[e] = 0.0f;
-//      #endif
+        // clear temperature flags
+        temperature_state &= ~(EXTRUDER_PREHEAT << e);
+        temperature_state &= ~(EXTRUDER_STANDBY << e);
 
         if (!LCD_DETAIL_CACHE_MATERIAL(e))
         {
@@ -660,6 +655,9 @@ void lcd_menu_print_select()
                         extrudemultiply[e] = 100;
                         e_smoothed_speed[e] = 0.0f;
                         target_temperature_diff[e] = 0;
+#if EXTRUDERS > 1
+                        standby_temperature_diff[e] = 0;
+#endif
                     }
 
                     if (strncmp_P(buffer, PSTR(";FLAVOR:UltiGCode"), 17) == 0)
@@ -1116,20 +1114,28 @@ static void tune_item_callback(uint8_t nr, uint8_t offsetY, uint8_t flags)
         strcpy_P(buffer, PSTR("Speed"));
     else if (index++ == nr)
 #if EXTRUDERS > 1
-        strcpy_P(buffer, PSTR("Temperature 1"));
+        strcpy_P(buffer, PSTR("Print Temperature 1"));
 #else
         strcpy_P(buffer, PSTR("Temperature"));
 #endif
 #if EXTRUDERS > 1
     else if (index++ == nr)
-        strcpy_P(buffer, PSTR("Temperature 2"));
+        strcpy_P(buffer, PSTR("Print Temperature 2"));
+    else if (index++ == nr)
+        strcpy_P(buffer, PSTR("Standby Temp. 1"));
+    else if (index++ == nr)
+        strcpy_P(buffer, PSTR("Standby Temp. 2"));
 #endif
 #if TEMP_SENSOR_BED != 0
     else if (index++ == nr)
-        strcpy_P(buffer, PSTR("Buildplate temp."));
+        strcpy_P(buffer, PSTR("Buildplate Temp."));
 #endif
     else if (index++ == nr)
         strcpy_P(buffer, PSTR("Fan speed"));
+#if EXTRUDERS > 1 && defined(FAN2_PIN) && FAN2_PIN > -1
+    else if (index++ == nr)
+        strcpy_P(buffer, PSTR("Fan control"));
+#endif
     else if (index++ == nr)
 #if EXTRUDERS > 1
         strcpy_P(buffer, PSTR("Material flow 1"));
@@ -1176,23 +1182,49 @@ static void tune_item_details_callback(uint8_t nr)
     {
         int_to_string(degTargetHotend(1), int_to_string(dsp_temperature[1], buffer, PSTR("C/")), PSTR("C"));
     }
+    else if (nr == 4)
+    {
+        if (temperature_state & EXTRUDER_STANDBY)
+        {
+          int_to_string(standby_temperature_diff[0], int_to_string(degTargetHotend(0), int_to_string(dsp_temperature[0], buffer, PSTR("C/")), PSTR("C")), PSTR(")"), PSTR(" ("), true);
+        }
+        else
+        {
+          int_to_string(standby_temperature_diff[0], buffer, PSTR(")"), PSTR("("), true);
+        }
+    }
+    else if (nr == 5)
+    {
+        if (temperature_state & (EXTRUDER_STANDBY << 1))
+        {
+          int_to_string(standby_temperature_diff[1], int_to_string(degTargetHotend(1), int_to_string(dsp_temperature[1], buffer, PSTR("C/")), PSTR("C")), PSTR(")"), PSTR(" ("), true);;
+        }
+        else
+        {
+          int_to_string(standby_temperature_diff[1], buffer, PSTR(")"), PSTR("("), true);
+        }
+    }
 #endif
 #if TEMP_SENSOR_BED != 0
-    else if (nr == 2 + EXTRUDERS)
+    else if (nr == 2 + EXTRUDERS*2)
     {
         int_to_string(int(degTargetBed()), int_to_string(dsp_temperature_bed, buffer, PSTR("C/")), PSTR("C"));
     }
 #endif
-    else if (nr == 2 + BED_MENU_OFFSET + EXTRUDERS)
+    else if (nr == 2 + BED_MENU_OFFSET + EXTRUDERS*2)
         int_to_string(int(fanSpeed) * 100 / 255, buffer, PSTR("%"));
-    else if (nr == 3 + BED_MENU_OFFSET + EXTRUDERS)
+#if EXTRUDERS > 1 && defined(FAN2_PIN) && FAN2_PIN > -1
+    else if (nr == 3 + BED_MENU_OFFSET + EXTRUDERS*2)
+        strcpy_P(buffer, (control_flags & FLAG_SEPARATE_FAN) ? PSTR("separate fan control") : PSTR("main fan always on"));
+#endif
+    else if (nr == 3 + FAN_MENU_OFFSET + BED_MENU_OFFSET + EXTRUDERS*2)
         int_to_string(extrudemultiply[0], buffer, PSTR("%"));
 #if EXTRUDERS > 1
-    else if (nr == 4 + BED_MENU_OFFSET + EXTRUDERS)
+    else if (nr == 4 + FAN_MENU_OFFSET + BED_MENU_OFFSET + EXTRUDERS*2)
         int_to_string(extrudemultiply[1], buffer, PSTR("%"));
 #endif
 #if FAN2_PIN != LED_PIN
-    else if (nr == 1 + BED_MENU_OFFSET + 5*EXTRUDERS)
+    else if (nr == 1 + FAN_MENU_OFFSET + BED_MENU_OFFSET + 6*EXTRUDERS)
     {
         int_to_string(led_brightness_level, buffer, PSTR("%"));
     }
@@ -1204,13 +1236,8 @@ static void tune_item_details_callback(uint8_t nr)
 
 static void lcd_menu_print_tune_heatup_nozzle(uint8_t e, int16_t max_temp)
 {
-    if (lcd_lib_encoder_pos / ENCODER_TICKS_PER_SCROLL_MENU_ITEM != 0)
-    {
-        target_temperature_diff[e] = constrain(target_temperature_diff[e] + (lcd_lib_encoder_pos / ENCODER_TICKS_PER_SCROLL_MENU_ITEM),
-                                               max(-MAX_TEMP_DIFF, -target_temperature[e]),
-                                               min(MAX_TEMP_DIFF, max_temp - target_temperature[e] - 15));
-        lcd_lib_encoder_pos = 0;
-    }
+    lcd_tune_value(target_temperature_diff[e], max(-MAX_TEMP_DIFF, -target_temperature[e]), min(MAX_TEMP_DIFF, max_temp - target_temperature[e] - 15));
+
     if (lcd_lib_button_pressed)
     {
         menu.return_to_previous();
@@ -1239,16 +1266,44 @@ static void lcd_menu_print_tune_heatup_nozzle(uint8_t e, int16_t max_temp)
     lcd_lib_update_screen();
 }
 
+#if EXTRUDERS > 1
+static void lcd_menu_print_tune_standby_nozzle(uint8_t e, int16_t max_temp)
+{
+    lcd_tune_value(standby_temperature_diff[e], max(-MAX_STANDBY_DIFF, -target_temperature[e]), min(MAX_STANDBY_DIFF, max_temp - target_temperature[e] - 15));
+
+    if (lcd_lib_button_pressed)
+    {
+        menu.return_to_previous();
+    }
+
+    lcd_lib_clear();
+    char buffer[24];
+    lcd_lib_draw_string_centerP(10, PSTR("Standby Temp."));
+    strcpy_P(buffer, PSTR("Nozzle "));
+    int_to_string(e+1, buffer+7, 0);
+    lcd_lib_draw_string_center(20, buffer);
+
+    lcd_lib_draw_string_centerP(53, PSTR("Click to return"));
+    char * c = buffer;
+    if (temperature_state & (EXTRUDER_STANDBY << e))
+    {
+      c = int_to_string(int(dsp_temperature[e]), buffer, PSTR("C/"));
+      c = int_to_string(int(degTargetHotend(e)), c, PSTR("C"));
+      lcd_lib_draw_heater(e ? LCD_GFX_WIDTH - LCD_CHAR_MARGIN_RIGHT - LCD_CHAR_SPACING : LCD_CHAR_MARGIN_LEFT, 10, getHeaterPower(e));
+    }
+    // append relative difference
+    int_to_string(standby_temperature_diff[e], c, PSTR(")"), PSTR(" ("), true);
+
+    lcd_lib_draw_string_center(35, buffer);
+    lcd_lib_update_screen();
+}
+#endif // EXTRUDERS
+
 #if TEMP_SENSOR_BED != 0
 static void lcd_menu_print_tune_heatup_bed()
 {
-    if (lcd_lib_encoder_pos / ENCODER_TICKS_PER_SCROLL_MENU_ITEM != 0)
-    {
-        target_temperature_bed_diff = constrain(target_temperature_bed_diff + (lcd_lib_encoder_pos / ENCODER_TICKS_PER_SCROLL_MENU_ITEM),
-                                                max(-MAX_TEMP_DIFF, -target_temperature_bed),
-                                                min(MAX_TEMP_DIFF, BED_MAXTEMP - target_temperature_bed - 15));
-        lcd_lib_encoder_pos = 0;
-    }
+    lcd_tune_value(target_temperature_bed_diff, max(-MAX_TEMP_DIFF, -target_temperature_bed), min(MAX_TEMP_DIFF, BED_MAXTEMP - target_temperature_bed - 15));
+
     if (lcd_lib_button_pressed)
     {
         menu.return_to_previous();
@@ -1282,14 +1337,24 @@ void lcd_menu_print_tune_heatup_nozzle1()
 {
     lcd_menu_print_tune_heatup_nozzle(1, HEATER_1_MAXTEMP);
 }
+
+static void lcd_menu_print_tune_standby_nozzle0()
+{
+    lcd_menu_print_tune_standby_nozzle(0, HEATER_0_MAXTEMP);
+}
+
+void lcd_menu_print_tune_standby_nozzle1()
+{
+    lcd_menu_print_tune_standby_nozzle(1, HEATER_1_MAXTEMP);
+}
 #endif
 
 void lcd_menu_print_tune()
 {
 #if FAN2_PIN != LED_PIN
-    uint8_t len = 2 + BED_MENU_OFFSET + EXTRUDERS * 5;
+    uint8_t len = 2 + FAN_MENU_OFFSET + BED_MENU_OFFSET + EXTRUDERS * 6;
 #else
-    uint8_t len = 1 + BED_MENU_OFFSET + EXTRUDERS * 5;
+    uint8_t len = 1 + FAN_MENU_OFFSET + BED_MENU_OFFSET + EXTRUDERS * 6;
 #endif
     if (ui_mode & UI_MODE_EXPERT)
     {
@@ -1313,6 +1378,10 @@ void lcd_menu_print_tune()
 #if EXTRUDERS > 1
         else if (IS_SELECTED_SCROLL(index++))
             menu.add_menu(menu_t(lcd_menu_print_tune_heatup_nozzle1, 0));
+        else if (IS_SELECTED_SCROLL(index++))
+            menu.add_menu(menu_t(lcd_menu_print_tune_standby_nozzle0, 0));
+        else if (IS_SELECTED_SCROLL(index++))
+            menu.add_menu(menu_t(lcd_menu_print_tune_standby_nozzle1, 0));
 #endif
 #if TEMP_SENSOR_BED != 0
         else if (IS_SELECTED_SCROLL(index++))
@@ -1320,6 +1389,10 @@ void lcd_menu_print_tune()
 #endif
         else if (IS_SELECTED_SCROLL(index++))
             LCD_EDIT_SETTING_BYTE_PERCENT(fanSpeed, "Fan speed", "%", 0, 100);
+#if EXTRUDERS > 1 && defined(FAN2_PIN) && FAN2_PIN > -1
+        else if (IS_SELECTED_SCROLL(index++))
+            menu.add_menu(menu_t(lcd_menu_fancontrol, MAIN_MENU_ITEM_POS(1)));
+#endif
 #if EXTRUDERS > 1
         else if (IS_SELECTED_SCROLL(index++))
             LCD_EDIT_SETTING(extrudemultiply[0], "Material flow 1", "%", 10, 1000);

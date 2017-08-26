@@ -13,6 +13,7 @@ void lcd_menu_tune_tcretract();
 void lcd_init_extruderoffset();
 void lcd_calc_extruderoffset();
 void lcd_menu_extruderoffset();
+void lcd_menu_fancontrol();
 #endif // EXTRUDERS
 
 #endif //ULTILCD2_MENU_DUAL_H

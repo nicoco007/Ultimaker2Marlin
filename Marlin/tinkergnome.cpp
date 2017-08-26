@@ -383,13 +383,27 @@ static const menu_t & get_print_menuoption(uint8_t nr, menu_t &opt)
         else if (nr == menu_index++)
         {
             // temp nozzle 1
-            opt.setData(MENU_INPLACE_EDIT, lcd_print_tune_nozzle0_diff);
+            if (temperature_state & EXTRUDER_STANDBY)
+            {
+                opt.setData(MENU_INPLACE_EDIT, lcd_print_tune_standby0_diff);
+            }
+            else
+            {
+                opt.setData(MENU_INPLACE_EDIT, lcd_print_tune_nozzle0_diff);
+            }
         }
     #if EXTRUDERS > 1
         else if (nr == menu_index++)
         {
             // temp nozzle 2
-            opt.setData(MENU_INPLACE_EDIT, lcd_print_tune_nozzle1_diff);
+            if (temperature_state & (EXTRUDER_STANDBY << 1))
+            {
+                opt.setData(MENU_INPLACE_EDIT, lcd_print_tune_standby1_diff);
+            }
+            else
+            {
+                opt.setData(MENU_INPLACE_EDIT, lcd_print_tune_nozzle1_diff);
+            }
         }
     #endif
         else if (nr == menu_index++)
@@ -680,10 +694,20 @@ static void drawStatusNozzle(uint8_t e, uint8_t &flags)
 #endif
         if (flags & MENU_ACTIVE)
         {
-            if (target_temperature_diff[e])
+#if EXTRUDERS > 1
+            if ((temperature_state & (EXTRUDER_STANDBY << e)) && (standby_temperature_diff[e]))
             {
-                int_to_string(target_temperature_diff[e], c, PSTR(")"), PSTR("("), true);
+                int_to_string(standby_temperature_diff[e], c, PSTR(")"), PSTR("("), true);
                 lcd_lib_draw_string_right(5, c);
+            }
+            else
+#endif
+            {
+                if (target_temperature_diff[e])
+                {
+                    int_to_string(target_temperature_diff[e], c, PSTR(")"), PSTR("("), true);
+                    lcd_lib_draw_string_right(5, c);
+                }
             }
             int_to_string(int(degTargetHotend(e)), c, PSTR(DEGREE_SYMBOL));
         }
@@ -2828,6 +2852,9 @@ static void lcd_extrude_return()
         plan_set_e_position(current_position[E_AXIS], menu_extruder, true);
         target_temperature[menu_extruder] = 0;
         target_temperature_diff[menu_extruder] = 0;
+#if EXTRUDERS > 1
+        standby_temperature_diff[menu_extruder] = 0;
+#endif
     }
 }
 

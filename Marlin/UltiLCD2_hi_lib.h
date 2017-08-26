@@ -111,6 +111,13 @@ extern uint8_t minProgress;
 #define BED_MENU_OFFSET 0
 #endif
 
+#if EXTRUDERS > 1 && defined(FAN2_PIN) && FAN2_PIN > -1
+#define FAN_MENU_OFFSET 1
+#else
+#define FAN_MENU_OFFSET 0
+#endif
+
+
 #define BOTTOM_MENU_YPOS 54
 
 #define EQUALF(f1, f2) (fabs(f2-f1)<=0.01f)
