@@ -35,6 +35,7 @@ void manage_heater(); //it is critical that this is called periodically.
 
 #define EXTRUDER_PREHEAT     1
 #define EXTRUDER_STANDBY     4
+#define EXTRUDER_AUTOSTANDBY 16
 extern uint8_t temperature_state;
 
 // low level conversion routines

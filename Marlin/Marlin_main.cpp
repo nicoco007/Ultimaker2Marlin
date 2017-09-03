@@ -1725,6 +1725,7 @@ void process_command(const char *strCmd, bool sendAck)
           if ((target_temperature[tmp_extruder] - newTemperature) > (target_temperature[tmp_extruder]/10))
           {
             temperature_state |= (EXTRUDER_STANDBY << tmp_extruder);
+            temperature_state &= ~(EXTRUDER_AUTOSTANDBY << tmp_extruder);
           }
         }
         else if (newTemperature > target_temperature[tmp_extruder])
@@ -1771,6 +1772,7 @@ void process_command(const char *strCmd, bool sendAck)
           if ((target_temperature[tmp_extruder] - newTemperature) > (target_temperature[tmp_extruder]/10))
           {
             temperature_state |= (EXTRUDER_STANDBY << tmp_extruder);
+            temperature_state &= ~(EXTRUDER_AUTOSTANDBY << tmp_extruder);
           }
         }
         else if (newTemperature > target_temperature[tmp_extruder])
@@ -3761,6 +3763,7 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
         // clear temperature flags
         temperature_state &= ~(EXTRUDER_PREHEAT << active_extruder);
         temperature_state &= ~(EXTRUDER_STANDBY << active_extruder);
+        temperature_state &= ~(EXTRUDER_AUTOSTANDBY << active_extruder);
 
         SERIAL_ECHO_START;
         SERIAL_ECHOPGM(MSG_ACTIVE_EXTRUDER);
@@ -3847,6 +3850,7 @@ bool changeExtruder(uint8_t nextExtruder, bool moveZ)
         // clear temperature flags
         temperature_state &= ~(EXTRUDER_PREHEAT << active_extruder);
         temperature_state &= ~(EXTRUDER_STANDBY << active_extruder);
+        temperature_state &= ~(EXTRUDER_AUTOSTANDBY << active_extruder);
 
 		SERIAL_ECHO_START;
         SERIAL_ECHOPGM(MSG_ACTIVE_EXTRUDER);

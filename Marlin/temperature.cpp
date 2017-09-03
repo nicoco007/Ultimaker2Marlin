@@ -535,12 +535,14 @@ void manage_heater()
         {
             target_temp = (target_temp > HEATER_TIMEOUT_MINTEMP) ? HEATER_TIMEOUT_MINTEMP : target_temp;
             target_temp += standby_temperature_diff[e];
+            temperature_state |= (EXTRUDER_AUTOSTANDBY << e);
         }
         else if ((extruder_lastused[e] + HEATER_TIMEOUT_3) < m)
         {
             target_temp = target_temp/2;
             target_temp -= target_temp % 10;
             target_temp += standby_temperature_diff[e];
+            temperature_state |= (EXTRUDER_AUTOSTANDBY << e);
         }
         else if ((extruder_lastused[e] + HEATER_TIMEOUT_2) < m)
         {
@@ -550,6 +552,10 @@ void manage_heater()
         else if ((extruder_lastused[e] + HEATER_TIMEOUT_1) < m)
         {
             target_temp -= target_temp/20;
+        }
+        else
+        {
+            temperature_state &= ~(EXTRUDER_AUTOSTANDBY << e);
         }
         target_temp = constrain(target_temp, 0, get_maxtemp(e));
     }

@@ -383,7 +383,7 @@ static const menu_t & get_print_menuoption(uint8_t nr, menu_t &opt)
         else if (nr == menu_index++)
         {
             // temp nozzle 1
-            if (temperature_state & EXTRUDER_STANDBY)
+            if ((temperature_state & EXTRUDER_STANDBY) || (temperature_state & EXTRUDER_AUTOSTANDBY))
             {
                 opt.setData(MENU_INPLACE_EDIT, lcd_print_tune_standby0_diff);
             }
@@ -396,7 +396,7 @@ static const menu_t & get_print_menuoption(uint8_t nr, menu_t &opt)
         else if (nr == menu_index++)
         {
             // temp nozzle 2
-            if (temperature_state & (EXTRUDER_STANDBY << 1))
+            if ((temperature_state & (EXTRUDER_STANDBY << 1)) || (temperature_state & (EXTRUDER_AUTOSTANDBY << 1)))
             {
                 opt.setData(MENU_INPLACE_EDIT, lcd_print_tune_standby1_diff);
             }
@@ -695,7 +695,7 @@ static void drawStatusNozzle(uint8_t e, uint8_t &flags)
         if (flags & MENU_ACTIVE)
         {
 #if EXTRUDERS > 1
-            if ((temperature_state & (EXTRUDER_STANDBY << e)) && (standby_temperature_diff[e]))
+            if (((temperature_state & (EXTRUDER_STANDBY << e)) || (temperature_state & (EXTRUDER_AUTOSTANDBY << e))) && (standby_temperature_diff[e]))
             {
                 int_to_string(standby_temperature_diff[e], c, PSTR(")"), PSTR("("), true);
                 lcd_lib_draw_string_right(5, c);

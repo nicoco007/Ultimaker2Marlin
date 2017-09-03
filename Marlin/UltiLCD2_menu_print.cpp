@@ -211,12 +211,11 @@ void doStartPrint()
         retract_recover_length[e] = 0.0f;
     }
 
+    // clear temperature flags
+    temperature_state = 0;
+
     for(int8_t e = EXTRUDERS-1; (e>=0) && (printing_state < PRINT_STATE_ABORT); --e)
     {
-        // clear temperature flags
-        temperature_state &= ~(EXTRUDER_PREHEAT << e);
-        temperature_state &= ~(EXTRUDER_STANDBY << e);
-
         if (!LCD_DETAIL_CACHE_MATERIAL(e))
         {
             // don't prime the extruder if it isn't used in the (Ulti)gcode
@@ -1184,7 +1183,7 @@ static void tune_item_details_callback(uint8_t nr)
     }
     else if (nr == 4)
     {
-        if (temperature_state & EXTRUDER_STANDBY)
+        if ((temperature_state & EXTRUDER_STANDBY) || (temperature_state & EXTRUDER_AUTOSTANDBY))
         {
           int_to_string(standby_temperature_diff[0], int_to_string(degTargetHotend(0), int_to_string(dsp_temperature[0], buffer, PSTR("C/")), PSTR("C")), PSTR(")"), PSTR(" ("), true);
         }
@@ -1195,7 +1194,7 @@ static void tune_item_details_callback(uint8_t nr)
     }
     else if (nr == 5)
     {
-        if (temperature_state & (EXTRUDER_STANDBY << 1))
+        if ((temperature_state & (EXTRUDER_STANDBY << 1)) || (temperature_state & (EXTRUDER_AUTOSTANDBY << 1)))
         {
           int_to_string(standby_temperature_diff[1], int_to_string(degTargetHotend(1), int_to_string(dsp_temperature[1], buffer, PSTR("C/")), PSTR("C")), PSTR(")"), PSTR(" ("), true);;
         }
