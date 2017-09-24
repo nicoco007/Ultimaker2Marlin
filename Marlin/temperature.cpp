@@ -51,9 +51,6 @@
 uint8_t temperature_state=0;
 uint16_t target_temperature[EXTRUDERS] = { 0 };
 int8_t target_temperature_diff[EXTRUDERS] = { 0 };
-#if EXTRUDERS > 1
-int8_t standby_temperature_diff[EXTRUDERS] = { 0 };
-#endif
 int current_temperature_raw[EXTRUDERS] = { 0 };
 float current_temperature[EXTRUDERS] = { 0.0 };
 #if TEMP_SENSOR_BED != 0
@@ -534,14 +531,12 @@ void manage_heater()
         if ((extruder_lastused[e] + HEATER_TIMEOUT_OFF) < m)
         {
             target_temp = (target_temp > HEATER_TIMEOUT_MINTEMP) ? HEATER_TIMEOUT_MINTEMP : target_temp;
-            target_temp += standby_temperature_diff[e];
             temperature_state |= (EXTRUDER_AUTOSTANDBY << e);
         }
         else if ((extruder_lastused[e] + HEATER_TIMEOUT_3) < m)
         {
             target_temp = target_temp/2;
             target_temp -= target_temp % 10;
-            target_temp += standby_temperature_diff[e];
             temperature_state |= (EXTRUDER_AUTOSTANDBY << e);
         }
         else if ((extruder_lastused[e] + HEATER_TIMEOUT_2) < m)
@@ -1140,9 +1135,6 @@ void disable_heater()
   {
     target_temperature[e]=0;
     target_temperature_diff[e]=0;
-#if EXTRUDERS > 1
-    standby_temperature_diff[e]=0;
-#endif
     soft_pwm[e]=0;
   }
    #if defined(HEATER_0_PIN) && HEATER_0_PIN > -1

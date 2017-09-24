@@ -42,9 +42,6 @@ extern uint8_t temperature_state;
 // do not use these routines and variables outside of temperature.cpp
 extern uint16_t target_temperature[EXTRUDERS];
 extern int8_t target_temperature_diff[EXTRUDERS];
-#if EXTRUDERS > 1
-  extern int8_t standby_temperature_diff[EXTRUDERS];
-#endif
 extern float current_temperature[EXTRUDERS];
 extern unsigned long extruder_lastused[EXTRUDERS];
 #if TEMP_SENSOR_BED != 0
@@ -102,11 +99,7 @@ FORCE_INLINE bool isCoolingBed() {
 #endif // TEMP_SENSOR_BED
 
 FORCE_INLINE int degTargetHotend(uint8_t extruder) {
-#if EXTRUDERS > 1
-  return target_temperature[extruder] + ((temperature_state & (EXTRUDER_STANDBY << extruder)) ? standby_temperature_diff[extruder] : target_temperature_diff[extruder]);
-#else
   return target_temperature[extruder]+target_temperature_diff[extruder];
-#endif
 }
 
 FORCE_INLINE void setTargetHotend(const uint16_t &celsius, uint8_t extruder) {

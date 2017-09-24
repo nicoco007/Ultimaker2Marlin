@@ -2522,7 +2522,6 @@ void process_command(const char *strCmd, bool sendAck)
 #if EXTRUDERS > 1
             SET_TOOLCHANGE_RETRACT(e);
             toolchange_recover_length[e] = toolchange_retractlen[e];
-            standby_temperature_diff[e]=0;
 #endif
             target_temperature_diff[e]=0;
         }
