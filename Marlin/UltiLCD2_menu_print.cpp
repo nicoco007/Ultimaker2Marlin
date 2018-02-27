@@ -113,9 +113,21 @@ void abortPrint(bool bQuickstop)
         }
 #else
         // perform the end-of-print retraction at the standard retract speed
-        plan_set_e_position(end_of_print_retraction / volume_to_filament_length[active_extruder], active_extruder, true);
+        float retractlen = end_of_print_retraction / volume_to_filament_length[active_extruder];
+        if (EXTRUDER_RETRACTED(active_extruder))
+        {
+            retractlen -= retract_recover_length[active_extruder];
+            if (retractlen < 0)
+            {
+                retractlen = 0.0f;
+            }
+        }
+
+        plan_set_e_position(retractlen, active_extruder, true);
         current_position[E_AXIS] = 0.0f;
         plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], retract_feedrate/60, active_extruder);
+        CLEAR_EXTRUDER_RETRACT(active_extruder);
+        retract_recover_length[active_extruder] = 0.0f;
 #endif
     }
 
