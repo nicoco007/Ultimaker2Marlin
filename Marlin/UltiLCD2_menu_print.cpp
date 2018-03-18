@@ -176,7 +176,7 @@ void abortPrint(bool bQuickstop)
 
 static void checkPrintFinished()
 {
-    if ((printing_state != PRINT_STATE_RECOVER) && (printing_state != PRINT_STATE_START) && !card.sdprinting() && !commands_queued())
+    if ((printing_state != PRINT_STATE_RECOVER) && (printing_state != PRINT_STATE_START) && !card.sdprinting() && !commands_queued() && !blocks_queued())
     {
         // normal end of gcode file
         recover_height = 0.0f;
