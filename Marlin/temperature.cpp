@@ -217,7 +217,7 @@ void PID_autotune(float temp, int extruder, int ncycles, autotuneFunc_t pCallbac
 
   SERIAL_PROTOCOLLNPGM("PID Autotune start");
 
-  disable_heater(); // switch off all heaters.
+  disable_all_heaters(); // switch off all heaters.
 
   if (extruder<0)
   {
@@ -645,7 +645,7 @@ void manage_heater()
     #endif
     #ifdef TEMP_SENSOR_1_AS_REDUNDANT
       if(fabs(current_temperature[0] - redundant_temperature) > MAX_REDUNDANT_TEMP_SENSOR_DIFF) {
-        disable_heater();
+        disable_all_heaters();
         if(IsStopped() == false) {
           SERIAL_ERROR_START;
           SERIAL_ERRORLNPGM("Extruder switched off. Temperature difference between temp sensors is too high !");
@@ -671,7 +671,7 @@ void manage_heater()
         {
             //Did not heat up MAX_HEATING_TEMPERATURE_INCREASE in MAX_HEATING_CHECK_MILLIS while the PID was at the maximum.
             //Potential problems could be that the heater is not working, or the temperature sensor is not measuring what the heater is heating.
-            disable_heater();
+            disable_all_heaters();
             Stop(STOP_REASON_HEATER_ERROR);
         }
     }else{
@@ -920,8 +920,9 @@ void tp_init()
   MCUCR=(1<<JTD);
 #endif
 
-  // Finish init of mult extruder arrays
-  for(int e = 0; e < EXTRUDERS; e++) {
+  // Finish init of multi extruder arrays
+  for(uint8_t e = 0; e < EXTRUDERS; ++e)
+  {
     // populate with the first value
     maxttemp[e] = maxttemp[0];
 #ifdef PIDTEMP
@@ -991,6 +992,7 @@ void tp_init()
 
   // Set analog inputs
   ADCSRA = 1<<ADEN | 1<<ADSC | 1<<ADIF | 0x07;
+  // Disable the digital inputs that are shared with the ADC. This will reduce current consumption.
   DIDR0 = 0;
   #ifdef DIDR2
     DIDR2 = 0;
@@ -1104,7 +1106,8 @@ void tp_init()
   */
 #endif //BED_MINTEMP
 #ifdef BED_MAXTEMP
-  while(analog2tempBed(bed_maxttemp_raw) > BED_MAXTEMP) {
+  while(analog2tempBed(bed_maxttemp_raw) > BED_MAXTEMP)
+  {
 #if HEATER_BED_RAW_LO_TEMP < HEATER_BED_RAW_HI_TEMP
     bed_maxttemp_raw -= OVERSAMPLENR;
 #else
@@ -1129,7 +1132,7 @@ void setWatch()
 }
 
 
-void disable_heater()
+void disable_all_heaters()
 {
   for (uint8_t e=0; e<EXTRUDERS; ++e)
   {
@@ -1163,9 +1166,11 @@ void disable_heater()
   #endif
 }
 
-void max_temp_error(uint8_t e) {
-  disable_heater();
-  if(IsStopped() == false) {
+void max_temp_error(uint8_t e)
+{
+  disable_all_heaters();
+  if(IsStopped() == false)
+  {
     SERIAL_ERROR_START;
     SERIAL_ERRORLN((int)e);
     SERIAL_ERRORLNPGM(": Extruder switched off. MAXTEMP triggered !");
@@ -1176,9 +1181,11 @@ void max_temp_error(uint8_t e) {
   #endif
 }
 
-void min_temp_error(uint8_t e) {
-  disable_heater();
-  if(IsStopped() == false) {
+void min_temp_error(uint8_t e)
+{
+  disable_all_heaters();
+  if(IsStopped() == false)
+  {
     SERIAL_ERROR_START;
     SERIAL_ERRORLN((int)e);
     SERIAL_ERRORLNPGM(": Extruder switched off. MINTEMP triggered !");
@@ -1189,11 +1196,13 @@ void min_temp_error(uint8_t e) {
   #endif
 }
 
-void bed_max_temp_error(void) {
+void bed_max_temp_error(void)
+{
 #if HEATER_BED_PIN > -1
   WRITE(HEATER_BED_PIN, 0);
 #endif
-  if(IsStopped() == false) {
+  if(IsStopped() == false)
+  {
     SERIAL_ERROR_START;
     SERIAL_ERRORLNPGM("Temperature heated bed switched off. MAXTEMP triggered !!");
     LCD_ALERTMESSAGEPGM("Err: MAXTEMP BED");
