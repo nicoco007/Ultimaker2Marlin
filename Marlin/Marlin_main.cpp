@@ -1552,14 +1552,12 @@ void process_command(const char *strCmd, bool sendAck)
         if (printing_state == PRINT_STATE_RECOVER)
           break;
 
-//        serial_action_P(PSTR("pause"));
         card.pauseSDPrint();
         while(card.pause())
         {
           idle();
         }
         plan_set_e_position(current_position[E_AXIS], active_extruder, true);
-//        serial_action_P(PSTR("resume"));
     }
     break;
 #endif
@@ -2672,7 +2670,6 @@ void process_command(const char *strCmd, bool sendAck)
         if (printing_state == PRINT_STATE_RECOVER)
           break;
 
-//        serial_action_P(PSTR("pause"));
         card.pauseSDPrint();
 
         st_synchronize();
@@ -2731,9 +2728,8 @@ void process_command(const char *strCmd, bool sendAck)
     #if EXTRUDERS > 1
         last_extruder = 0xFF;
     #endif
-        // serial_action_P(PSTR("pause"));
-        card.pauseSDPrint();
-        while(card.pause()){
+        while(card.pause())
+        {
           idle();
           if (printing_state == PRINT_STATE_ABORT)
           {
@@ -2770,7 +2766,6 @@ void process_command(const char *strCmd, bool sendAck)
           memcpy(current_position, target, sizeof(current_position));
           memcpy(destination, current_position, sizeof(destination));
         }
-        serial_action_P(PSTR("resume"));
     }
     break;
 

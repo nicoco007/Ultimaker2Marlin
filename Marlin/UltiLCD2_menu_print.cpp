@@ -1418,6 +1418,7 @@ void lcd_print_pause()
     if (!card.pause())
     {
         card.pauseSDPrint();
+        serial_action_P(PSTR("pause"));
 
         // move z up according to the current height - but minimum to z=70mm (above the gantry height)
         uint16_t zdiff = 0;
@@ -1461,12 +1462,19 @@ void lcd_print_abort()
     menu.add_menu(menu_t(lcd_menu_print_abort, MAIN_MENU_ITEM_POS(1)));
 }
 
+static void doResume()
+{
+    primed |= (EXTRUDER_PRIMED << active_extruder);
+    primed |= ENDOFPRINT_RETRACT;
+    card.resumePrinting();
+    serial_action_P(PSTR("resume"));
+    menu.return_to_previous();
+}
+
 static void lcd_print_resume()
 {
     menu.return_to_previous();
-    card.resumePrinting();
-    primed |= (EXTRUDER_PRIMED << active_extruder);
-    primed |= ENDOFPRINT_RETRACT;
+    menu.add_menu(menu_t(doResume));
     for (uint8_t e=0; e<EXTRUDERS; ++e)
     {
         check_preheat(e);
