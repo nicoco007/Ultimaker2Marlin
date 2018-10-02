@@ -12,7 +12,7 @@
 // build by the user have been successfully uploaded into firmware.
 #define STRING_VERSION_CONFIG_H __DATE__ " " __TIME__ // build date and time
 #ifndef STRING_CONFIG_H_AUTHOR
-#define STRING_CONFIG_H_AUTHOR "Tinker_17.09-DEV" // Who made the changes.
+#define STRING_CONFIG_H_AUTHOR "Tinker_18.10-DEV" // Who made the changes.
 #endif
 
 // SERIAL_PORT selects which serial port should be used for communication with the host.
@@ -218,10 +218,17 @@
     //#define  DEFAULT_Ki 1.08
     //#define  DEFAULT_Kd 114
 
-// Ultimaker2+
+#ifdef UM2PLUS
+// Ultimaker2 JarJar
     #define  DEFAULT_Kp 12.0
     #define  DEFAULT_Ki 0.75
     #define  DEFAULT_Kd 55.0
+#else
+// Ultimaker2
+    #define  DEFAULT_Kp 10.0
+    #define  DEFAULT_Ki 2.5
+    #define  DEFAULT_Kd 100.0
+#endif // UM2PLUS
 
 // Makergear
 //    #define  DEFAULT_Kp 7.0
@@ -340,10 +347,14 @@ const bool Z_ENDSTOPS_INVERTING = true; // set to true to invert the logic of th
 #define DISABLE_E false // For all extruders
 
 #ifdef UM2PLUS
-#define DEFAULT_AXIS_DIR 0xFD
+  #define DEFAULT_AXIS_DIR 0xFD
 #else
-#define DEFAULT_AXIS_DIR 0x15
-#endif
+  #ifdef UM2GO
+    #define DEFAULT_AXIS_DIR 0x1D
+  #else
+    #define DEFAULT_AXIS_DIR 0x15
+  #endif // UM2GO
+#endif // UM2PLUS
 
 #define INVERT_X_DIR  (axis_direction &  1)
 #define INVERT_Y_DIR  (axis_direction &  2)
@@ -360,25 +371,48 @@ const bool Z_ENDSTOPS_INVERTING = true; // set to true to invert the logic of th
 
 #define MIN_SOFTWARE_ENDSTOPS // If defined, axis won't move to coordinates less than MIN_POS.
 #define MAX_SOFTWARE_ENDSTOPS // If defined, axis won't move to coordinates greater than MAX_POS
+
 // Travel limits after homing
-#ifndef X_MAX_POS
-  #define X_MAX_POS 230
-#endif
+
 #ifndef X_MIN_POS
-#define X_MIN_POS 0
-#endif
-#ifndef Y_MAX_POS
-#define Y_MAX_POS 225
-#endif
+  #ifdef UM2GO
+    #define X_MIN_POS -14
+  #else
+    #define X_MIN_POS 0
+  #endif // UM2GO
+#endif // X_MIN_POS
+
+#ifndef X_MAX_POS
+  #ifdef UM2GO
+    #define X_MAX_POS 122
+  #else
+    #define X_MAX_POS 230
+  #endif // UM2GO
+#endif // X_MAX_POS
+
 #ifndef Y_MIN_POS
-#define Y_MIN_POS 0
-#endif
-#ifndef Z_MAX_POS
-#define Z_MAX_POS 225
-#endif
+  #define Y_MIN_POS 0
+#endif // Y_MIN_POS
+
+#ifndef Y_MAX_POS
+  #ifdef UM2GO
+    #define Y_MAX_POS 124
+  #else
+    #define Y_MAX_POS 225
+  #endif // UM2GO
+#endif // Y_MAX_POS
+
 #ifndef Z_MIN_POS
   #define Z_MIN_POS 0
-#endif
+#endif // Z_MIN_POS
+
+#ifndef Z_MAX_POS
+  #ifdef UM2GO
+    #define Z_MAX_POS 130
+  #else
+    #define Z_MAX_POS 230
+  #endif // UM2GO
+#endif // Z_MAX_POS
 
 #define X_MAX_LENGTH (X_MAX_POS - X_MIN_POS)
 #define Y_MAX_LENGTH (Y_MAX_POS - Y_MIN_POS)
@@ -429,7 +463,13 @@ const bool Z_ENDSTOPS_INVERTING = true; // set to true to invert the logic of th
 #define DEFAULT_EJERK                 5.0    // (mm/sec)
 
 //Length of the bowden tube. Used for the material load/unload procedure.
-#define FILAMENT_BOWDEN_LENGTH        705
+#ifndef FILAMENT_BOWDEN_LENGTH
+  #ifdef UM2GO
+    #define FILAMENT_BOWDEN_LENGTH 550
+  #else
+    #define FILAMENT_BOWDEN_LENGTH 705
+  #endif // UM2GO
+#endif // FILAMENT_BOWDEN_LENGTH
 
 //===========================================================================
 //=============================Additional Features===========================

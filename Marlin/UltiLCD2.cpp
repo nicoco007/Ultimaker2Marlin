@@ -20,13 +20,12 @@
 // K1 defined in Configuration.h in the PID settings
 #define K2 (1.0f-K1)
 
-#define LCD_CHARS_PER_LINE 20
 
 uint8_t led_brightness_level = 100;
 uint8_t led_mode = LED_MODE_ALWAYS_ON;
 float dsp_temperature[EXTRUDERS] = { 20.0 };
 float dsp_temperature_bed = 20.0;
-char lcd_status_message[LCD_CHARS_PER_LINE+1] = {0};
+char lcd_status_message[LINE_ENTRY_TEXT_LENGTH+1] = {0};
 
 //#define SPECIAL_STARTUP
 #define MILLIS_GLOW  (1000L / 30L)
@@ -275,7 +274,7 @@ void lcd_setstatus(const char* message)
 {
     if (message)
     {
-        strncpy(lcd_status_message, message, LCD_CHARS_PER_LINE);
+        strlcpy(lcd_status_message, message, LINE_ENTRY_TEXT_LENGTH);
     }
     else
     {
