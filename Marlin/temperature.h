@@ -18,8 +18,8 @@
   along with Grbl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef temperature_h
-#define temperature_h
+#ifndef TEMPERATURE_H
+#define TEMPERATURE_H
 
 #include "Marlin.h"
 #include "planner.h"
@@ -87,14 +87,14 @@ FORCE_INLINE bool isCoolingBed() {
   return target_temperature_bed < current_temperature_bed;
 }
 
-#ifdef BED_MAXTEMP
+#if defined(BED_MAXTEMP)
 void setTargetBed(const uint16_t &celsius);
 #else
 FORCE_INLINE void setTargetBed(const float &celsius)
 {
   target_temperature_bed = celsius;
 }
-#endif
+#endif // BED_MAXTEMP
 
 #endif // TEMP_SENSOR_BED
 
@@ -150,7 +150,7 @@ FORCE_INLINE bool isCoolingHotend(uint8_t extruder) {
 typedef bool (*autotuneFunc_t) (uint8_t state, uint8_t cycle, float kp, float ki, float kd);
 
 int getHeaterPower(int heater);
-void disable_heater();
+void disable_all_heaters();
 void setWatch();
 void updatePID();
 

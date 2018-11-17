@@ -255,7 +255,7 @@
 
 // extruder advance constant (s2/mm3)
 //
-// advance (steps) = STEPS_PER_CUBIC_MM_E * EXTUDER_ADVANCE_K * cubic mm per second ^ 2
+// advance (steps) = STEPS_PER_CUBIC_MM_E * EXTRUDER_ADVANCE_K * cubic mm per second ^ 2
 //
 // hooke's law says:		force = k * distance
 // bernoulli's priniciple says:	v ^ 2 / 2 + g . h + pressure / density = constant
@@ -394,10 +394,10 @@ const int8_t dropsegments=5; //everything with less than this number of steps wi
   #undef HEATER_2_MINTEMP
   #undef HEATER_2_MAXTEMP
 #endif
-#if TEMP_SENSOR_BED == 0
-  #undef BED_MINTEMP
-  #undef BED_MAXTEMP
-#endif
+//#if TEMP_SENSOR_BED == 0
+//  #undef BED_MINTEMP
+//  #undef BED_MAXTEMP
+//#endif
 
 
 #endif //__CONFIGURATION_ADV_H
