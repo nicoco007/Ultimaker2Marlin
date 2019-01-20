@@ -190,19 +190,21 @@ void lcd_menu_startup()
     LED_GLOW
     lcd_lib_clear();
 
-    lcd_lib_draw_gfx(0, 22, ultimakerTextGfx);
-    lcd_lib_draw_string_centerP(BOTTOM_MENU_YPOS, PSTR(STRING_CONFIG_H_AUTHOR));
+    lcd_lib_draw_gfx(0, 10, ultimakerTextGfx);
+    lcd_lib_draw_string_centerP(BOTTOM_MENU_YPOS - 16, PSTR("Atelier"));
+    lcd_lib_draw_string_centerP(BOTTOM_MENU_YPOS - 8, PSTR("Richard L'Abbe"));
+    lcd_lib_draw_string_centerP(BOTTOM_MENU_YPOS, PSTR("Makerspace"));
 
     if ((led_glow > 0) && (led_glow < 84))
     {
         for(uint8_t n=0;n<10;n++)
         {
             if (led_glow*2 >= n + 20)
-                lcd_lib_clear(0, 22+n*2, led_glow*2-n-20, 23+n*2);
+                lcd_lib_clear(0, 10+n*2, led_glow*2-n-8, 11+n*2);
             if (led_glow*2 >= n)
-                lcd_lib_clear(led_glow*2 - n, 22+n*2, 127, 23+n*2);
+                lcd_lib_clear(led_glow*2 - n, 10+n*2, 127, 11+n*2);
             else
-                lcd_lib_clear(0, 22+n*2, 127, 23+n*2);
+                lcd_lib_clear(0, 10+n*2, 127, 11+n*2);
         }
     }
     lcd_lib_update_screen();
