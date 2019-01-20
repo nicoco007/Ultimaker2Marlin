@@ -542,9 +542,9 @@ static void lcd_menu_first_run_print_card_detect()
     {
         lcd_info_screen(NULL, lcd_return_to_main_menu);
         DRAW_PROGRESS_NR(21);
-        lcd_lib_draw_string_centerP(20, PSTR("Please insert SD-card"));
-        lcd_lib_draw_string_centerP(30, PSTR("that came with"));
-        lcd_lib_draw_string_centerP(40, PSTR("your Ultimaker2..."));
+        lcd_lib_draw_string_centerP(20, PSTR("Please insert the SD"));
+        lcd_lib_draw_string_centerP(30, PSTR("card that came with"));
+        lcd_lib_draw_string_centerP(40, PSTR("your Ultimaker..."));
         lcd_lib_update_screen();
         card.release();
         return;
@@ -564,7 +564,7 @@ static void lcd_menu_first_run_print_card_detect()
     lcd_info_screen(lcd_menu_print_select, NULL, PSTR("LET'S PRINT"));
     DRAW_PROGRESS_NR(21);
     lcd_lib_draw_string_centerP(10, PSTR("Select a print file"));
-    lcd_lib_draw_string_centerP(20, PSTR("on the SD-card"));
+    lcd_lib_draw_string_centerP(20, PSTR("on the SD card"));
     lcd_lib_draw_string_centerP(30, PSTR("and press the button"));
     lcd_lib_draw_string_centerP(40, PSTR("to print it!"));
     lcd_lib_update_screen();

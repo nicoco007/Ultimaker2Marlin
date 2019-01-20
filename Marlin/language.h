@@ -126,8 +126,8 @@
 	#define MSG_CONTROL_RETRACT_RECOVERF "UnRet  F"
 	#define MSG_AUTORETRACT "AutoRetr."
 	#define MSG_FILAMENTCHANGE "Change filament"
-	#define MSG_INIT_SDCARD "Init. SD-Card"
-	#define MSG_CNG_SDCARD "Change SD-Card"
+	#define MSG_INIT_SDCARD "Init. SD Card"
+	#define MSG_CNG_SDCARD "Change SD Card"
 
 // Serial Console Messages
 

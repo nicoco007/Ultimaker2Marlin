@@ -478,7 +478,7 @@ void lcd_menu_print_select()
         LED_GLOW
         lcd_lib_encoder_pos = MAIN_MENU_ITEM_POS(0);
         lcd_info_screen(NULL, lcd_change_to_previous_menu);
-        lcd_lib_draw_string_centerP(15, PSTR("No SD-CARD!"));
+        lcd_lib_draw_string_centerP(15, PSTR("No SD card!"));
         lcd_lib_draw_string_centerP(25, PSTR("Please insert card"));
         lcd_lib_update_screen();
         card.release();
@@ -836,7 +836,7 @@ static void lcd_menu_print_error_sd()
     lcd_info_screen(NULL, lcd_return_to_main_menu, PSTR("RETURN TO MAIN"));
 
     lcd_lib_draw_string_centerP(10, PSTR("Error while"));
-    lcd_lib_draw_string_centerP(20, PSTR("reading SD-card!"));
+    lcd_lib_draw_string_centerP(20, PSTR("reading SD card!"));
     lcd_lib_draw_string_centerP(30, PSTR("Go to:"));
     lcd_lib_draw_string_centerP(40, PSTR("ultimaker.com/ER08"));
     /*
