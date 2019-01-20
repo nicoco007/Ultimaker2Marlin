@@ -179,7 +179,7 @@ void doStartPrint()
         if (!primed)
         {
             // move to priming height
-            current_position[Z_AXIS] = priming_z;
+            current_position[Z_AXIS] = 2;
             plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], homing_feedrate[Z_AXIS]/60, e);
             // note that we have primed, so that we know to de-prime at the end
             primed = true;
@@ -188,9 +188,18 @@ void doStartPrint()
         plan_set_e_position((- end_of_print_retraction) / volume_to_filament_length[e], e, true);
         plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], END_OF_PRINT_RECOVERY_SPEED, e);
 
-        // perform additional priming
-        plan_set_e_position(-PRIMING_MM3, e, true);
+        // make blob
+        plan_set_e_position(-80, e, true);
         plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], (PRIMING_MM3_PER_SEC * volume_to_filament_length[e]), e);
+
+        // exit blob
+        current_position[Z_AXIS] = 5;
+        plan_set_e_position(-2, e, true);
+        plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], (PRIMING_MM3_PER_SEC * volume_to_filament_length[e]), e);
+
+        // retract
+        current_position[E_AXIS] = -material[e].retraction_length[0];
+        plan_buffer_line(current_position[X_AXIS], current_position[Y_AXIS], current_position[Z_AXIS], current_position[E_AXIS], material[e].retraction_speed[0], e);        
 
 #if EXTRUDERS > 1
         // for extruders other than the first one, perform end of print retraction
